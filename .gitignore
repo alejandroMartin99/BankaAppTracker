@@ -32,8 +32,8 @@ Frontend/banka-app/yarn-error.log
 .history/
 
 # Extractos bancarios (datos sensibles - descomenta si no quieres subirlos)
-# RAW/
-# P_*.xlsx
+RAW/
+P_*.xlsx
 
 # Archivos temporales Excel
 ~$*
