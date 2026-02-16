@@ -1,0 +1,210 @@
+<div class="gastos-page">
+  <!-- Date filter - arriba del todo -->
+  <section class="filter-section">
+    <div class="filter-chips">
+      @for (p of presets; track p.id) {
+        <button
+          type="button"
+          class="chip"
+          [class.active]="activePreset === p.id"
+          (click)="applyPreset(p.id)"
+        >
+          {{ p.label }}
+        </button>
+      }
+    </div>
+    @if (showCalendar) {
+      <div class="calendar-overlay" (click)="closeCalendar()"></div>
+      <div class="calendar-popover">
+        <h3 class="calendar-title">Seleccionar rango</h3>
+        <div class="calendar-fields">
+          <label>
+            <span>Desde</span>
+            <input type="date" [(ngModel)]="customFrom" />
+          </label>
+          <label>
+            <span>Hasta</span>
+            <input type="date" [(ngModel)]="customTo" />
+          </label>
+        </div>
+        <div class="calendar-actions">
+          <button type="button" class="btn-cancel" (click)="closeCalendar()">Cancelar</button>
+          <button type="button" class="btn-apply" (click)="applyCustomRange()">Aplicar</button>
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- Balance cards -->
+  <section class="balance-section">
+    <h2 class="section-title">Saldos</h2>
+    @if (loadingBalances) {
+      <div class="balance-skeleton">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    } @else if (balanceEntries.length > 0) {
+      <div class="balance-cards">
+        @for (entry of balanceEntries; track entry[0]) {
+          <div class="balance-card balance-card-grid">
+            <span class="balance-header">{{ getAccountLabel(entry[0]) }}</span>
+            <span class="balance-label">Gastos</span>
+            <span class="balance-label">Ingresos</span>
+            <span class="balance-label">Saldo</span>
+            <span class="balance-amount">{{ entry[1] | number:'1.2-2':'es' }} €</span>
+            <span class="balance-stat-value balance-gastos">{{ gastosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
+            <span class="balance-stat-value balance-ingresos">{{ ingresosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
+            <span class="balance-stat-value">{{ balanceByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="empty-balances">Sin datos de saldos. Sube extractos para ver tus cuentas.</p>
+    }
+  </section>
+
+  <!-- Transactions list -->
+  <section class="transactions-section">
+    <h2 class="section-title">
+      Movimientos
+      @if (!loading && !error && displayedTransactions.length > 0) {
+        <span class="section-count">{{ displayedCount }}</span>
+      }
+    </h2>
+
+    @if (loading) {
+      <div class="loading-list">
+        @for (i of [1,2,3,4,5]; track i) {
+          <div class="tx-skeleton">
+            <div class="tx-skel-icon"></div>
+            <div class="tx-skel-content">
+              <div class="tx-skel-line"></div>
+              <div class="tx-skel-sub"></div>
+            </div>
+            <div class="tx-skel-amount"></div>
+          </div>
+        }
+      </div>
+    }
+
+    @if (error) {
+      <div class="error-card">
+        <p>{{ error }}</p>
+        <button type="button" class="btn-retry" (click)="retry()">Reintentar</button>
+      </div>
+    }
+
+    @if (!loading && !error && displayedTransactions.length > 0) {
+      <div class="tx-list">
+        @for (group of transactionsByDate; track group.date) {
+          <div class="tx-day-block">
+            <div class="tx-day-header">{{ group.dateLabel }}</div>
+            @for (tx of group.transactions; track tx.id || $index) {
+              <div class="tx-row">
+                <div class="tx-icon" [style.background-color]="(getIconInfo(tx).color || '#f3f4f6') + '40'" [style.color]="getIconInfo(tx).color">
+                  <img [src]="getIconInfo(tx).url" alt="" class="tx-icon-img tx-logo" loading="lazy" (error)="onIconError($event)" />
+                </div>
+                <div class="tx-content">
+                  <div class="tx-main">
+                    <div class="tx-titles">
+                      <span class="tx-line1">
+                        @if (tx.cuenta) {
+                          <span class="tx-cuenta-badge" [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'" [class.tx-cuenta-personal]="tx.cuenta === 'Personal'" [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'">
+                            {{ getAccountLabelShort(tx.cuenta) }}
+                          </span>
+                        }
+                        @if (tx.subcategoria) {
+                          <span class="tx-subcat">{{ tx.subcategoria }}</span>
+                        }
+                        @if (!tx.cuenta && !tx.subcategoria) {
+                          <span class="tx-subcat">{{ tx.categoria || 'Sin categoría' }}</span>
+                        }
+                      </span>
+                      @if (tx.descripcion) {
+                        <span class="tx-desc">{{ tx.descripcion }}</span>
+                      }
+                    </div>
+                    <div class="tx-right">
+                      <span class="tx-amount" [class.tx-ingreso]="tx.importe > 0">{{ tx.importe < 0 ? '' : '+' }}{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                      @if (tx.saldo != null) {
+                        <span class="tx-saldo">{{ tx.saldo | number:'1.2-2':'es' }} €</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (totalCount > pageSize) {
+        <div class="pagination">
+          <button type="button" class="btn-pag" (click)="previousPage()" [disabled]="currentPage === 1">
+            Anterior
+          </button>
+          <span class="pag-info">{{ currentPage }} / {{ totalPages }}</span>
+          <button type="button" class="btn-pag" (click)="nextPage()" [disabled]="transactions.length < pageSize">
+            Siguiente
+          </button>
+        </div>
+      }
+    }
+
+    @if (!loading && !error && displayedTransactions.length === 0 && internalTransfers.length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">📋</span>
+        <p>No hay movimientos</p>
+        <p class="empty-hint">Sube un extracto desde el backend</p>
+      </div>
+    }
+
+    <!-- Transferencias internas (entre cuentas propias, no afectan balances) -->
+    @if (!loading && !error && internalTransfers.length > 0) {
+      <div class="internal-transfers-section">
+        <button type="button" class="section-toggle" (click)="showInternalTransfers = !showInternalTransfers">
+          <span class="section-title">Transferencias internas</span>
+          <span class="section-count">{{ internalTransfers.length }}</span>
+          <span class="toggle-icon">{{ showInternalTransfers ? '▼' : '▶' }}</span>
+        </button>
+        @if (showInternalTransfers) {
+          <div class="tx-list tx-list-internal">
+            @for (group of internalTransfersByDate; track group.date) {
+              <div class="tx-day-block">
+                <div class="tx-day-header">{{ group.dateLabel }}</div>
+                @for (tx of group.transactions; track tx.id || $index) {
+                  <div class="tx-row tx-row-internal">
+                    <div class="tx-icon" [style.background-color]="'#6366f140'" [style.color]="'#6366f1'">
+                      <span class="tx-icon-arrow">⇄</span>
+                    </div>
+                    <div class="tx-content">
+                      <div class="tx-main">
+                        <div class="tx-titles">
+                          <span class="tx-line1">
+                            @if (tx.cuenta) {
+                              <span class="tx-cuenta-badge" [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'" [class.tx-cuenta-personal]="tx.cuenta === 'Personal'" [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'">
+                                {{ getAccountLabelShort(tx.cuenta) }}
+                              </span>
+                            }
+                            <span class="tx-subcat">{{ tx.subcategoria || tx.descripcion || 'Transferencia' }}</span>
+                          </span>
+                        </div>
+                        <div class="tx-right">
+                          <span class="tx-amount" [class.tx-ingreso]="tx.importe > 0">{{ tx.importe < 0 ? '' : '+' }}{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                          @if (tx.saldo != null) {
+                            <span class="tx-saldo">{{ tx.saldo | number:'1.2-2':'es' }} €</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

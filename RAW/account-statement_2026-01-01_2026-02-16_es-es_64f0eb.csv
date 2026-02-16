@@ -1,0 +1,79 @@
+Tipo,Producto,Fecha de inicio,Fecha de finalización,Descripción,Importe,Comisión,Divisa,State,Saldo
+Pago con tarjeta,Actual,2025-12-28 12:23:17,2026-01-01 09:24:11,VIA-T,-12.55,0.00,EUR,COMPLETADO,124.50
+Recargas,Actual,2026-01-02 10:20:51,2026-01-02 10:20:53,Una recarga de Apple Pay con *8082,100.00,0.00,EUR,COMPLETADO,224.50
+Cambio,Actual,2026-01-02 11:40:42,2026-01-02 11:40:42,Transfer to Revolut Digital Assets Europe Ltd,-0.12,0.00,EUR,COMPLETADO,224.38
+Pago con tarjeta,Actual,2026-01-02 11:40:41,2026-01-03 09:38:57,Amazon,-147.97,0.00,EUR,COMPLETADO,76.41
+Cambio,Actual,2026-01-03 21:34:54,2026-01-03 21:34:54,Transfer to Revolut Digital Assets Europe Ltd,-3.44,0.00,EUR,COMPLETADO,72.97
+Cambio,Actual,2026-01-03 21:43:10,2026-01-03 21:43:10,Transfer to Revolut Digital Assets Europe Ltd,-1.64,0.00,EUR,COMPLETADO,71.33
+Cambio,Actual,2026-01-04 06:13:57,2026-01-04 06:13:57,Transfer to Revolut Digital Assets Europe Ltd,-1.60,0.00,EUR,COMPLETADO,69.73
+Reembolso de tarjeta,Actual,2026-01-02 19:35:35,2026-01-04 09:53:28,Singularu,19.99,0.00,EUR,COMPLETADO,89.72
+Pago con tarjeta,Actual,2026-01-04 06:13:56,2026-01-04 14:45:28,EasyPark,-0.60,0.00,EUR,COMPLETADO,89.12
+Pago con tarjeta,Actual,2026-01-03 21:34:54,2026-01-04 15:52:28,Cursor,-17.14,0.17,EUR,COMPLETADO,71.81
+Cambio,Actual,2026-01-05 20:32:16,2026-01-05 20:32:16,Transfer to Revolut Digital Assets Europe Ltd,-4.00,0.00,EUR,COMPLETADO,67.81
+Cambio,Actual,2026-01-05 20:36:09,2026-01-05 20:36:09,Transfer to Revolut Digital Assets Europe Ltd,-4.00,0.00,EUR,COMPLETADO,63.81
+Pago con tarjeta,Actual,2026-01-03 21:43:10,2026-01-06 09:27:00,Amazon,-5.59,0.00,EUR,COMPLETADO,58.22
+Pago con tarjeta,Actual,2026-01-05 20:36:09,2026-01-06 14:59:07,Kinepolis,-9.00,0.00,EUR,COMPLETADO,49.22
+Pago con tarjeta,Actual,2026-01-05 20:32:15,2026-01-06 15:56:34,Vip District,-2.00,0.00,EUR,COMPLETADO,47.22
+Cambio,Actual,2026-01-06 20:26:45,2026-01-06 20:26:45,Transfer to Revolut Digital Assets Europe Ltd,-3.20,0.00,EUR,COMPLETADO,44.02
+Cambio,Actual,2026-01-06 20:39:22,2026-01-06 20:39:22,Transfer to Revolut Digital Assets Europe Ltd,-1.80,0.00,EUR,COMPLETADO,42.22
+Pago con tarjeta,Actual,2026-01-06 20:39:21,2026-01-07 03:38:42,Kinepolis,-3.55,0.00,EUR,COMPLETADO,38.67
+Pago con tarjeta,Actual,2026-01-06 20:26:45,2026-01-07 09:39:42,Burger King,-24.20,0.00,EUR,COMPLETADO,14.47
+Recargas,Actual,2026-01-07 13:39:09,2026-01-07 13:39:11,Una recarga de Apple Pay con *8082,300.00,0.00,EUR,COMPLETADO,314.47
+Pago con tarjeta,Actual,2026-01-07 13:41:31,,Jysk Dbl Iberia S.l.u.,-165.00,0.00,EUR,REVERTED,
+Cambio,Actual,2026-01-07 13:41:31,2026-01-07 13:41:31,Transfer to Revolut Digital Assets Europe Ltd,-4.00,0.00,EUR,COMPLETADO,310.47
+Cambio,Actual,2026-01-07 15:48:46,2026-01-07 15:48:46,Transfer to Revolut Digital Assets Europe Ltd,-0.04,0.00,EUR,COMPLETADO,310.43
+Cambio,Actual,2026-01-07 17:56:24,2026-01-07 17:56:24,Transfer to Revolut Digital Assets Europe Ltd,-0.16,0.00,EUR,COMPLETADO,310.27
+Cambio,Actual,2026-01-07 19:25:38,2026-01-07 19:25:38,Transfer to Revolut Digital Assets Europe Ltd,-1.92,0.00,EUR,COMPLETADO,308.35
+Cambio,Actual,2026-01-07 20:22:27,2026-01-07 20:22:27,Transfer to Revolut Digital Assets Europe Ltd,-0.16,0.00,EUR,COMPLETADO,308.19
+Pago con tarjeta,Actual,2026-01-07 15:48:45,2026-01-08 09:32:54,Amazon,-11.99,0.00,EUR,COMPLETADO,296.20
+Pago con tarjeta,Actual,2026-01-07 20:22:26,2026-01-08 09:52:53,IKEA,-42.96,0.00,EUR,COMPLETADO,253.24
+Pago con tarjeta,Actual,2026-01-07 19:25:37,2026-01-08 09:52:53,Leroy Merlin,-26.52,0.00,EUR,COMPLETADO,226.72
+Pago con tarjeta,Actual,2026-01-07 17:56:23,2026-01-08 10:15:09,Lidl,-10.96,0.00,EUR,COMPLETADO,215.76
+Cambio,Actual,2026-01-09 12:32:54,2026-01-09 12:32:54,Transfer to Revolut Digital Assets Europe Ltd,-0.08,0.00,EUR,COMPLETADO,215.68
+Cambio,Actual,2026-01-10 02:09:04,2026-01-10 02:09:04,Transfer to Revolut Digital Assets Europe Ltd,-0.36,0.00,EUR,COMPLETADO,215.32
+Pago con tarjeta,Actual,2026-01-10 02:09:04,2026-01-11 10:30:53,Uber,-17.91,0.00,EUR,COMPLETADO,197.41
+Cambio,Actual,2026-01-11 18:24:26,2026-01-11 18:24:26,Transfer to Revolut Digital Assets Europe Ltd,-0.40,0.00,EUR,COMPLETADO,197.01
+Cambio,Actual,2026-01-11 18:41:01,2026-01-11 18:41:01,Transfer to Revolut Digital Assets Europe Ltd,-0.40,0.00,EUR,COMPLETADO,196.61
+Cambio,Actual,2026-01-11 20:43:31,2026-01-11 20:43:31,Transfer to Revolut Digital Assets Europe Ltd,-3.60,0.00,EUR,COMPLETADO,193.01
+Pago con tarjeta,Actual,2026-01-11 18:41:00,2026-01-12 03:58:58,UNIQLO,-14.90,0.00,EUR,COMPLETADO,178.11
+Pago con tarjeta,Actual,2026-01-11 18:24:26,2026-01-12 03:59:00,UNIQLO,-34.90,0.00,EUR,COMPLETADO,143.21
+Pago con tarjeta,Actual,2026-01-11 20:43:30,2026-01-12 10:40:40,El Corte Inglés,-57.10,0.00,EUR,COMPLETADO,86.11
+Pago con tarjeta,Actual,2026-01-09 12:32:53,2026-01-12 11:05:41,Amazon,-36.98,0.00,EUR,COMPLETADO,49.13
+Cambio,Actual,2026-01-14 15:34:09,2026-01-14 15:34:09,Transfer to Revolut Digital Assets Europe Ltd,-0.48,0.00,EUR,COMPLETADO,48.65
+Pago con tarjeta,Actual,2026-01-14 15:34:09,2026-01-15 14:35:02,Cursor,-20.88,0.00,EUR,COMPLETADO,27.77
+Recargas,Actual,2026-01-15 21:01:21,2026-01-15 21:01:23,Una recarga de Apple Pay con *8082,100.00,0.00,EUR,COMPLETADO,127.77
+Cambio,Actual,2026-01-15 21:03:10,2026-01-15 21:03:10,Transfer to Revolut Digital Assets Europe Ltd,-2.00,0.00,EUR,COMPLETADO,125.77
+Pago con tarjeta,Actual,2026-01-15 21:03:10,2026-01-16 12:29:50,DeEventoss,-15.50,0.00,EUR,COMPLETADO,110.27
+Cambio,Actual,2026-01-16 21:11:26,2026-01-16 21:11:26,Transfer to Revolut Digital Assets Europe Ltd,-1.24,0.00,EUR,COMPLETADO,109.03
+Pago con tarjeta,Actual,2026-01-16 21:11:26,2026-01-18 12:44:35,Uber Eats,-38.69,0.00,EUR,COMPLETADO,70.34
+Cambio,Actual,2026-01-19 17:36:40,2026-01-19 17:36:40,Transfer to Revolut Digital Assets Europe Ltd,-2.80,0.00,EUR,COMPLETADO,67.54
+Pago con tarjeta,Actual,2026-01-19 17:36:39,2026-01-20 13:09:39,La Vida Verde,-1.30,0.00,EUR,COMPLETADO,66.24
+Cambio,Actual,2026-01-23 17:50:12,2026-01-23 17:50:12,Transfer to Revolut Digital Assets Europe Ltd,-0.20,0.00,EUR,COMPLETADO,66.04
+Cambio,Actual,2026-01-23 18:05:56,2026-01-23 18:05:56,Transfer to Revolut Digital Assets Europe Ltd,-2.20,0.00,EUR,COMPLETADO,63.84
+Pago con tarjeta,Actual,2026-01-23 20:36:33,2026-01-24 11:22:57,Valdebernardo,-43.26,0.00,EUR,COMPLETADO,20.58
+Pago con tarjeta,Actual,2026-01-23 17:50:11,2026-01-24 11:23:42,Sociedad Estatal De Infraestructuras Del Transporte Terrestre (SEITT),-0.95,0.00,EUR,COMPLETADO,19.63
+Pago con tarjeta,Actual,2026-01-23 18:05:55,2026-01-24 11:23:43,Sociedad Estatal De Infraestructuras Del Transporte Terrestre (SEITT),-1.45,0.00,EUR,COMPLETADO,18.18
+Recargas,Actual,2026-01-26 13:17:27,2026-01-26 13:17:28,Una recarga de Apple Pay con *8082,100.00,0.00,EUR,COMPLETADO,118.18
+Cambio,Actual,2026-01-27 07:03:15,2026-01-27 07:03:15,Transfer to Revolut Digital Assets Europe Ltd,-1.00,0.00,EUR,COMPLETADO,117.18
+Pago con tarjeta,Actual,2026-01-27 07:03:14,2026-01-28 07:15:15,Delikia,-0.75,0.00,EUR,COMPLETADO,116.43
+Cambio,Actual,2026-01-30 21:23:15,2026-01-30 21:23:15,Transfer to Revolut Digital Assets Europe Ltd,-0.84,0.00,EUR,COMPLETADO,115.59
+Pago con tarjeta,Actual,2026-01-30 21:23:15,2026-02-01 11:38:11,Uber Eats,-38.79,0.00,EUR,COMPLETADO,76.80
+Cambio,Actual,2026-02-01 12:14:29,2026-02-01 12:14:29,Transfer to Revolut Digital Assets Europe Ltd,-0.20,0.00,EUR,COMPLETADO,76.60
+Cambio,Actual,2026-02-01 18:23:07,2026-02-01 18:23:07,Transfer to Revolut Digital Assets Europe Ltd,-0.40,0.00,EUR,COMPLETADO,76.20
+Pago con tarjeta,Actual,2026-02-01 18:23:06,2026-02-02 03:44:03,UNIQLO,-39.90,0.00,EUR,COMPLETADO,36.30
+Pago con tarjeta,Actual,2026-02-01 12:14:28,2026-02-02 03:52:10,San José De Valderas,-27.95,0.00,EUR,COMPLETADO,8.35
+Reembolso de tarjeta,Actual,2026-02-01 12:18:30,2026-02-03 04:01:33,San José De Valderas,27.95,0.00,EUR,COMPLETADO,36.30
+Reembolso de tarjeta,Actual,2026-02-01 11:56:46,2026-02-03 04:01:33,San José De Valderas,20.00,0.00,EUR,COMPLETADO,56.30
+Cambio,Actual,2026-02-03 07:11:47,2026-02-03 07:11:47,Transfer to Revolut Digital Assets Europe Ltd,-1.00,0.00,EUR,COMPLETADO,55.30
+Cambio,Actual,2026-02-03 21:36:00,2026-02-03 21:36:00,Transfer to Revolut Digital Assets Europe Ltd,-1.72,0.00,EUR,COMPLETADO,53.58
+Pago con tarjeta,Actual,2026-02-03 07:11:46,2026-02-04 07:35:45,Delikia,-0.75,0.00,EUR,COMPLETADO,52.83
+Cambio,Actual,2026-02-05 13:56:12,2026-02-05 13:56:12,Transfer to Revolut Digital Assets Europe Ltd,-1.36,0.00,EUR,COMPLETADO,51.47
+Pago con tarjeta,Actual,2026-02-03 21:36:00,2026-02-05 15:30:40,Cursor,-20.57,0.00,EUR,COMPLETADO,30.90
+Pago con tarjeta,Actual,2026-02-05 13:56:12,2026-02-06 14:37:00,Cursor,-0.66,0.00,EUR,COMPLETADO,30.24
+Cambio,Actual,2026-02-08 10:15:45,2026-02-08 10:15:45,Transfer to Revolut Digital Assets Europe Ltd,-0.20,0.00,EUR,COMPLETADO,30.04
+Pago con tarjeta,Actual,2026-02-08 10:15:45,2026-02-09 10:22:37,Uber,-16.45,0.00,EUR,COMPLETADO,13.59
+Recargas,Actual,2026-02-11 07:46:49,2026-02-11 07:46:50,Una recarga de Apple Pay con *8082,100.00,0.00,EUR,COMPLETADO,113.59
+Cambio,Actual,2026-02-11 07:47:35,2026-02-11 07:47:35,Transfer to Revolut Digital Assets Europe Ltd,-0.20,0.00,EUR,COMPLETADO,113.39
+Cambio,Actual,2026-02-11 10:04:57,2026-02-11 10:04:57,Transfer to Revolut Digital Assets Europe Ltd,-0.28,0.00,EUR,COMPLETADO,113.11
+Pago con tarjeta,Actual,2026-02-11 07:47:35,2026-02-12 13:32:14,Uber,-13.95,0.00,EUR,COMPLETADO,99.16
+Pago con tarjeta,Actual,2026-02-11 10:04:57,2026-02-12 13:42:58,Uber,-12.25,0.00,EUR,COMPLETADO,86.91

@@ -1,0 +1,44 @@
+# =============================================
+# BankaAppTracker - monorepo
+# =============================================
+
+# Backend Python
+Backend/venv/
+Backend/__pycache__/
+Backend/**/__pycache__/
+Backend/.env
+Backend/.venv/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend Angular
+Frontend/banka-app/node_modules/
+Frontend/banka-app/dist/
+Frontend/banka-app/.angular/
+Frontend/banka-app/tmp/
+Frontend/banka-app/out-tsc/
+Frontend/banka-app/npm-debug.log
+Frontend/banka-app/yarn-error.log
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.history/
+
+# Extractos bancarios (datos sensibles - descomenta si no quieres subirlos)
+# RAW/
+# P_*.xlsx
+
+# Archivos temporales Excel
+~$*
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log

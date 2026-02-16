@@ -1,0 +1,161 @@
+<div class="resumen-page">
+  <!-- Filtros (mismos que Gastos) -->
+  <section class="filter-section">
+    <div class="filter-chips">
+      @for (p of presets; track p.id) {
+        <button
+          type="button"
+          class="chip"
+          [class.active]="activePreset === p.id"
+          (click)="applyPreset(p.id)"
+        >
+          {{ p.label }}
+        </button>
+      }
+    </div>
+    @if (showCalendar) {
+      <div class="calendar-overlay" (click)="closeCalendar()"></div>
+      <div class="calendar-popover">
+        <h3 class="calendar-title">Seleccionar rango</h3>
+        <div class="calendar-fields">
+          <label>
+            <span>Desde</span>
+            <input type="date" [(ngModel)]="customFrom" />
+          </label>
+          <label>
+            <span>Hasta</span>
+            <input type="date" [(ngModel)]="customTo" />
+          </label>
+        </div>
+        <div class="calendar-actions">
+          <button type="button" class="btn-cancel" (click)="closeCalendar()">Cancelar</button>
+          <button type="button" class="btn-apply" (click)="applyCustomRange()">Aplicar</button>
+        </div>
+      </div>
+    }
+  </section>
+
+  @if (loading) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Cargando resumen...</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-card">
+      <p>{{ error }}</p>
+      <button type="button" class="btn-retry" (click)="loadTransactions()">Reintentar</button>
+    </div>
+  }
+
+  @if (!loading && !error && filteredTransactions.length > 0) {
+    <!-- Totales del periodo -->
+    <section class="totals-section">
+      <div class="totals-row">
+        <span class="totals-label">Total gastos</span>
+        <span class="totals-value totals-gastos">{{ totalGastos | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">Total ingresos</span>
+        <span class="totals-value totals-ingresos">{{ totalIngresos | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row totals-row--balance">
+        <span class="totals-label">Balance</span>
+        <span class="totals-value">{{ totalBalance | number:'1.2-2':'es' }} €</span>
+      </div>
+    </section>
+
+    <!-- Filtro por cuenta -->
+    <div class="account-filters">
+      @for (acc of accountFilters; track acc.id) {
+        <button
+          type="button"
+          class="chip chip-account"
+          [class.active]="selectedAccount === acc.id"
+          (click)="selectAccount(acc.id)"
+        >
+          {{ acc.label }}
+        </button>
+      }
+    </div>
+
+    <!-- Ingresos por categoría -->
+    @if (incomesSummary.length > 0) {
+      <section class="categories-section">
+        <h2 class="section-title">Ingresos por categoría</h2>
+        <div class="category-list">
+          @for (cat of incomesSummary; track 'ing-' + cat.categoria) {
+            <div class="category-card category-card--income" [class.expanded]="expandedIncomeCategory === cat.categoria">
+              <button
+                type="button"
+                class="category-header"
+                (click)="toggleIncomeCategory(cat.categoria)"
+              >
+                <span class="category-name">{{ cat.categoria || 'Sin categoría' }}</span>
+                <span class="category-amount category-amount--income">+{{ cat.total | number:'1.2-2':'es' }} €</span>
+                <span class="category-chevron">{{ expandedIncomeCategory === cat.categoria ? '▼' : '▶' }}</span>
+              </button>
+              @if (expandedIncomeCategory === cat.categoria && cat.transactions.length > 0) {
+                <div class="category-detail">
+                  @for (tx of cat.transactions; track tx.id || $index) {
+                    <div class="detail-row">
+                      <span class="detail-desc">{{ tx.subcategoria ? (tx.descripcion ? tx.subcategoria + ' · ' + tx.descripcion : tx.subcategoria) : (tx.descripcion || '—') }}</span>
+                      @if (tx.cuenta) {
+                        <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                      }
+                      <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
+                      <span class="detail-amount detail-amount--income">+{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Gastos por categoría -->
+    <section class="categories-section">
+      <h2 class="section-title">Gastos por categoría</h2>
+      <div class="category-list">
+        @for (cat of categoriesSummary; track cat.categoria) {
+          <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
+            <button
+              type="button"
+              class="category-header"
+              (click)="toggleCategory(cat.categoria)"
+            >
+              <span class="category-name">{{ cat.categoria || 'Sin categoría' }}</span>
+              <span class="category-amount">{{ cat.total | number:'1.2-2':'es' }} €</span>
+              <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
+            </button>
+            @if (expandedCategory === cat.categoria && cat.transactions.length > 0) {
+              <div class="category-detail">
+                @for (tx of cat.transactions; track tx.id || $index) {
+                  <div class="detail-row">
+                    <span class="detail-desc">{{ tx.subcategoria ? (tx.descripcion ? tx.subcategoria + ' · ' + tx.descripcion : tx.subcategoria) : (tx.descripcion || '—') }}</span>
+                    @if (tx.cuenta) {
+                      <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                    }
+                    <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
+                    <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (!loading && !error && filteredTransactions.length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📊</span>
+      <p>No hay movimientos en este periodo</p>
+      <p class="empty-hint">Cambia el filtro de fechas o sube un extracto</p>
+    </div>
+  }
+</div>

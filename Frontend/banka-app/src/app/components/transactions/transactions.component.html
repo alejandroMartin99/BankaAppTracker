@@ -1,0 +1,91 @@
+<div class="transactions-container">
+  <!-- Filtros minimalistas -->
+  <div class="filters">
+    <div class="filter-group">
+      <input
+        type="date"
+        [(ngModel)]="fromDate"
+        (change)="loadTransactions()"
+        class="filter-input"
+        placeholder="Desde"
+      />
+    </div>
+    <div class="filter-group">
+      <input
+        type="date"
+        [(ngModel)]="toDate"
+        (change)="loadTransactions()"
+        class="filter-input"
+        placeholder="Hasta"
+      />
+    </div>
+    <button type="button" class="btn-clear" (click)="clearFilters()">Limpiar</button>
+  </div>
+
+  <!-- Loading -->
+  @if (loading) {
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <span>Cargando transacciones...</span>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (error) {
+    <div class="error-box">
+      <p>{{ error }}</p>
+      <button type="button" class="btn-retry" (click)="loadTransactions()">Reintentar</button>
+    </div>
+  }
+
+  <!-- Lista de transacciones -->
+  @if (!loading && !error && transactions.length > 0) {
+    <div class="transactions-list">
+      @for (transaction of transactions; track transaction.transaction_id || $index) {
+        <div class="transaction-card">
+          <div class="transaction-main">
+            <span class="transaction-desc">{{ transaction.descripcion || 'Sin descripción' }}</span>
+            <span class="transaction-amount" [class.expense]="transaction.importe < 0" [class.income]="transaction.importe >= 0">
+              {{ transaction.importe | number:'1.2-2':'es' }} €
+            </span>
+          </div>
+          <div class="transaction-meta">
+            <span class="transaction-date">{{ formatDate(transaction.dt_date) }}</span>
+            @if (transaction.categoria) {
+              <span class="transaction-category">{{ transaction.categoria }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Paginación -->
+    <div class="pagination">
+      <button
+        type="button"
+        class="btn-pag"
+        (click)="previousPage()"
+        [disabled]="currentPage === 1"
+      >
+        Anterior
+      </button>
+      <span class="pagination-info">Página {{ currentPage }} · {{ totalCount }} registros</span>
+      <button
+        type="button"
+        class="btn-pag"
+        (click)="nextPage()"
+        [disabled]="transactions.length < pageSize"
+      >
+        Siguiente
+      </button>
+    </div>
+  }
+
+  @if (!loading && !error && transactions.length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📋</span>
+      <p>No hay transacciones para mostrar</p>
+      <p class="empty-hint">Sube un extracto bancario desde el backend para ver tus gastos aquí</p>
+    </div>
+  }
+</div>
