@@ -8,10 +8,20 @@ import { Transaction } from '../../models/transaction.model';
 
 type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
 
+interface SubcategorySummary {
+  subcategoria: string;
+  total: number;
+  transactions: Transaction[];
+}
+
 interface CategorySummary {
   categoria: string;
   total: number;
-  transactions: Transaction[];
+  subcategories: SubcategorySummary[];
+}
+
+function makeSubKey(cat: string, sub: string): string {
+  return `${cat || 'Sin categoría'}|${sub || 'Sin subcategoría'}`;
 }
 
 @Component({
@@ -28,12 +38,14 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   fromDate = '';
   toDate = '';
-  activePreset: DatePreset | null = '30d';
+  activePreset: DatePreset | null = 'month';
   customFrom = '';
   customTo = '';
   showCalendar = false;
   expandedCategory: string | null = null;
+  expandedSubcategoryKey: string | null = null;
   expandedIncomeCategory: string | null = null;
+  expandedIncomeSubcategoryKey: string | null = null;
   selectedAccount: string = '';
   private destroy$ = new Subject<void>();
 
@@ -55,7 +67,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
   constructor(private transactionService: TransactionService) {}
 
   ngOnInit() {
-    this.applyPreset('30d');
+    this.applyPreset('month');
     this.transactionService.dataRefresh$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.loadTransactions());
@@ -66,11 +78,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  /** Transacciones filtradas: excluir Compra_Inmueble y transferencias internas (para balances y resúmenes) */
+  /** Transacciones filtradas: incluir todas */
   get filteredTransactions(): Transaction[] {
-    let list = this.transactions.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble' && !t.es_transferencia_interna
-    );
+    let list = [...this.transactions];
     if (this.selectedAccount) {
       list = list.filter(t => (t.cuenta || '') === this.selectedAccount);
     }
@@ -79,7 +89,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   get totalGastos(): number {
     return this.filteredTransactions
-      .filter(t => (t.importe || 0) < 0)
+      .filter(t => (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
       .reduce((sum, t) => sum + (t.importe || 0), 0);
   }
 
@@ -94,37 +104,53 @@ export class ResumenComponent implements OnInit, OnDestroy {
   }
 
   get incomesSummary(): CategorySummary[] {
-    const byCat = new Map<string, Transaction[]>();
+    const byCat = new Map<string, Map<string, Transaction[]>>();
     for (const t of this.filteredTransactions) {
       if ((t.importe || 0) <= 0) continue;
       const cat = t.categoria || 'Sin categoría';
-      if (!byCat.has(cat)) byCat.set(cat, []);
-      byCat.get(cat)!.push(t);
+      const sub = t.subcategoria || 'Sin subcategoría';
+      if (!byCat.has(cat)) byCat.set(cat, new Map());
+      const subMap = byCat.get(cat)!;
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(t);
     }
-    return Array.from(byCat.entries())
-      .map(([categoria, transactions]) => ({
-        categoria,
-        total: transactions.reduce((s, t) => s + (t.importe || 0), 0),
+    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
+      const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
+        subcategoria,
+        total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
         transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-      }))
-      .sort((a, b) => b.total - a.total);
+      }));
+      return {
+        categoria,
+        total: subcategories.reduce((s, sc) => s + sc.total, 0),
+        subcategories: subcategories.sort((a, b) => b.total - a.total)
+      };
+    }).sort((a, b) => b.total - a.total);
   }
 
   get categoriesSummary(): CategorySummary[] {
-    const byCat = new Map<string, Transaction[]>();
+    const byCat = new Map<string, Map<string, Transaction[]>>();
     for (const t of this.filteredTransactions) {
-      if ((t.importe || 0) >= 0) continue;
+      if ((t.importe || 0) >= 0 || (t.categoria || '') === 'Transferencia') continue;
       const cat = t.categoria || 'Sin categoría';
-      if (!byCat.has(cat)) byCat.set(cat, []);
-      byCat.get(cat)!.push(t);
+      const sub = t.subcategoria || 'Sin subcategoría';
+      if (!byCat.has(cat)) byCat.set(cat, new Map());
+      const subMap = byCat.get(cat)!;
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(t);
     }
-    return Array.from(byCat.entries())
-      .map(([categoria, transactions]) => ({
-        categoria,
-        total: transactions.reduce((s, t) => s + (t.importe || 0), 0),
+    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
+      const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
+        subcategoria,
+        total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
         transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-      }))
-      .sort((a, b) => a.total - b.total);
+      }));
+      return {
+        categoria,
+        total: subcategories.reduce((s, sc) => s + sc.total, 0),
+        subcategories: subcategories.sort((a, b) => a.total - b.total)
+      };
+    }).sort((a, b) => a.total - b.total);
   }
 
   loadTransactions() {
@@ -139,7 +165,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
       next: (res) => {
         const raw = res?.data;
         const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
-        this.transactions = arr.map((t: any) => ({
+        const mapped = arr.map((t: any) => ({
           id: t.id,
           transaction_id: t.transaction_id,
           dt_date: t.dt_date || t.transaction_date || '',
@@ -148,9 +174,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
           cuenta: t.cuenta || t.account_number,
           descripcion: t.descripcion || t.description || '',
           categoria: t.categoria || t.category,
-          subcategoria: t.subcategoria,
-          es_transferencia_interna: !!t.es_transferencia_interna
+          subcategoria: t.subcategoria
         }));
+        this.transactions = mapped;
         this.loading = false;
       },
       error: (err) => {
@@ -211,8 +237,26 @@ export class ResumenComponent implements OnInit, OnDestroy {
     this.expandedCategory = this.expandedCategory === categoria ? null : categoria;
   }
 
+  toggleSubcategory(categoria: string, subcategoria: string) {
+    const key = makeSubKey(categoria, subcategoria);
+    this.expandedSubcategoryKey = this.expandedSubcategoryKey === key ? null : key;
+  }
+
   toggleIncomeCategory(categoria: string) {
     this.expandedIncomeCategory = this.expandedIncomeCategory === categoria ? null : categoria;
+  }
+
+  toggleIncomeSubcategory(categoria: string, subcategoria: string) {
+    const key = makeSubKey(categoria, subcategoria);
+    this.expandedIncomeSubcategoryKey = this.expandedIncomeSubcategoryKey === key ? null : key;
+  }
+
+  isSubcategoryExpanded(categoria: string, subcategoria: string): boolean {
+    return this.expandedSubcategoryKey === makeSubKey(categoria, subcategoria);
+  }
+
+  isIncomeSubcategoryExpanded(categoria: string, subcategoria: string): boolean {
+    return this.expandedIncomeSubcategoryKey === makeSubKey(categoria, subcategoria);
   }
 
   formatDate(d: Date): string {

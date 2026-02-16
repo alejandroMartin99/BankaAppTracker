@@ -29,11 +29,11 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   fromDate = '';
   toDate = '';
-  activePreset: DatePreset | null = '30d';
+  activePreset: DatePreset | null = 'month';
   customFrom = '';
   customTo = '';
   showCalendar = false;
-  showInternalTransfers = true;
+  showInternalTransfers = false;
   private destroy$ = new Subject<void>();
 
   readonly presets: { id: DatePreset; label: string }[] = [
@@ -52,7 +52,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadBalances();
-    this.applyPreset('30d');
+    this.applyPreset('month');
     this.transactionService.dataRefresh$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -99,8 +99,7 @@ export class GastosComponent implements OnInit, OnDestroy {
           cuenta: t.cuenta || t.account_number,
           descripcion: t.descripcion || t.description || '',
           categoria: t.categoria || t.category,
-          subcategoria: t.subcategoria,
-          es_transferencia_interna: !!t.es_transferencia_interna
+          subcategoria: t.subcategoria
         }));
         this.ngZone.run(() => {
           this.transactions = mapped;
@@ -188,25 +187,21 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (img && !img.src.endsWith('/icons/default.svg')) img.src = '/icons/default.svg';
   }
 
-  /** Movimientos sin Compra_Inmueble ni transferencias internas (para lista principal) */
+  /** Movimientos sin Compra_Inmueble ni Transferencia (estas van al apartado dedicado) */
   get displayedTransactions(): Transaction[] {
     return this.transactions.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble' && !t.es_transferencia_interna
+      (t.categoria || '') !== 'Compra_Inmueble' && (t.categoria || '') !== 'Transferencia'
     );
   }
 
-  /** Transacciones para calcular balances: excluir Compra_Inmueble y transferencias internas */
+  /** Transacciones para calcular balances: incluir todas */
   get transactionsForBalances(): Transaction[] {
-    return this.transactions.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble' && !t.es_transferencia_interna
-    );
+    return this.transactions;
   }
 
-  /** Transferencias internas entre cuentas propias (se muestran en apartado aparte) */
+  /** Todas las transacciones con concepto Transferencia (se muestran en apartado dedicado) */
   get internalTransfers(): Transaction[] {
-    return this.transactions.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble' && !!t.es_transferencia_interna
-    );
+    return this.transactions.filter(t => (t.categoria || '') === 'Transferencia');
   }
 
   /** Agrupado por fecha para bloques con cabecera de día */
@@ -272,7 +267,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   gastosByAccount(cuenta: string): number {
     return this.transactionsForBalances
-      .filter(t => (t.cuenta || '') === cuenta && (t.importe || 0) < 0)
+      .filter(t => (t.cuenta || '') === cuenta && (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
       .reduce((sum, t) => sum + (t.importe || 0), 0);
   }
 
@@ -290,7 +285,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   get totalGastos(): number {
     return this.transactionsForBalances
-      .filter(t => (t.importe || 0) < 0)
+      .filter(t => (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
       .reduce((sum, t) => sum + (t.importe || 0), 0);
   }
 

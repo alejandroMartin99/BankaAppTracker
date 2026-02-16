@@ -87,25 +87,34 @@
         <div class="category-list">
           @for (cat of incomesSummary; track 'ing-' + cat.categoria) {
             <div class="category-card category-card--income" [class.expanded]="expandedIncomeCategory === cat.categoria">
-              <button
-                type="button"
-                class="category-header"
-                (click)="toggleIncomeCategory(cat.categoria)"
-              >
-                <span class="category-name">{{ cat.categoria || 'Sin categoría' }}</span>
+              <button type="button" class="category-header" (click)="toggleIncomeCategory(cat.categoria)">
+                <span class="category-name">{{ cat.categoria }}</span>
                 <span class="category-amount category-amount--income">+{{ cat.total | number:'1.2-2':'es' }} €</span>
                 <span class="category-chevron">{{ expandedIncomeCategory === cat.categoria ? '▼' : '▶' }}</span>
               </button>
-              @if (expandedIncomeCategory === cat.categoria && cat.transactions.length > 0) {
-                <div class="category-detail">
-                  @for (tx of cat.transactions; track tx.id || $index) {
-                    <div class="detail-row">
-                      <span class="detail-desc">{{ tx.subcategoria ? (tx.descripcion ? tx.subcategoria + ' · ' + tx.descripcion : tx.subcategoria) : (tx.descripcion || '—') }}</span>
-                      @if (tx.cuenta) {
-                        <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+              @if (expandedIncomeCategory === cat.categoria) {
+                <div class="category-sublist">
+                  @for (sub of cat.subcategories; track sub.subcategoria) {
+                    <div class="subcategory-block">
+                      <button type="button" class="subcategory-header" (click)="toggleIncomeSubcategory(cat.categoria, sub.subcategoria)">
+                        <span class="subcategory-name">{{ sub.subcategoria }}</span>
+                        <span class="subcategory-amount category-amount--income">+{{ sub.total | number:'1.2-2':'es' }} €</span>
+                        <span class="category-chevron">{{ isIncomeSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}</span>
+                      </button>
+                      @if (isIncomeSubcategoryExpanded(cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
+                        <div class="category-detail">
+                          @for (tx of sub.transactions; track tx.id || $index) {
+                            <div class="detail-row">
+                              <span class="detail-desc">{{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}</span>
+                              @if (tx.cuenta) {
+                                <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                              }
+                              <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
+                              <span class="detail-amount detail-amount--income">+{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                            </div>
+                          }
+                        </div>
                       }
-                      <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
-                      <span class="detail-amount detail-amount--income">+{{ tx.importe | number:'1.2-2':'es' }} €</span>
                     </div>
                   }
                 </div>
@@ -122,25 +131,34 @@
       <div class="category-list">
         @for (cat of categoriesSummary; track cat.categoria) {
           <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
-            <button
-              type="button"
-              class="category-header"
-              (click)="toggleCategory(cat.categoria)"
-            >
-              <span class="category-name">{{ cat.categoria || 'Sin categoría' }}</span>
+            <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
+              <span class="category-name">{{ cat.categoria }}</span>
               <span class="category-amount">{{ cat.total | number:'1.2-2':'es' }} €</span>
               <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
             </button>
-            @if (expandedCategory === cat.categoria && cat.transactions.length > 0) {
-              <div class="category-detail">
-                @for (tx of cat.transactions; track tx.id || $index) {
-                  <div class="detail-row">
-                    <span class="detail-desc">{{ tx.subcategoria ? (tx.descripcion ? tx.subcategoria + ' · ' + tx.descripcion : tx.subcategoria) : (tx.descripcion || '—') }}</span>
-                    @if (tx.cuenta) {
-                      <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+            @if (expandedCategory === cat.categoria) {
+              <div class="category-sublist">
+                @for (sub of cat.subcategories; track sub.subcategoria) {
+                  <div class="subcategory-block">
+                    <button type="button" class="subcategory-header" (click)="toggleSubcategory(cat.categoria, sub.subcategoria)">
+                      <span class="subcategory-name">{{ sub.subcategoria }}</span>
+                      <span class="subcategory-amount">{{ sub.total | number:'1.2-2':'es' }} €</span>
+                      <span class="category-chevron">{{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}</span>
+                    </button>
+                    @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
+                      <div class="category-detail">
+                        @for (tx of sub.transactions; track tx.id || $index) {
+                          <div class="detail-row">
+                            <span class="detail-desc">{{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}</span>
+                            @if (tx.cuenta) {
+                              <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                            }
+                            <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
+                            <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                          </div>
+                        }
+                      </div>
                     }
-                    <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
-                    <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
                   </div>
                 }
               </div>

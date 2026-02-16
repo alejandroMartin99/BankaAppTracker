@@ -1,7 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Dict, Any, Optional
 from app.api.services.supabase.supabase_service import supabase_service
-from app.api.services.pipe_extract_transactions.internal_transfer_detection import detect_internal_transfer_ids
 
 router = APIRouter(
     prefix="/GET",
@@ -122,12 +121,6 @@ async def get_transactions(
             row["cuenta"] = row.get("cuenta") or row.get("account_number")
             row["categoria"] = row.get("categoria") or row.get("category")
             row["saldo"] = row.get("saldo") if "saldo" in row else row.get("balance")
-
-        # Detectar transferencias internas (no afectan balances)
-        internal_ids = detect_internal_transfer_ids(data)
-        for row in data:
-            tid = row.get("transaction_id") or str(row.get("id", ""))
-            row["es_transferencia_interna"] = tid in internal_ids
 
         return {
             "success": True,

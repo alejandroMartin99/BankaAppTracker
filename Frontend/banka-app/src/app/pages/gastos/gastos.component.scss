@@ -572,9 +572,9 @@
   opacity: 0.8;
 }
 
-/* Transferencias internas - apartado dedicado */
+/* Transferencias internas - apartado dedicado (antes de Movimientos) */
 .internal-transfers-section {
-  margin-top: 16px;
+  margin-bottom: 16px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius);
   overflow: hidden;
@@ -634,6 +634,20 @@
 
 .internal-transfers-section .tx-row-internal {
   background: rgba(99, 102, 241, 0.04);
+  padding: 3px 8px;
+  align-items: center;
+  gap: 6px;
+
+  .tx-icon {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+
+  .tx-subcat { font-size: 9px; }
+  .tx-amount { font-size: 9px; }
+  .tx-saldo { font-size: 8px; }
+  .tx-cuenta-badge { font-size: 7px; padding: 0 3px; }
 }
 
 .internal-transfers-section .tx-row-internal:hover {
@@ -641,6 +655,6 @@
 }
 
 .tx-icon-arrow {
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1;
 }
