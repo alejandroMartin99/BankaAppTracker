@@ -1,0 +1,25 @@
+# Configuración de cuentas - parametrizable por usuario
+# Cuentas shared=true: visibles para todos los propietarios (ej. cuenta conjunta)
+# Cuentas shared=false: solo visibles para su propietario
+
+ibercaja:
+  # Patrón para detectar IBAN: 20859254******XXXXXX (últimos 6 dígitos identifican la cuenta)
+  base_pattern: "20859254******"
+  accounts:
+    "716552":
+      name: "Conjunta"
+      shared: true
+      # Propietarios: ambos usuarios. Cuando haya auth, se vincula por account_owners
+    "716650":
+      name: "Personal"
+      shared: false
+      # Cuenta personal - solo su propietario la ve
+    # Añadir más cuentas según vayan registrándose usuarios:
+    # "XXXXXX":
+    #   name: "Personal Lucia"
+    #   shared: false
+
+revolut:
+  default_name: "Revolut"
+  shared: false
+  # Revolut suele ser personal por usuario

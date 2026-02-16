@@ -1,14 +1,11 @@
 """
 Detección de transferencias internas entre cuentas propias.
-Cuando se detecta: mismo día, mismo importe absoluto, signo opuesto, cuentas distintas
-(Revolut, Personal, Conjunta), se marca como transferencia interna para que:
-- No afecte a gastos/ingresos/balances
-- Se muestre en un apartado dedicado "Transferencias internas"
+Cuando se detecta: mismo día, mismo importe absoluto, signo opuesto, cuentas distintas,
+se marca como transferencia interna.
+Las cuentas "propias" se derivan de las que aparecen en las transacciones (ya filtradas por usuario).
 """
 from typing import Set
 from collections import defaultdict
-
-INTERNAL_ACCOUNTS = frozenset({"Revolut", "Personal", "Conjunta"})
 
 
 def detect_internal_transfer_ids(transactions: list[dict]) -> Set[str]:
@@ -40,11 +37,11 @@ def detect_internal_transfer_ids(transactions: list[dict]) -> Set[str]:
 
     matched_ids: Set[str] = set()
 
-    # Agrupar por (fecha, importe_absoluto)
+    # Agrupar por (fecha, importe_absoluto). Solo cuentas propias (ya filtradas por usuario).
     by_key: dict[tuple[str, float], list[dict]] = defaultdict(list)
     for t in transactions:
         cuenta = get_cuenta(t)
-        if cuenta not in INTERNAL_ACCOUNTS:
+        if not cuenta:
             continue
         imp = get_importe(t)
         if imp == 0:

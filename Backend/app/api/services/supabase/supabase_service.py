@@ -1,6 +1,6 @@
 """
 Supabase Service
-Wrapper for Supabase database operations (transactions)
+Wrapper for Supabase database operations (transactions, user_accounts)
 """
 
 from typing import Optional, List, Dict, Any, Set
@@ -8,24 +8,60 @@ from supabase import create_client, Client
 from app.core.config import settings
 
 
+def _uuid(user_id: str) -> str:
+    """Asegura que user_id sea string válido para Supabase."""
+    return str(user_id).strip()
+
+
 class SupabaseService:
     """Service for managing Supabase database operations"""
 
     def __init__(self):
-        """Initialize Supabase client"""
+        """Initialize Supabase client. Usa Service Role Key para bypass RLS (inserts/selects)."""
         self.supabase: Optional[Client] = None
-        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+        key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
+        if settings.SUPABASE_URL and key:
             try:
-                self.supabase = create_client(
-                    settings.SUPABASE_URL,
-                    settings.SUPABASE_KEY
-                )
-            except Exception:
-                pass
+                self.supabase = create_client(settings.SUPABASE_URL, key)
+            except Exception as e:
+                print(f"[Supabase] Error al conectar: {e}")
 
     def is_connected(self) -> bool:
         """Check if Supabase is connected"""
         return self.supabase is not None
+
+    def upsert_user_account(
+        self, user_id: str, account_identifier: str, source: str, display_name: str
+    ) -> None:
+        """Registra o actualiza la asociación usuario-cuenta (al subir un extracto)."""
+        if not self.supabase:
+            raise RuntimeError("Supabase no está inicializado")
+        uid = _uuid(user_id)
+        self.supabase.table("user_accounts").upsert(
+            {
+                "user_id": uid,
+                "account_identifier": account_identifier,
+                "source": source.lower(),
+                "display_name": display_name,
+            },
+            on_conflict="user_id,account_identifier",
+        ).execute()
+
+    def get_user_account_identifiers(self, user_id: str) -> List[str]:
+        """Devuelve los account_identifier de las cuentas del usuario."""
+        if not self.supabase:
+            return []
+        uid = _uuid(user_id)
+        try:
+            response = (
+                self.supabase.table("user_accounts")
+                .select("account_identifier")
+                .eq("user_id", uid)
+                .execute()
+            )
+            return [r["account_identifier"] for r in (response.data or [])]
+        except Exception:
+            return []
 
     def get_existing_transaction_ids(self, transaction_ids: List[str]) -> Set[str]:
         """Get transaction IDs that already exist in database"""

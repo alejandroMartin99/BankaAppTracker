@@ -2,7 +2,7 @@ import { Transaction } from '../models/transaction.model';
 
 /** Detecta IDs de transferencias internas entre cuentas propias (mismo día, mismo importe, signos opuestos) */
 export function detectInternalTransferIds(txs: { dt_date?: string; importe?: number; cuenta?: string; transaction_id?: string; id?: number }[]): Set<string> {
-  const INTERNAL_ACCOUNTS = new Set(['Revolut', 'Personal', 'Conjunta']);
+  const INTERNAL_ACCOUNTS = new Set(txs.map(t => (t.cuenta || '').trim()).filter(Boolean));
   const matched = new Set<string>();
   const byKey = new Map<string, typeof txs>();
   for (const t of txs) {

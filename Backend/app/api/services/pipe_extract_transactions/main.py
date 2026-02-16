@@ -31,10 +31,12 @@ def generate_transaction_id(row: pd.Series) -> str:
     return hash_object.hexdigest()[:32]
 
 
-def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.DataFrame, str]:
+def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.DataFrame, str, str, str]:
     """
-    Parsea el archivo y devuelve (DataFrame, tipo_origen).
+    Parsea el archivo y devuelve (DataFrame, tipo_origen, account_identifier, display_name).
     tipo_origen: 'Revolut' | 'Ibercaja'
+    account_identifier: identificador estable (ibercaja_716552, revolut)
+    display_name: nombre mostrado (Conjunta, Revolut, etc.)
     """
     if is_csv:
         df = pd.read_csv(BytesIO(file_content))
@@ -61,11 +63,11 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
 
     if "CONSULTA MOVIMIENTOS DE LA CUENTA" in cell_value:
         print("Archivo identificado como IBERCAJA")
-        df_transactions = main_decode_ibercaja(df)
+        df_transactions, account_identifier, display_name = main_decode_ibercaja(df)
         source_type = "Ibercaja"
     elif df_columns == revolut_header:
         print("Archivo identificado como Revolut")
-        df_transactions = main_decode_revolut(df)
+        df_transactions, account_identifier, display_name = main_decode_revolut(df)
         source_type = "Revolut"
     else:
         raise ValueError("Formato de archivo no reconocido")
@@ -113,5 +115,5 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
         "BizumMensaje": "bizum_mensaje",
         "Referencia": "referencia"
     })
-    
-    return df_transactions, source_type
+
+    return df_transactions, source_type, account_identifier, display_name

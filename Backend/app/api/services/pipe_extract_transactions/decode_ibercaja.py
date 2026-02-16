@@ -3,35 +3,41 @@ import pandas as pd
 import numpy as np
 import warnings
 from app.api.services.pipe_extract_transactions.category_rules import (
-    CATEGORY_RULES, 
+    CATEGORY_RULES,
     apply_unique_cuotes,
-    analyze_description
+    analyze_description,
 )
+from app.api.services.account_config import get_ibercaja_account_map
 
 warnings.filterwarnings("ignore", message="Workbook contains no default style*")
 
-ACCOUNT_MAP = {
-    "20859254******716552": "Conjunta",
-    "20859254******716650": "Personal",
-}
 
-def main_decode_ibercaja(df: pd.DataFrame) -> pd.DataFrame:
-    """Decodifica extractos de Ibercaja y normaliza la tabla de transacciones"""
-    
+def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> tuple[pd.DataFrame, str, str]:
+    """Decodifica extractos de Ibercaja y normaliza la tabla de transacciones.
+    account_map: opcional, mapeo {iban_completo: nombre}. Si no se pasa, se carga de config/accounts.yaml
+    Retorna: (DataFrame, account_identifier, display_name)
+    """
+    account_map = account_map or get_ibercaja_account_map()
+
     # 1. Detectar número de cuenta
     account_number = None
+    suffix = None
     for i in range(min(5, len(df))):
-        row_text = ' '.join(str(v) for v in df.iloc[i].values if pd.notna(v))
-        match = re.search(r'20859254\*+(\d{6})', row_text)
+        row_text = " ".join(str(v) for v in df.iloc[i].values if pd.notna(v))
+        match = re.search(r"20859254\*+(\d{6})", row_text)
         if match:
-            account_number = f"20859254******{match.group(1)}"
+            suffix = match.group(1)
+            account_number = f"20859254******{suffix}"
             break
-    
+
     if not account_number:
         raise ValueError("No se pudo detectar el número de cuenta Ibercaja")
-    if account_number not in ACCOUNT_MAP:
-        raise ValueError(f"Cuenta Ibercaja no reconocida: {account_number}")
-    
+
+    account_identifier = f"ibercaja_{suffix}"
+    display_name = account_map.get(account_number) if account_map else None
+    if not display_name:
+        display_name = f"Cuenta {suffix}"
+
     # 2. Leer tabla de transacciones
     df = df.iloc[6:].reset_index(drop=True)
     df.columns = df.iloc[0]
@@ -39,7 +45,7 @@ def main_decode_ibercaja(df: pd.DataFrame) -> pd.DataFrame:
     
     # 3. Procesamiento inicial
     df['DT_DATE'] = pd.to_datetime(df['Fecha Operacion'], format='%d/%m/%Y', errors='coerce')
-    df["Cuenta"] = ACCOUNT_MAP[account_number]
+    df["Cuenta"] = display_name
     df["Descripción"] = df["Descripción"].fillna("").astype(str).str.strip()
     
     # 4. Aplicar análisis semántico
@@ -85,5 +91,5 @@ def main_decode_ibercaja(df: pd.DataFrame) -> pd.DataFrame:
     for col in ['Importe', 'Saldo']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "."), errors='coerce')
-    
-    return df
+
+    return df, account_identifier, display_name

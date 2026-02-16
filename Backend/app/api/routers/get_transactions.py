@@ -1,5 +1,7 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any, Optional
+
+from app.api.deps import get_current_user
 from app.api.services.supabase.supabase_service import supabase_service
 
 router = APIRouter(
@@ -8,26 +10,33 @@ router = APIRouter(
 )
 
 
-def _fetch_all_for_balances() -> list:
-    """Obtiene transacciones para calcular saldos por cuenta (última por cuenta)"""
+def _fetch_all_for_balances(account_identifiers: list[str]) -> list:
+    """Obtiene transacciones para calcular saldos (solo cuentas del usuario)."""
+    if not account_identifiers:
+        return []
     try:
-        response = (
+        query = (
             supabase_service.supabase
             .table("transactions")
-            .select("dt_date, saldo, cuenta")
+            .select("dt_date, saldo, cuenta, account_identifier")
+            .in_("account_identifier", account_identifiers)
             .order("dt_date", desc=True)
             .limit(2000)
-            .execute()
         )
+        response = query.execute()
     except Exception:
-        response = (
-            supabase_service.supabase
-            .table("transactions")
-            .select("transaction_date, balance, account_number")
-            .order("transaction_date", desc=True)
-            .limit(2000)
-            .execute()
-        )
+        try:
+            query = (
+                supabase_service.supabase
+                .table("transactions")
+                .select("transaction_date, balance, account_number, account_identifier")
+                .in_("account_identifier", account_identifiers)
+                .order("transaction_date", desc=True)
+                .limit(2000)
+            )
+            response = query.execute()
+        except Exception:
+            return []
     data = response.data or []
     for row in data:
         row["dt_date"] = row.get("dt_date") or row.get("transaction_date")
@@ -41,12 +50,13 @@ def _fetch_all_for_balances() -> list:
     summary="Obtener saldo actual por cuenta",
     response_model=Dict[str, Any]
 )
-async def get_balances() -> Dict[str, Any]:
-    """Devuelve el saldo más reciente de cada cuenta (última transacción por cuenta)."""
+async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+    """Devuelve el saldo más reciente de cada cuenta del usuario."""
     if not supabase_service.is_connected():
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
     try:
-        data = _fetch_all_for_balances()
+        account_ids = supabase_service.get_user_account_identifiers(user.get("sub", ""))
+        data = _fetch_all_for_balances(account_ids)
         seen = set()
         balances = {}
         for row in data:
@@ -72,6 +82,7 @@ async def get_transactions(
     to_date: Optional[str] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
 
     if not supabase_service.is_connected():
@@ -80,14 +91,18 @@ async def get_transactions(
             detail="Servicio de base de datos no disponible"
         )
 
+    account_ids = supabase_service.get_user_account_identifiers(user.get("sub", ""))
+    if not account_ids:
+        return {"success": True, "count": 0, "limit": limit, "offset": offset, "data": []}
+
     try:
-        # Soporta ambos esquemas: dt_date (pipe) y transaction_date (schema.sql)
         date_col = "dt_date"
         try:
             query = (
                 supabase_service.supabase
                 .table("transactions")
                 .select("*")
+                .in_("account_identifier", account_ids)
             )
             if from_date:
                 query = query.gte(date_col, from_date)
@@ -102,6 +117,7 @@ async def get_transactions(
                     supabase_service.supabase
                     .table("transactions")
                     .select("*")
+                    .in_("account_identifier", account_ids)
                 )
                 if from_date:
                     query = query.gte(date_col, from_date)

@@ -3,15 +3,20 @@ Application Configuration
 Centralized configuration management using Pydantic Settings
 """
 
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, AliasChoices
 from typing import List
+
+# .env en Backend/ (junto a app/)
+_ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     model_config = SettingsConfigDict(
-        env_file="../.env",  # .env está en la raíz del proyecto
+        env_file=str(_ENV_PATH) if _ENV_PATH.exists() else None,
         case_sensitive=True,
         extra="ignore"
     )
@@ -31,7 +36,14 @@ class Settings(BaseSettings):
     
     # Supabase Configuration
     SUPABASE_URL: str = "https://eowsozcqryodxtpsduab.supabase.co"
-    SUPABASE_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd3NvemNxcnlvZHh0cHNkdWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjIyODIsImV4cCI6MjA4Mzg5ODI4Mn0.vfl0o9mgHtyw0Q20fPLkH2U8xSngvUAge4MrzYvToso"
+    SUPABASE_KEY: str = Field(
+        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd3NvemNxcnlvZHh0cHNkdWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjIyODIsImV4cCI6MjA4Mzg5ODI4Mn0.vfl0o9mgHtyw0Q20fPLkH2U8xSngvUAge4MrzYvToso",
+        validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_ANON_KEY"),
+    )
+    # Service Role Key: bypassa RLS, necesario para inserts. Project Settings -> API -> service_role
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    # JWT Secret para validar tokens (NO es la service_role key). Project Settings -> API -> JWT Secret
+    SUPABASE_JWT_SECRET: str = ""
     
     # OpenAI Configuration
     OPENAI_API_KEY: str = ""

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { TransactionService, UploadResponse } from '../services/transaction.service';
+import { AuthService } from '../services/auth.service';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -27,8 +28,14 @@ export class LayoutComponent {
 
   constructor(
     public router: Router,
-    private transactionService: TransactionService
+    private transactionService: TransactionService,
+    public auth: AuthService
   ) {}
+
+  logout() {
+    this.auth.signOut();
+    this.router.navigate(['/login']);
+  }
 
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
