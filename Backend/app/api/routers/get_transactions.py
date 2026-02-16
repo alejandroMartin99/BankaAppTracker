@@ -10,38 +10,26 @@ router = APIRouter(
 )
 
 
-def _fetch_all_for_balances(account_identifiers: list[str]) -> list:
-    """Obtiene transacciones para calcular saldos (solo cuentas del usuario)."""
-    if not account_identifiers:
+def _fetch_for_balances(account_ids: list[str]) -> list:
+    """Transacciones para saldos (solo cuentas del usuario)."""
+    if not account_ids:
         return []
     try:
-        query = (
+        r = (
             supabase_service.supabase
             .table("transactions")
-            .select("dt_date, saldo, cuenta, account_identifier")
-            .in_("account_identifier", account_identifiers)
+            .select("dt_date, saldo, cuenta, account_id")
+            .in_("account_id", account_ids)
             .order("dt_date", desc=True)
             .limit(2000)
+            .execute()
         )
-        response = query.execute()
     except Exception:
-        try:
-            query = (
-                supabase_service.supabase
-                .table("transactions")
-                .select("transaction_date, balance, account_number, account_identifier")
-                .in_("account_identifier", account_identifiers)
-                .order("transaction_date", desc=True)
-                .limit(2000)
-            )
-            response = query.execute()
-        except Exception:
-            return []
-    data = response.data or []
+        return []
+    data = r.data or []
+    names = supabase_service.get_account_display_names(account_ids)
     for row in data:
-        row["dt_date"] = row.get("dt_date") or row.get("transaction_date")
-        row["saldo"] = row.get("saldo") if "saldo" in row else row.get("balance")
-        row["cuenta"] = row.get("cuenta") or row.get("account_number") or "Otra"
+        row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
     return data
 
 
@@ -55,8 +43,8 @@ async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]
     if not supabase_service.is_connected():
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
     try:
-        account_ids = supabase_service.get_user_account_identifiers(user.get("sub", ""))
-        data = _fetch_all_for_balances(account_ids)
+        account_ids = supabase_service.get_user_account_ids(user.get("sub", ""))
+        data = _fetch_for_balances(account_ids)
         seen = set()
         balances = {}
         for row in data:
@@ -91,52 +79,28 @@ async def get_transactions(
             detail="Servicio de base de datos no disponible"
         )
 
-    account_ids = supabase_service.get_user_account_identifiers(user.get("sub", ""))
+    account_ids = supabase_service.get_user_account_ids(user.get("sub", ""))
     if not account_ids:
         return {"success": True, "count": 0, "limit": limit, "offset": offset, "data": []}
 
     try:
-        date_col = "dt_date"
-        try:
-            query = (
-                supabase_service.supabase
-                .table("transactions")
-                .select("*")
-                .in_("account_identifier", account_ids)
-            )
-            if from_date:
-                query = query.gte(date_col, from_date)
-            if to_date:
-                query = query.lte(date_col, to_date)
-            query = query.order(date_col, desc=True).range(offset, offset + limit - 1)
-            response = query.execute()
-        except Exception as col_err:
-            if "dt_date" in str(col_err) or "column" in str(col_err).lower():
-                date_col = "transaction_date"
-                query = (
-                    supabase_service.supabase
-                    .table("transactions")
-                    .select("*")
-                    .in_("account_identifier", account_ids)
-                )
-                if from_date:
-                    query = query.gte(date_col, from_date)
-                if to_date:
-                    query = query.lte(date_col, to_date)
-                query = query.order(date_col, desc=True).range(offset, offset + limit - 1)
-                response = query.execute()
-            else:
-                raise
+        query = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("*")
+            .in_("account_id", account_ids)
+        )
+        if from_date:
+            query = query.gte("dt_date", from_date)
+        if to_date:
+            query = query.lte("dt_date", to_date)
+        query = query.order("dt_date", desc=True).range(offset, offset + limit - 1)
+        response = query.execute()
 
-        # Normalizar nombres de columnas al formato esperado por el frontend
         data = response.data or []
+        names = supabase_service.get_account_display_names(account_ids)
         for row in data:
-            row["dt_date"] = row.get("dt_date") or row.get("transaction_date")
-            row["importe"] = row.get("importe") if "importe" in row else row.get("amount", 0)
-            row["descripcion"] = row.get("descripcion") or row.get("description", "")
-            row["cuenta"] = row.get("cuenta") or row.get("account_number")
-            row["categoria"] = row.get("categoria") or row.get("category")
-            row["saldo"] = row.get("saldo") if "saldo" in row else row.get("balance")
+            row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
 
         return {
             "success": True,

@@ -8,26 +8,28 @@ Importa transacciones de **Ibercaja** desde archivos Excel a Supabase.
 
 1. Ve a https://supabase.com/
 2. Crea un proyecto
-3. Ve a **SQL Editor** y ejecuta en orden: `supabase_schema.sql` y `supabase_migration_user_accounts.sql`
-4. Ve a **Settings > API** y copia URL, anon key y JWT Secret
+3. Usuarios: auth.users (Manage > Users) – el registro/login ya los crea
+4. **SQL Editor**: ejecuta `Backend/supabase_schema_v2.sql`  
+   (Si tienes tablas antiguas, ejecuta antes los DROP del final del archivo)
+5. **Settings > API**: URL, anon key, **service_role key**
 
-### 2. Configurar
+### 2. Configurar Backend
 
 ```bash
-cd backend
+cd Backend
 python -m venv venv
 venv\Scripts\activate  # Windows
-
 pip install -r requirements.txt
 ```
 
-Crea `.env`:
+Crea `Backend/.env`:
 ```env
 SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_KEY=tu-anon-key
-# Para auth con Supabase (login), añade el JWT Secret: Project Settings -> API -> JWT Secret
-SUPABASE_JWT_SECRET=tu-jwt-secret
+SUPABASE_ANON_KEY=tu-anon-key
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
+
+- **SUPABASE_SERVICE_ROLE_KEY**: Project Settings > API > service_role (DB + validación de tokens)
 
 ### 3. Ejecutar
 

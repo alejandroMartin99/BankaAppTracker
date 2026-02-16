@@ -5,7 +5,6 @@ python-multipart==0.0.9
 
 # Supabase
 supabase>=2.27.0
-pyjwt>=2.8.0
 
 # Config
 python-dotenv==1.0.1

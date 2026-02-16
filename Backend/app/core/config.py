@@ -40,10 +40,11 @@ class Settings(BaseSettings):
         default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd3NvemNxcnlvZHh0cHNkdWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjIyODIsImV4cCI6MjA4Mzg5ODI4Mn0.vfl0o9mgHtyw0Q20fPLkH2U8xSngvUAge4MrzYvToso",
         validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_ANON_KEY"),
     )
-    # Service Role Key: bypassa RLS, necesario para inserts. Project Settings -> API -> service_role
-    SUPABASE_SERVICE_ROLE_KEY: str = ""
-    # JWT Secret para validar tokens (NO es la service_role key). Project Settings -> API -> JWT Secret
-    SUPABASE_JWT_SECRET: str = ""
+    # Service Role Key: bypassa RLS y valida tokens. Project Settings -> API -> service_role
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"),
+    )
     
     # OpenAI Configuration
     OPENAI_API_KEY: str = ""

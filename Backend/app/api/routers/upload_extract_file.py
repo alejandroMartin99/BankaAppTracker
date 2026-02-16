@@ -58,25 +58,24 @@ async def upload_transactions_file(
             detail="Servicio de base de datos no disponible"
         )
 
-    # Registrar la cuenta como del usuario (si subes un extracto, es tu cuenta)
     user_id = _user.get("sub")
-    if user_id:
-        supabase_service.upsert_user_account(
-            user_id=user_id,
-            account_identifier=account_identifier,
-            source=source_type.lower(),
-            display_name=display_name,
-        )
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
 
-    # Añadir account_identifier a cada transacción
+    # Crear/obtener cuenta y vincular al usuario
+    account_id = supabase_service.get_or_create_account(
+        stable_key=account_identifier,
+        source=source_type.lower(),
+        display_name=display_name,
+    )
+    supabase_service.link_user_account(user_id=user_id, account_id=account_id)
+
+    # Añadir account_id (UUID) a cada transacción
     transactions_list = df_transactions.to_dict(orient="records")
     for t in transactions_list:
-        t["account_identifier"] = account_identifier
+        t["account_id"] = account_id
 
-    # Insertar transacciones en base de datos
-    result = supabase_service.insert_transactions_with_duplicates_report(
-        transactions_list
-    )
+    result = supabase_service.insert_transactions(transactions_list)
 
     # Retornar resumen de la operación
     return {
