@@ -17,15 +17,21 @@ class SupabaseService:
 
     def __init__(self):
         self.supabase: Optional[Client] = None
+        self._uses_service_role: bool = False
         key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
         if settings.SUPABASE_URL and key:
             try:
                 self.supabase = create_client(settings.SUPABASE_URL, key)
+                self._uses_service_role = bool(settings.SUPABASE_SERVICE_ROLE_KEY)
             except Exception as e:
                 print(f"[Supabase] Error al conectar: {e}")
 
     def is_connected(self) -> bool:
         return self.supabase is not None
+
+    def uses_service_role(self) -> bool:
+        """True si estamos usando service_role (necesario para inserts con RLS)."""
+        return self._uses_service_role
 
     def get_or_create_account(
         self, stable_key: str, source: str, display_name: str
@@ -143,6 +149,8 @@ class SupabaseService:
                 self.supabase.table("transactions").insert(new_ones).execute()
             except Exception as e:
                 print(f"[Supabase] Error insert: {e}")
+                if not self._uses_service_role:
+                    print("[Supabase] HINT: Si ves 'permission denied' o RLS, configura SUPABASE_SERVICE_ROLE_KEY en Render")
                 raise
         return {
             "received": len(transactions),

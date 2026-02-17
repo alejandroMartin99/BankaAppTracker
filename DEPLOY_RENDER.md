@@ -34,9 +34,18 @@ https://bankaapp-backend.onrender.com
 Endpoints:
 - `GET /` - Health
 - `GET /health` - Health check
+- `GET /test` - **Diagnóstico**: indica si Supabase está conectado y si usa service_role
 - `GET /GET/transactions` - Transacciones (requiere auth)
 - `GET /GET/balances` - Saldos (requiere auth)
 - `POST /upload/Transactions` - Subir extracto (requiere auth)
+
+## 6. Si en local funciona pero en Render no
+
+1. Abre `https://tu-backend.onrender.com/test`:
+   - `supabase_connected: false` → falta `SUPABASE_URL` o las keys
+   - `supabase_uses_service_role: false` → falta `SUPABASE_SERVICE_ROLE_KEY` (inserciones fallan por RLS)
+2. Revisa los **Logs** en Render al subir un extracto: buscar `[Auth]` o `[Supabase]` para ver el error real
+3. CORS: el backend usa `allow_credentials=False` en producción con `*` (requerido por la spec)
 
 ## 5. Frontend
 

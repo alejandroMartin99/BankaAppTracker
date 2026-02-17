@@ -35,7 +35,10 @@ def get_current_user(
         return {"sub": str(user.id), "email": user.email}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"[Auth] get_user failed: {type(e).__name__}: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",

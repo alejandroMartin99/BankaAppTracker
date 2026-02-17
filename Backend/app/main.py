@@ -28,16 +28,19 @@ is_production = os.getenv("ENVIRONMENT") == "production" or os.getenv("ENV") == 
 
 if is_production:
     # In production, allow all origins for easier deployment
-    # This allows requests from any Vercel deployment (production, preview, etc.)
     cors_origins = ["*"]
-    print(f"[CORS] Production mode: Allowing all origins")
+    # CRITICAL: allow_credentials=True + "*" is INVALID per CORS spec - browser rejects response
+    # We use Bearer token (no cookies), so credentials=False is fine
+    cors_credentials = False
+    print(f"[CORS] Production mode: origins=*, credentials=False")
 else:
-    print(f"[CORS] Development mode: Allowing origins: {cors_origins}")
+    cors_credentials = True
+    print(f"[CORS] Development mode: origins={cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_credentials=cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -64,14 +67,17 @@ async def health_check():
 
 @app.get("/test")
 async def test():
-    """Test endpoint for debugging and verification"""
+    """Test endpoint para diagnosticar Render vs local.
+    Usar: GET https://tu-backend.onrender.com/test"""
+    supabase_ok = supabase_service.is_connected()
+    uses_sr = supabase_service.uses_service_role() if hasattr(supabase_service, "uses_service_role") else None
     return {
         "status": "ok",
-        "message": "Backend is working correctly",
         "environment": os.getenv("ENVIRONMENT", "development"),
-        "cors_origins": cors_origins if not is_production else ["*"],
-        "supabase_connected": supabase_service.is_connected() if hasattr(supabase_service, 'is_connected') else False,
-        "timestamp": datetime.now().isoformat()
+        "supabase_connected": supabase_ok,
+        "supabase_uses_service_role": uses_sr,
+        "hint": "Si uses_service_role=false en Render, añade SUPABASE_SERVICE_ROLE_KEY en Environment" if (supabase_ok and uses_sr is False) else None,
+        "timestamp": datetime.now().isoformat(),
     }
 
 
