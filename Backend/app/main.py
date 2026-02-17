@@ -46,9 +46,9 @@ app.add_middleware(
 app.include_router(upload_router)
 app.include_router(get_router)
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
-    """Root endpoint health check"""
+    """Root endpoint health check (HEAD para Render)"""
     return {
         "message": "BANK_APP_TRAKER",
         "status": "running",
@@ -56,9 +56,9 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint (Render usa HEAD)"""
     return {"status": "healthy"}
 
 
