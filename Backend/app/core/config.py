@@ -25,13 +25,13 @@ class Settings(BaseSettings):
     APP_NAME: str = "Rubén Fitness API"
     DEBUG: bool = False
     
-    # CORS - defaults (can be overridden by environment variable)
-    # In production, this will be overridden to ["*"] in main.py
-    # You can also set CORS_ORIGINS environment variable as comma-separated list
+    # CORS - el middleware hace match EXACTO (no soporta *.vercel.app)
+    # In production (ENVIRONMENT=production) se usa ["*"] en main.py
+    # Añade tu URL de Vercel si usas otra distinta
     CORS_ORIGINS: List[str] = [
         "http://localhost:4200",
         "http://localhost:3000",
-        "https://*.vercel.app"  # Allow all Vercel preview deployments
+        "https://banka-app-tracker.vercel.app",  # Producción Vercel (match exacto)
     ]
     
     # Supabase Configuration
