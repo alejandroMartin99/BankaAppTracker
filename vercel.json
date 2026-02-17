@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd Frontend/banka-app && npm ci && npm run build",
+  "outputDirectory": "Frontend/banka-app/dist/banka-app/browser",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
