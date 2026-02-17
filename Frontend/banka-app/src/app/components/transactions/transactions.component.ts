@@ -58,7 +58,7 @@ export class TransactionsComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error al cargar transacciones:', err);
-        this.error = err.error?.detail || 'Error al conectar con el servidor. ¿Está el backend en http://localhost:8000?';
+        this.error = err.error?.detail || 'Error al conectar con el servidor. ¿Backend conectado?';
         this.loading = false;
       }
     });

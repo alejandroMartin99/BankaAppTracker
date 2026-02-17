@@ -180,7 +180,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
         this.loading = false;
       },
       error: (err) => {
-        this.error = err.error?.detail || 'Error al cargar. ¿Backend en http://localhost:8000?';
+        this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
         this.loading = false;
       }
     });

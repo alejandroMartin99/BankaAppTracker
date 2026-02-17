@@ -110,7 +110,7 @@ export class GastosComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[Gastos] transactions error:', err);
-        this.error = err.error?.detail || 'Error al cargar. ¿Backend en http://localhost:8000?';
+        this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
         this.loading = false;
       }
     });
