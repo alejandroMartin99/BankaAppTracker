@@ -12,9 +12,9 @@ CATEGORY_RULES = [
 
     # Suministros
     (r'RECIBO AGUA|CANAL DE ISABEL', 'Suministros', 'Agua'),
-    (r'RECIBO LUZ|IBERDROLA|ENDESA|NATURGY|REPSOL LUZ', 'Suministros', 'Luz'),
-    (r'RECIBO GAS|GAS NATURAL|COMERCIALIZADORA RE', 'Suministros', 'Gas'),
-    (r'RECIBO TELEFON|MOVISTAR|VODAFONE|ORANGE|YOIGO|MASMOVIL', 'Suministros', 'Telefono'),
+    (r'COMERCIALIZADORA RE 0053', 'Suministros', 'Luz'),
+    (r'NATURGY|GAS', 'Suministros', 'Gas'),
+    (r'RECIBO TELEFON|MOVISTAR|VODAFONE|ORANGE|YOIGO|MASMOVIL|DIGI', 'Suministros', 'Telefono'),
     (r'COMUNIDAD PROPIETARIOS|COM\. PROP', 'Suministros', 'Comunidad'),
 
     # BienEstar
@@ -25,6 +25,7 @@ CATEGORY_RULES = [
     (r'DRUNI', 'BienEstar', 'Druni'),
     (r'NOTINO', 'BienEstar', 'Notino'),
     (r'PRIMOR', 'BienEstar', 'Primor'),
+    (r'APPLE', 'BienEstar', 'Apple'),
     (r'HIERBA EN FLOR', 'BienEstar', 'Flores_Lucia'),
 
     # OCIO
@@ -60,8 +61,10 @@ CATEGORY_RULES = [
     (r'IKEA', 'Hogar', 'IKEA'),
     (r'LEROY', 'Hogar', 'LEROY MERLIN'),
     (r'HIPERHOGAR', 'Hogar', None),
+    (r'ALIEXPRESS', 'Hogar', 'AliExpress'),
     (r'AMAZON', 'Hogar', 'Amazon'),
     (r'HOGARDEXTER', 'Hogar', 'Hogardexter'),
+    (r'RESTANTE MESA LU', 'Hogar', 'Mesa'),
 
 
     # Supermercados
@@ -69,11 +72,11 @@ CATEGORY_RULES = [
     (r'MERCADONA', 'Supermercado', 'Mercadona'),
     (r'LIDL', 'Supermercado', 'Lidl'),
     (r'ALDI', 'Supermercado', 'Aldi'),
-    (r'DIA ', 'Supermercado', 'Dia'),
-    (r'AUCHAN ', 'Supermercado', 'Alcampo'),
-    (r'ALCAMPO ', 'Supermercado', 'Alcampo'),
-    (r'AHORRAMAS ', 'Supermercado', 'Ahorramas'),
-    (r'LA VIDA VERDE ', 'Supermercado', 'General'),
+    (r'DIA', 'Supermercado', 'Dia'),
+    (r'AUCHAN', 'Supermercado', 'Alcampo'),
+    (r'ALCAMPO', 'Supermercado', 'Alcampo'),
+    (r'AHORRAMAS', 'Supermercado', 'Ahorramas'),
+    (r'LA VIDA VERDE', 'Supermercado', 'General'),
 
     
     # Restaurantes
@@ -90,6 +93,8 @@ CATEGORY_RULES = [
     (r'PILAR AKANEYA', 'Restaurantes', 'PILAR AKANEYA'),
     (r'UBER EATS', 'Restaurantes', 'UBER EATS'),
     (r'TASTE', 'Restaurantes', 'TOY&TASTE'),
+    (r'COCHINITA LOCA', 'Restaurantes', 'Cochinita Mex'),
+    (r'COFFEE', 'Restaurantes', 'Cafe'),
 
     # Ropa
     (r'ZARA', 'Ropa', 'ZARA'),
@@ -102,6 +107,7 @@ CATEGORY_RULES = [
     (r'ALVARO MORENO', 'Ropa', 'ALVARO MORENO'),
     (r'SINGULARU', 'Ropa', 'Singularu'),
     (r'UNIQLO', 'Ropa', 'UNIQLO'),
+    (r'MILFSHAKES', 'Ropa', 'MILFSHAKES'),
 
 
     # Transferencias
@@ -112,6 +118,7 @@ CATEGORY_RULES = [
     (r'TRANSFERENCIA', 'Transferencia', None),
     (r'UNA RECARGA DE APPLE PAY CON', 'Transferencia', 'Recarga'),
     (r'RETIRADA DE EFECTIVO', 'Transferencia', 'CAJERO'),
+    (r'TO ALEJANDRO MARTIN IGLESIAS', 'Transferencia', 'Revolut'),
 
     # Banco
     (r'COMISION|LIQUIDACION INTERESES', 'banco', None),
