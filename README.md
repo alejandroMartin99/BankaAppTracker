@@ -1,64 +1,153 @@
 # BankaAppTracker
 
-Importa transacciones de **Ibercaja** desde archivos Excel a Supabase.
+Importa transacciones de **Ibercaja** y **Revolut** desde Excel/CSV a Supabase. Frontend Angular + Backend FastAPI.
 
-## Setup rápido
+---
 
-### 1. Crear proyecto en Supabase
+## Estructura del repo
 
-1. Ve a https://supabase.com/
-2. Crea un proyecto
-3. Usuarios: auth.users (Manage > Users) – el registro/login ya los crea
-4. **SQL Editor**: ejecuta `Backend/supabase_schema_v2.sql`  
-   (Si tienes tablas antiguas, ejecuta antes los DROP del final del archivo)
-5. **Settings > API**: URL, anon key, **service_role key**
+```
+BankaAppTracker/
+├── Backend/           ← FastAPI (root para Render)
+├── Frontend/
+│   └── banka-app/     ← Angular (root para Vercel)
+├── render.yaml        ← Config Backend en Render
+└── README.md
+```
 
-### 2. Configurar Backend
+---
+
+## 1. Supabase
+
+### Crear proyecto
+
+1. [supabase.com](https://supabase.com) → New Project
+2. **SQL Editor** → ejecuta `Backend/supabase_schema_v2.sql`
+   - Si tienes tablas antiguas, ejecuta primero los `DROP` del final del archivo
+
+### Keys necesarias
+
+- **Settings > API**: `Project URL`, `anon` key, **`service_role`** key (secreto)
+
+---
+
+## 2. Desarrollo local
+
+### Backend
 
 ```bash
 cd Backend
 python -m venv venv
-venv\Scripts\activate  # Windows
+venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 ```
 
 Crea `Backend/.env`:
+
 ```env
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_ANON_KEY=tu-anon-key
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-- **SUPABASE_SERVICE_ROLE_KEY**: Project Settings > API > service_role (DB + validación de tokens)
-
-### 3. Ejecutar
-
 ```bash
 uvicorn app.main:app --reload
 ```
 
-## API
-
-### POST /upload
-Sube un Excel de Ibercaja.
+### Frontend
 
 ```bash
-curl -X POST http://localhost:8000/upload -F "file=@movimientos.xlsx"
+cd Frontend/banka-app
+npm install
+npm start
 ```
 
-### GET /transactions
-Lista las transacciones.
+- Frontend: http://localhost:4200  
+- Backend: http://localhost:8000
 
-```bash
-curl http://localhost:8000/transactions
-```
+---
 
-## Formato Ibercaja
+## 3. Deploy Backend (Render)
 
-El parser espera el Excel exportado desde **Banca Digital > Consulta Movimientos > Exportar**.
+1. [render.com](https://render.com) → **New** → **Web Service**
+2. Conecta el repo de GitHub (BankaAppTracker)
+3. Render detecta `render.yaml` en la raíz. Si no:
+   - **Root Directory**: `Backend`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
-Columnas detectadas:
-- Fecha Operacion / Fecha Valor
-- Concepto
-- Descripción
-- Importe
+4. **Environment** → Añade estas variables (las de Supabase no están en el repo):
+   | Key | Value |
+   |-----|-------|
+   | `ENVIRONMENT` | `production` |
+   | `SUPABASE_URL` | Tu Project URL |
+   | `SUPABASE_ANON_KEY` | Tu anon key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Tu service_role key |
+
+5. **Save** → Render hace deploy. URL tipo: `https://bankaapp-backend.onrender.com`
+
+6. Comprueba: `https://tu-backend.onrender.com/test` → debe devolver `"environment": "production"`
+
+---
+
+## 4. Deploy Frontend (Vercel)
+
+1. [vercel.com](https://vercel.com) → **Add New** → **Project**
+2. Importa el repo de GitHub (BankaAppTracker)
+
+3. **Configure Project**:
+   - **Root Directory**: `Frontend/banka-app` (obligatorio; el Angular está ahí)
+   - **Framework Preset**: Angular (auto-detecta)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist/banka-app` (Angular 18 puede usar `dist/banka-app/browser`)
+   - **Install Command**: `npm ci` o `npm install`
+
+   El `vercel.json` en `Frontend/banka-app` configura el fallback SPA para rutas como `/gastos`, `/resumen`.
+
+4. **Environment Variables**: No necesitas ninguna (la URL del API va en `environment.prod.ts` en el código)
+
+5. **Deploy**
+
+6. Tras el deploy, actualiza **Supabase** → Authentication → URL Configuration:
+   - **Site URL**: `https://tu-app.vercel.app` (tu URL real)
+   - **Redirect URLs**: `https://tu-app.vercel.app/**`, `https://*.vercel.app/**`, `http://localhost:4200/**`
+
+7. En `Frontend/banka-app/src/environment.prod.ts` debe estar la URL del backend:
+   ```typescript
+   apiUrl: 'https://bankaapp-backend.onrender.com'  // o tu URL de Render
+   ```
+   Haz commit y push para que el próximo deploy use esa URL.
+
+---
+
+## 5. Resumen de URLs
+
+| Dónde | URL |
+|-------|-----|
+| Backend Render | `https://bankaapp-backend.onrender.com` |
+| Frontend Vercel | `https://banka-app-tracker.vercel.app` (o la tuya) |
+| Supabase Site URL | La URL del frontend en Vercel |
+
+---
+
+## 6. Troubleshooting
+
+### CORS bloquea las peticiones
+
+- Backend: `ENVIRONMENT=production` en Render (obligatorio para CORS con `*`).
+- Comprueba: `https://tu-backend.onrender.com/test` → `"environment": "production"`.
+
+### "Token inválido" o 401
+
+- Supabase Redirect URLs: añade la URL de Vercel.
+- Si usas otra URL de frontend, añádela a Redirect URLs.
+
+### Inserciones fallan (RLS)
+
+- Asegúrate de tener `SUPABASE_SERVICE_ROLE_KEY` en Render.
+- `/test` debe mostrar `"supabase_uses_service_role": true`.
+
+### Backend dormido (Render free)
+
+- La primera petición puede tardar ~30 s en responder.
+- Considera un plan de pago para evitar cold starts.
