@@ -32,6 +32,11 @@ const BRANDS = [
   { key: 'kraken', domain: 'kraken.com' },
   { key: 'siemens', domain: 'siemens.com' },
   { key: 'ahorramas', domain: 'ahorramas.com' },
+  { key: 'apple', domain: 'apple.com' },
+  { key: 'alvaro-moreno', domain: 'alvaromoreno.es' },
+  { key: 'druni', domain: 'druni.es' },
+  { key: 'milfshakes', domain: 'milfshakes.es' },
+  { key: 'singularu', domain: 'singularu.com' },
 ];
 
 // Iconify: prefix:icon -> archivo prefix-icon.svg
