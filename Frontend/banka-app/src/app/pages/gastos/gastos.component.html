@@ -93,7 +93,10 @@
                                 {{ getAccountLabelShort(tx.cuenta) }}
                               </span>
                             }
-                            <span class="tx-subcat">{{ tx.subcategoria || tx.descripcion || 'Transferencia' }}</span>
+                            <span class="tx-categoria">{{ tx.categoria || 'Transferencia' }}</span>
+                            @if (tx.subcategoria || tx.descripcion) {
+                              <span class="tx-subcat">{{ tx.subcategoria || tx.descripcion }}</span>
+                            }
                           </span>
                         </div>
                         <div class="tx-right">
@@ -161,11 +164,9 @@
                             {{ getAccountLabelShort(tx.cuenta) }}
                           </span>
                         }
+                        <span class="tx-categoria">{{ tx.categoria || 'Sin categoría' }}</span>
                         @if (tx.subcategoria) {
                           <span class="tx-subcat">{{ tx.subcategoria }}</span>
-                        }
-                        @if (!tx.cuenta && !tx.subcategoria) {
-                          <span class="tx-subcat">{{ tx.categoria || 'Sin categoría' }}</span>
                         }
                       </span>
                       @if (tx.descripcion) {
