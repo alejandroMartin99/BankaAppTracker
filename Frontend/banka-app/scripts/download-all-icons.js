@@ -31,6 +31,7 @@ const BRANDS = [
   { key: 'revolut', domain: 'revolut.com' },
   { key: 'kraken', domain: 'kraken.com' },
   { key: 'siemens', domain: 'siemens.com' },
+  { key: 'ahorramas', domain: 'ahorramas.com' },
 ];
 
 // Iconify: prefix:icon -> archivo prefix-icon.svg

@@ -13,8 +13,8 @@ CATEGORY_RULES = [
     # Suministros
     (r'RECIBO AGUA|CANAL DE ISABEL', 'Suministros', 'Agua'),
     (r'COMERCIALIZADORA RE 0053', 'Suministros', 'Luz'),
-    (r'NATURGY|GAS', 'Suministros', 'Gas'),
-    (r'RECIBO TELEFON|MOVISTAR|VODAFONE|ORANGE|YOIGO|MASMOVIL|DIGI', 'Suministros', 'Telefono'),
+    (r'NATURGY', 'Suministros', 'Gas'),
+    (r'RECIBO TELEFON|MOVISTAR|VODAFONE|ORANGE|YOIGO|MASMOVIL', 'Suministros', 'Telefono'),
     (r'COMUNIDAD PROPIETARIOS|COM\. PROP', 'Suministros', 'Comunidad'),
 
     # BienEstar
@@ -25,7 +25,7 @@ CATEGORY_RULES = [
     (r'DRUNI', 'BienEstar', 'Druni'),
     (r'NOTINO', 'BienEstar', 'Notino'),
     (r'PRIMOR', 'BienEstar', 'Primor'),
-    (r'APPLE', 'BienEstar', 'Apple'),
+    (r'APPLE.COMÑBILL', 'BienEstar', 'Apple'),
     (r'HIERBA EN FLOR', 'BienEstar', 'Flores_Lucia'),
 
     # OCIO
@@ -118,14 +118,14 @@ CATEGORY_RULES = [
     (r'TRANSFERENCIA', 'Transferencia', None),
     (r'UNA RECARGA DE APPLE PAY CON', 'Transferencia', 'Recarga'),
     (r'RETIRADA DE EFECTIVO', 'Transferencia', 'CAJERO'),
-    (r'TO ALEJANDRO MARTIN IGLESIAS', 'Transferencia', 'Revolut'),
+    (r'ALEJANDRO MARTÍN IGLESIAS', 'Transferencia', 'Revolut'),
 
     # Banco
     (r'COMISION|LIQUIDACION INTERESES', 'banco', None),
 
     # INVERSIONES
     (r'KRAKEN', 'INVERSIONES', 'Kraken'),
-    (r'REVOLUT DIGITAL ASSETS', 'INVERSIONES', 'Crypto_Revolut'),
+    (r'TAL ASSETS EUROPE LTD', 'INVERSIONES', 'Crypto_Revolut'),
 ]
 
 def categorize_transaction(description: str, category_rules) -> Tuple[str, Optional[str]]:
