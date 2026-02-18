@@ -11,7 +11,7 @@ router = APIRouter(
 
 
 def _fetch_for_balances(account_ids: list[str]) -> list:
-    """Transacciones para saldos (solo cuentas del usuario)."""
+    """Saldos = valor 'saldo' de la última transacción de cada cuenta (fecha más reciente, mayor saldo = cierre del día)."""
     if not account_ids:
         return []
     try:
@@ -21,6 +21,7 @@ def _fetch_for_balances(account_ids: list[str]) -> list:
             .select("dt_date, saldo, cuenta, account_id")
             .in_("account_id", account_ids)
             .order("dt_date", desc=True)
+            .order("saldo", desc=True, nullsfirst=False)  # mismo día: mayor saldo = última transacción (cierre)
             .limit(2000)
             .execute()
         )
