@@ -204,11 +204,12 @@ export class GastosComponent implements OnInit, OnDestroy {
     return this.transactions.filter(t => (t.categoria || '') === 'Transferencia');
   }
 
-  /** Agrupado por fecha para bloques con cabecera de día */
+  /** Agrupado por fecha. Orden viene del API (dt_date desc). */
   get transactionsByDate(): { date: string; dateLabel: string; transactions: Transaction[] }[] {
     const grouped = new Map<string, Transaction[]>();
     for (const t of this.displayedTransactions) {
-      const d = t.dt_date || '';
+      const d = (t.dt_date || '').slice(0, 10);
+      if (!d) continue;
       if (!grouped.has(d)) grouped.set(d, []);
       grouped.get(d)!.push(t);
     }
@@ -303,7 +304,8 @@ export class GastosComponent implements OnInit, OnDestroy {
   get internalTransfersByDate(): { date: string; dateLabel: string; transactions: Transaction[] }[] {
     const grouped = new Map<string, Transaction[]>();
     for (const t of this.internalTransfers) {
-      const d = t.dt_date || '';
+      const d = (t.dt_date || '').slice(0, 10);
+      if (!d) continue;
       if (!grouped.has(d)) grouped.set(d, []);
       grouped.get(d)!.push(t);
     }

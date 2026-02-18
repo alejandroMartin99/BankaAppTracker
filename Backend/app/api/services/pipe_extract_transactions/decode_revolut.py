@@ -48,4 +48,9 @@ def main_decode_revolut(df: pd.DataFrame, account_name: str | None = None) -> tu
         'Referencia'
     ]].sort_values('DT_DATE')
 
+    # 8. Si varias transacciones comparten la misma fecha/hora exacta, desempate: +1s al 2º, +2s al 3º...
+    df['DT_DATE'] = pd.to_datetime(df['DT_DATE'])
+    rank_same_ts = df.groupby('DT_DATE').cumcount()
+    df['DT_DATE'] = (df['DT_DATE'] + pd.to_timedelta(rank_same_ts, unit='s')).dt.strftime('%Y-%m-%d %H:%M:%S')
+
     return df, ACCOUNT_IDENTIFIER_REVOLUT, display_name

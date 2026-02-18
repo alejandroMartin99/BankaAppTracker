@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     id BIGSERIAL PRIMARY KEY,
     transaction_id VARCHAR(64) UNIQUE NOT NULL,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    dt_date DATE NOT NULL,
+    dt_date TIMESTAMPTZ NOT NULL,  -- fecha; Ibercaja: hh:mm:ss ficticias para orden; Revolut: hora real
     importe DECIMAL(12, 2) NOT NULL,
     saldo DECIMAL(12, 2),
     cuenta VARCHAR(100),          -- nombre mostrado en la transacción (puede venir del extracto)

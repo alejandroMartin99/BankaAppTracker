@@ -83,8 +83,10 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
         ]
     ].sort_values('DT_DATE')
     
-    # 8. Conversión final de tipos
-    df['DT_DATE'] = pd.to_datetime(df['DT_DATE']).dt.strftime('%Y-%m-%d')
+    # 8. Añadir hh:mm:ss ficticias por orden dentro de cada día (para ordenar; Revolut ya trae hora real)
+    df['DT_DATE'] = pd.to_datetime(df['DT_DATE'])
+    rank_per_day = df.groupby(df['DT_DATE'].dt.date).cumcount()
+    df['DT_DATE'] = (df['DT_DATE'] + pd.to_timedelta(rank_per_day, unit='s')).dt.strftime('%Y-%m-%d %H:%M:%S')
     df = df.replace({pd.NA: None, np.nan: None})
     
     # Convertir importes
