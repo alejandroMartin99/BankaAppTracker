@@ -27,6 +27,12 @@ const BRAND_KEYS: Record<string, string> = {
   Revolut: 'revolut',
   Kraken: 'kraken',
   'Siemens CAFE': 'siemens',
+  Ahorramas: 'ahorramas',
+  Apple: 'apple',
+  Druni: 'druni',
+  'ALVARO MORENO': 'alvaro-moreno',
+  MILFSHAKES: 'milfshakes',
+  Singularu: 'singular',
 };
 
 /** Subcategoría -> icono local (archivo prefix-icon.svg) */
@@ -96,6 +102,12 @@ const DESC_BRANDS: Record<string, string> = {
   IKEA: 'ikea',
   UBER: 'uber',
   REVOLUT: 'revolut',
+  AHORRAMAS: 'ahorramas',
+  APPLE: 'apple',
+  DRUNI: 'druni',
+  'ALVARO MORENO': 'alvaro-moreno',
+  MILFSHAKES: 'milfshakes',
+  SINGULARU: 'singular',
 };
 
 export interface IconInfo {
