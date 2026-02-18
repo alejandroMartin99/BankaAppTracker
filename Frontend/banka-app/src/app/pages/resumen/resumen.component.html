@@ -107,7 +107,7 @@
                             <div class="detail-row">
                               <span class="detail-desc">{{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}</span>
                               @if (tx.cuenta) {
-                                <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                                <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'" [class.detail-account-pluxee]="tx.cuenta === 'Pluxee'">{{ getAccountLabel(tx.cuenta) }}</span>
                               }
                               <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
                               <span class="detail-amount detail-amount--income">+{{ tx.importe | number:'1.2-2':'es' }} €</span>
@@ -151,7 +151,7 @@
                           <div class="detail-row">
                             <span class="detail-desc">{{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}</span>
                             @if (tx.cuenta) {
-                              <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'">{{ getAccountLabel(tx.cuenta) }}</span>
+                              <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'" [class.detail-account-pluxee]="tx.cuenta === 'Pluxee'">{{ getAccountLabel(tx.cuenta) }}</span>
                             }
                             <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
                             <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>

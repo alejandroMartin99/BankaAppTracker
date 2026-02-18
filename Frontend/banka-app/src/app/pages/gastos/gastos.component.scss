@@ -424,7 +424,11 @@
     background: rgba(168, 85, 247, 0.15);
     color: #a855f7;
   }
-  &:not(.tx-cuenta-revolut):not(.tx-cuenta-personal):not(.tx-cuenta-conjunta) {
+  &.tx-cuenta-pluxee {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+  }
+  &:not(.tx-cuenta-revolut):not(.tx-cuenta-personal):not(.tx-cuenta-conjunta):not(.tx-cuenta-pluxee) {
     background: var(--color-border-light);
     color: var(--color-text-secondary);
   }

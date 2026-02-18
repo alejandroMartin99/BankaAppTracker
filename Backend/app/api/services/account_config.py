@@ -27,6 +27,7 @@ def _load_config() -> Dict[str, Any]:
                 },
             },
             "revolut": {"default_name": "Revolut", "shared": False},
+            "pluxee": {"default_name": "Pluxee", "shared": False},
         }
         return _ACCOUNT_CONFIG
     with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -70,6 +71,12 @@ def get_revolut_default_name() -> str:
     """Nombre por defecto para extractos Revolut."""
     config = _load_config()
     return config.get("revolut", {}).get("default_name", "Revolut")
+
+
+def get_pluxee_default_name() -> str:
+    """Nombre por defecto para extractos Pluxee (tarjeta restaurante)."""
+    config = _load_config()
+    return config.get("pluxee", {}).get("default_name", "Pluxee")
 
 
 def reload_config() -> None:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.api.services.pipe_extract_transactions.decode_ibercaja import main_decode_ibercaja
 from app.api.services.pipe_extract_transactions.decode_revolut import main_decode_revolut
+from app.api.services.pipe_extract_transactions.decode_pluxee import main_decode_pluxee, is_pluxee_file
 
 
 def generate_transaction_id(row: pd.Series) -> str:
@@ -69,6 +70,10 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
         print("Archivo identificado como Revolut")
         df_transactions, account_identifier, display_name = main_decode_revolut(df)
         source_type = "Revolut"
+    elif is_pluxee_file(df):
+        print("Archivo identificado como Pluxee")
+        df_transactions, account_identifier, display_name = main_decode_pluxee(df)
+        source_type = "Pluxee"
     else:
         raise ValueError("Formato de archivo no reconocido")
     

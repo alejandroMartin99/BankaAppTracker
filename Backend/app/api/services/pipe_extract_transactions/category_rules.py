@@ -4,8 +4,8 @@ from typing import Optional, Tuple, Dict
 
 CATEGORY_RULES = [
     # Nómina
-    (r'INDRA', 'nomina', 'INDRA'),
-    (r'NOMINA', 'nomina', 'EX-EMPRESA'),
+    (r'INDRA', 'Nómina', 'INDRA'),
+    (r'NóMINA', 'Nómina', 'EX-EMPRESA'),
 
     # Bizum
     (r'BIZUM', 'bizum', None),
@@ -82,6 +82,7 @@ CATEGORY_RULES = [
     # Restaurantes
     (r'RESTAURANTE|TABERNA|BAR|CERVECERIA|CAFETERIA|CONSUMICI|RTE ', 'Restaurantes', None),
     (r'DI CARLO', 'Restaurantes', 'Pizzeria Di Carlo'),
+    (r'PIZZ CARLOS', 'Restaurantes', 'Pizzeria Di Carlo'),
     (r'BURGER KING', 'Restaurantes', 'Burger King'),
     (r'DEEVENTOSS', 'Restaurantes', 'DeEventoss'),
     (r'DELIKIA', 'Restaurantes', 'DELIKIA CAFE'),
@@ -95,6 +96,7 @@ CATEGORY_RULES = [
     (r'TASTE', 'Restaurantes', 'TOY&TASTE'),
     (r'COCHINITA LOCA', 'Restaurantes', 'Cochinita Mex'),
     (r'COFFEE', 'Restaurantes', 'Cafe'),
+    (r'DOMINOS PIZZA', 'Restaurantes', 'Dominos Pizza'),
 
     # Ropa
     (r'ZARA', 'Ropa', 'ZARA'),

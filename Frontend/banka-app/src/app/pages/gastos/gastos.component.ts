@@ -227,6 +227,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (cuenta === 'Revolut') return 'Revolut';
     if (cuenta === 'Personal') return 'Ibercaja Personal';
     if (cuenta === 'Conjunta') return 'Ibercaja Conjunta';
+    if (cuenta === 'Pluxee') return 'Pluxee';
     return cuenta;
   }
 
@@ -236,6 +237,7 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (cuenta === 'Revolut') return 'Revolut';
     if (cuenta === 'Personal') return 'Personal';
     if (cuenta === 'Conjunta') return 'Conjunta';
+    if (cuenta === 'Pluxee') return 'Pluxee';
     return cuenta.length > 6 ? cuenta.slice(0, 5) + '.' : cuenta;
   }
 
@@ -261,7 +263,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   }
 
   get balanceEntries(): [string, number][] {
-    const order = ['Revolut', 'Personal', 'Conjunta'];
+    const order = ['Revolut', 'Personal', 'Conjunta', 'Pluxee'];
     const entries = Object.entries(this.balances);
     return entries.sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
   }

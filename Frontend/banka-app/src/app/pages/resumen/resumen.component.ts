@@ -53,7 +53,8 @@ export class ResumenComponent implements OnInit, OnDestroy {
     { id: '', label: 'Todas' },
     { id: 'Revolut', label: 'Revolut' },
     { id: 'Personal', label: 'Personal' },
-    { id: 'Conjunta', label: 'Conjunta' }
+    { id: 'Conjunta', label: 'Conjunta' },
+    { id: 'Pluxee', label: 'Pluxee' }
   ];
 
   readonly presets: { id: DatePreset; label: string }[] = [
@@ -277,6 +278,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
     if (cuenta === 'Revolut') return 'Revolut';
     if (cuenta === 'Personal') return 'Ibercaja Personal';
     if (cuenta === 'Conjunta') return 'Ibercaja Conjunta';
+    if (cuenta === 'Pluxee') return 'Pluxee';
     return cuenta;
   }
 }

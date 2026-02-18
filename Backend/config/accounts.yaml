@@ -23,3 +23,8 @@ revolut:
   default_name: "Revolut"
   shared: false
   # Revolut suele ser personal por usuario
+
+pluxee:
+  default_name: "Pluxee"
+  shared: false
+  # Tarjeta restaurante / retribución flexible
