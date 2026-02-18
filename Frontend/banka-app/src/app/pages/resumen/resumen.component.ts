@@ -87,16 +87,14 @@ export class ResumenComponent implements OnInit, OnDestroy {
     return list;
   }
 
+  /** Suma de los totales de cada categoría en "Gastos por categoría" */
   get totalGastos(): number {
-    return this.filteredTransactions
-      .filter(t => (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.categoriesSummary.reduce((sum, cat) => sum + cat.total, 0);
   }
 
+  /** Suma de los totales de cada categoría en "Ingresos por categoría" */
   get totalIngresos(): number {
-    return this.filteredTransactions
-      .filter(t => (t.importe || 0) > 0)
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.incomesSummary.reduce((sum, cat) => sum + cat.total, 0);
   }
 
   /** Balance = Ingresos + Gastos (coherente con los totales mostrados; excluye transferencias internas) */
