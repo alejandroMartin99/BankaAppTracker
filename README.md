@@ -84,9 +84,9 @@ npm start
    | `SUPABASE_ANON_KEY` | Tu anon key |
    | `SUPABASE_SERVICE_ROLE_KEY` | Tu service_role key |
 
-5. **Save** → Render hace deploy. URL tipo: `https://bankaapp-backend.onrender.com`
+5. **Save** → Render hace deploy. URL: `https://bankaapptracker.onrender.com`
 
-6. Comprueba: `https://tu-backend.onrender.com/test` → debe devolver `"environment": "production"`
+6. Comprueba: `https://bankaapptracker.onrender.com/test` → debe devolver `"environment": "production"`
 
 ---
 
@@ -114,7 +114,7 @@ npm start
 
 7. En `Frontend/banka-app/src/environment.prod.ts` debe estar la URL del backend:
    ```typescript
-   apiUrl: 'https://bankaapp-backend.onrender.com'  // o tu URL de Render
+   apiUrl: 'https://bankaapptracker.onrender.com'
    ```
    Haz commit y push para que el próximo deploy use esa URL.
 
@@ -124,8 +124,8 @@ npm start
 
 | Dónde | URL |
 |-------|-----|
-| Backend Render | `https://bankaapp-backend.onrender.com` |
-| Frontend Vercel | `https://banka-app-tracker.vercel.app` (o la tuya) |
+| Backend Render | `https://bankaapptracker.onrender.com` |
+| Frontend Vercel | `https://banka-app-tracker.vercel.app` |
 | Supabase Site URL | La URL del frontend en Vercel |
 
 ---
@@ -135,7 +135,7 @@ npm start
 ### CORS bloquea las peticiones
 
 - Backend: `ENVIRONMENT=production` en Render (obligatorio para CORS con `*`).
-- Comprueba: `https://tu-backend.onrender.com/test` → `"environment": "production"`.
+- Comprueba: `https://bankaapptracker.onrender.com/test` → `"environment": "production"`.
 
 ### "Token inválido" o 401
 

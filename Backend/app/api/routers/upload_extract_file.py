@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from typing import Dict, Any
+import math
+
 import pandas as pd
 
 from app.api.deps import get_current_user
@@ -12,6 +14,20 @@ router = APIRouter(
 )
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls",".csv"}
+
+
+def _sanitize_for_json(records: list[dict]) -> list[dict]:
+    """Reemplaza NaN/Inf por None para que Supabase/JSON los acepte (Revolut: subcategoria vacía)."""
+    out = []
+    for d in records:
+        clean = {}
+        for k, v in d.items():
+            if pd.isna(v) or (isinstance(v, float) and math.isinf(v)):
+                clean[k] = None
+            else:
+                clean[k] = v
+        out.append(clean)
+    return out
 
 
 @router.post(
@@ -74,6 +90,9 @@ async def upload_transactions_file(
     transactions_list = df_transactions.to_dict(orient="records")
     for t in transactions_list:
         t["account_id"] = account_id
+
+    # Limpiar NaN/Inf (no son JSON válidos; Revolut puede tener subcategoria/categoria vacías)
+    transactions_list = _sanitize_for_json(transactions_list)
 
     result = supabase_service.insert_transactions(transactions_list)
 
