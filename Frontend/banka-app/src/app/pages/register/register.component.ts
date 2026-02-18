@@ -17,6 +17,7 @@ export class RegisterComponent {
   loading = false;
 
   form = this.fb.nonNullable.group({
+    fullName: [''],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
@@ -37,8 +38,8 @@ export class RegisterComponent {
     this.errorMessage = '';
     this.successMessage = '';
     this.loading = true;
-    const { email, password } = this.form.getRawValue();
-    const { error } = await this.auth.signUp(email, password);
+    const { fullName, email, password } = this.form.getRawValue();
+    const { error } = await this.auth.signUp(email, password, fullName || undefined);
     this.loading = false;
     if (error) {
       this.errorMessage = error.message || 'Error al registrarse';

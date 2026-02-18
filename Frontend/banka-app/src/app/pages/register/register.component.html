@@ -5,6 +5,16 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
       <div class="form-group">
+        <label for="fullName">Nombre (opcional)</label>
+        <input
+          id="fullName"
+          type="text"
+          formControlName="fullName"
+          placeholder="Tu nombre"
+          autocomplete="name"
+        />
+      </div>
+      <div class="form-group">
         <label for="email">Email</label>
         <input
           id="email"

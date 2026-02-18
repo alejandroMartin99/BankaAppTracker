@@ -14,6 +14,14 @@ export class AuthService {
 
   readonly user = computed(() => this.session()?.user ?? null);
   readonly isAuthenticated = computed(() => !!this.session()?.user);
+  /** Nombre para mostrar (full_name, name, o parte del email) */
+  readonly displayName = computed(() => {
+    const u = this.session()?.user;
+    if (!u) return '';
+    const meta = u.user_metadata;
+    return (meta?.['full_name'] || meta?.['name'] || meta?.['user_name'] || '')?.trim()
+      || (u.email ? u.email.split('@')[0] : '');
+  });
   readonly accessToken = computed(() => this.session()?.access_token ?? null);
 
   constructor() {
@@ -34,12 +42,16 @@ export class AuthService {
     return { error };
   }
 
-  async signUp(email: string, password: string): Promise<{ error: Error | null }> {
-    const { error } = await this.supabase.auth.signUp({ email, password });
+  async signUp(email: string, password: string, fullName?: string): Promise<{ error: Error | null }> {
+    const options = fullName?.trim()
+      ? { data: { full_name: fullName.trim() } }
+      : undefined;
+    const { error } = await this.supabase.auth.signUp({ email, password, options });
     return { error };
   }
 
   async signOut(): Promise<void> {
+    this.session.set(null); // Limpiar de inmediato para que isAuthenticated() sea false antes de navegar
     await this.supabase.auth.signOut();
   }
 

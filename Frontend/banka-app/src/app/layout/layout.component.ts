@@ -32,9 +32,9 @@ export class LayoutComponent {
     public auth: AuthService
   ) {}
 
-  logout() {
-    this.auth.signOut();
-    this.router.navigate(['/login']);
+  async logout() {
+    await this.auth.signOut();
+    this.router.navigateByUrl('/login');
   }
 
   onFileSelected(event: Event) {
