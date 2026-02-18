@@ -99,8 +99,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
       .reduce((sum, t) => sum + (t.importe || 0), 0);
   }
 
+  /** Balance = Ingresos + Gastos (coherente con los totales mostrados; excluye transferencias internas) */
   get totalBalance(): number {
-    return this.filteredTransactions.reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.totalIngresos + this.totalGastos;
   }
 
   get incomesSummary(): CategorySummary[] {
