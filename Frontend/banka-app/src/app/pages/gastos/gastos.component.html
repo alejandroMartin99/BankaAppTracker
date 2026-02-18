@@ -165,7 +165,7 @@
                           </span>
                         }
                         <span class="tx-categoria">{{ tx.categoria || 'Sin categoría' }}</span>
-                        @if (tx.subcategoria) {
+                        @if (tx.subcategoria && (!tx.descripcion || (tx.descripcion || '').toLowerCase() !== (tx.subcategoria || '').toLowerCase())) {
                           <span class="tx-subcat">{{ tx.subcategoria }}</span>
                         }
                       </span>
