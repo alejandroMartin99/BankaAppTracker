@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Dict, Any, Optional
 
 from app.api.deps import get_current_user
 from app.api.services.supabase.supabase_service import supabase_service
@@ -63,10 +63,14 @@ async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]
 
 @router.get(
     "/transactions",
-    summary="Obtener todas las transacciones",
+    summary="Obtener transacciones (opcionalmente filtradas por fechas)",
     response_model=Dict[str, Any]
 )
-async def get_transactions(user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+async def get_transactions(
+    from_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD"),
+    to_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD"),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
     if not supabase_service.is_connected():
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
@@ -75,15 +79,18 @@ async def get_transactions(user: dict = Depends(get_current_user)) -> Dict[str, 
         return {"success": True, "count": 0, "data": []}
 
     try:
-        response = (
+        q = (
             supabase_service.supabase
             .table("transactions")
             .select("*")
             .in_("account_id", account_ids)
-            .order("dt_date", desc=True)
-            .limit(10000)
-            .execute()
         )
+        if from_date:
+            q = q.gte("dt_date", from_date)
+        if to_date:
+            # Incluir todo el día: hasta 23:59:59
+            q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
+        response = q.order("dt_date", desc=True).limit(10000).execute()
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(account_ids)
         for row in data:
