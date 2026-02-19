@@ -42,17 +42,18 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
     df = df.iloc[6:].reset_index(drop=True)
     df.columns = df.iloc[0]
     df = df.iloc[1:].reset_index(drop=True)
+
     
-    # 3. Procesamiento inicial
+    # 4. Procesamiento inicial
     df['DT_DATE'] = pd.to_datetime(df['Fecha Operacion'], format='%d/%m/%Y', errors='coerce')
     df["Cuenta"] = display_name
     df["Descripción"] = df["Descripción"].fillna("").astype(str).str.strip()
     
-    # 4. Aplicar análisis semántico
+    # 5. Aplicar análisis semántico
     analysis_df = pd.DataFrame(df["Descripción"].apply(lambda x: analyze_description(x, CATEGORY_RULES)).tolist())
     df = pd.concat([df.reset_index(drop=True), analysis_df], axis=1)
     
-    # 5. Reglas de categorización específicas (usando máscaras booleanas)
+    # 6. Reglas de categorización específicas (usando máscaras booleanas)
     transferencia_interna = df['Concepto'] == 'TRANSFERENCIA INTERNA'
     transferencia_otra = (df['Concepto'] == 'TRANSFERENCIA OTRA ENTIDAD') & (df['Categoria'] == 'None')
     lucia_transfer = transferencia_interna & df['Descripción'].str.contains('LUCIA ARANZANA SANCHEZ', na=False)
@@ -65,10 +66,21 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
     df.loc[liquidacion, ['Categoria', 'Subcategoria']] = ['Banco', 'Intereses']
     df.loc[prestamo, ['Categoria', 'Subcategoria']] = ['Vivienda', 'Hipoteca']
     
-    # 6. Aplicar cuotas únicas
+    # 7. Aplicar cuotas únicas
     df = apply_unique_cuotes(df)
     
-    # 7. Selección y ordenación de columnas
+    # 8. Por cada día (DT_DATE): ordenar por "Nº de Orden" ascendente (la última tiene número más bajo).
+    #    Luego asignar horas ficticias según ese orden (0s, 1s, 2s...).
+    df['DT_DATE'] = pd.to_datetime(df['DT_DATE'])
+    df = df.sort_values(['DT_DATE', 'Nº Orden'], ascending=[False, True])
+
+    # Contar cuántos hay por día para invertir el offset
+    group_sizes = df.groupby(df['DT_DATE'].dt.date)['DT_DATE'].transform('count')
+    rank_per_day = df.groupby(df['DT_DATE'].dt.date).cumcount()
+
+    # El primero (Nº de Orden menor) recibe el offset más alto → aparece último en orden asc, primero en desc
+    df['DT_DATE'] = (df['DT_DATE'] + pd.to_timedelta(group_sizes - rank_per_day - 1, unit='s')).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
     df = df[
         [
             'DT_DATE', 
@@ -81,15 +93,9 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
             'BizumMensaje', 
             'Referencia'
         ]
-    ].sort_values('DT_DATE')
-    
-    # 8. Añadir hh:mm:ss ficticias por orden dentro de cada día (para ordenar; Revolut ya trae hora real)
-    df['DT_DATE'] = pd.to_datetime(df['DT_DATE'])
-    rank_per_day = df.groupby(df['DT_DATE'].dt.date).cumcount()
-    df['DT_DATE'] = (df['DT_DATE'] + pd.to_timedelta(rank_per_day, unit='s')).dt.strftime('%Y-%m-%d %H:%M:%S')
+    ]
+    # 11. Limpiar valores nulos y convertir importes
     df = df.replace({pd.NA: None, np.nan: None})
-    
-    # Convertir importes
     for col in ['Importe', 'Saldo']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "."), errors='coerce')
