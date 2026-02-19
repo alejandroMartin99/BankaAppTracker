@@ -64,6 +64,7 @@ CATEGORY_RULES = [
     (r'ALIEXPRESS', 'Hogar', 'AliExpress'),
     (r'AMAZON', 'Hogar', 'Amazon'),
     (r'HOGARDEXTER', 'Hogar', 'Hogardexter'),
+    (r'CMB SUPERKIT', 'Hogar', 'Centro Maderero Valdebernardo'),
     (r'RESTANTE MESA LU', 'Hogar', 'Mesa'),
 
 

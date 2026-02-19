@@ -10,25 +10,43 @@ from app.api.services.pipe_extract_transactions.decode_revolut import main_decod
 from app.api.services.pipe_extract_transactions.decode_pluxee import main_decode_pluxee, is_pluxee_file
 
 
+def _norm_val(x, decimals: bool = False) -> str:
+    """Normaliza valor para el hash: None/nan -> '', números con 2 decimales fijos."""
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return ""
+    if decimals:
+        try:
+            if isinstance(x, str):
+                x = float(x.replace(",", "."))
+            return f"{float(x):.2f}"
+        except (TypeError, ValueError):
+            return str(x).strip() or ""
+    s = str(x).strip()
+    return s if s else ""
+
+
 def generate_transaction_id(row: pd.Series) -> str:
     """
     Genera un ID único y determinístico para una transacción.
-    Usa campos clave para crear un hash único.
+    Usa fecha (solo YYYY-MM-DD, sin hh:mm:ss ficticias), descripción, referencia, importe y saldo,
+    para que la misma operación genere siempre el mismo ID y los duplicados se detecten bien.
     """
-    # Construir string único con los campos principales
-    unique_string = (
-        f"{row.get('DT_DATE', '')}"
-        f"|{row.get('Importe', '')}"
-        f"|{row.get('Descripción', '')}"
-        f"|{row.get('Cuenta', '')}"
-        f"|{row.get('Referencia', '')}"
-        f"|{row.get('Saldo', '')}"
-    )
-    
-    # Generar hash SHA-256
-    hash_object = hashlib.sha256(unique_string.encode('utf-8'))
-    
-    # Retornar primeros 32 caracteres del hash
+    # Fecha: solo día (primeros 10 caracteres) para no depender de segundos añadidos
+    raw_dt = row.get("DT_DATE", "") or row.get("dt_date", "")
+    date_part = _norm_val(raw_dt)
+    if len(date_part) > 10:
+        date_part = date_part[:10]
+    elif " " in date_part:
+        date_part = date_part.split(" ")[0]
+    # Campos estables para unicidad
+    desc = _norm_val(row.get("Descripción") or row.get("descripcion"))
+    ref = _norm_val(row.get("Referencia") or row.get("referencia"))
+    imp = _norm_val(row.get("Importe") or row.get("importe"), decimals=True)
+    sal = _norm_val(row.get("Saldo") or row.get("saldo"), decimals=True)
+    cuenta = _norm_val(row.get("Cuenta") or row.get("cuenta"))
+
+    unique_string = f"{date_part}|{desc}|{ref}|{imp}|{sal}|{cuenta}"
+    hash_object = hashlib.sha256(unique_string.encode("utf-8"))
     return hash_object.hexdigest()[:32]
 
 
