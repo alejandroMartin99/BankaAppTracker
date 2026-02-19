@@ -187,21 +187,33 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (img && !img.src.endsWith('/icons/default.svg')) img.src = '/icons/default.svg';
   }
 
-  /** Movimientos sin Compra_Inmueble ni Transferencia (estas van al apartado dedicado) */
+  /** Transacciones dentro del rango de fechas seleccionado (fromDate / toDate) */
+  get transactionsInRange(): Transaction[] {
+    if (!this.fromDate && !this.toDate) return this.transactions;
+    return this.transactions.filter(t => {
+      const d = (t.dt_date || '').slice(0, 10);
+      if (!d) return false;
+      if (this.fromDate && d < this.fromDate) return false;
+      if (this.toDate && d > this.toDate) return false;
+      return true;
+    });
+  }
+
+  /** Movimientos sin Compra_Inmueble ni Transferencia (estas van al apartado dedicado), solo en rango */
   get displayedTransactions(): Transaction[] {
-    return this.transactions.filter(t =>
+    return this.transactionsInRange.filter(t =>
       (t.categoria || '') !== 'Compra_Inmueble' && (t.categoria || '') !== 'Transferencia'
     );
   }
 
-  /** Transacciones para calcular balances: incluir todas */
+  /** Transacciones para calcular gastos/ingresos/saldo del periodo = solo rango de fechas */
   get transactionsForBalances(): Transaction[] {
-    return this.transactions;
+    return this.transactionsInRange;
   }
 
-  /** Todas las transacciones con concepto Transferencia (se muestran en apartado dedicado) */
+  /** Todas las transacciones con concepto Transferencia (se muestran en apartado dedicado), solo en rango */
   get internalTransfers(): Transaction[] {
-    return this.transactions.filter(t => (t.categoria || '') === 'Transferencia');
+    return this.transactionsInRange.filter(t => (t.categoria || '') === 'Transferencia');
   }
 
   /** Agrupado por fecha. Orden viene del API (dt_date desc). */
