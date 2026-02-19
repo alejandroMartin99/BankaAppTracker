@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { TransactionService, UploadResponse } from '../services/transaction.service';
 import { AuthService } from '../services/auth.service';
+import { BackendLoaderService } from '../services/backend-loader.service';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -29,7 +30,8 @@ export class LayoutComponent {
   constructor(
     public router: Router,
     private transactionService: TransactionService,
-    public auth: AuthService
+    public auth: AuthService,
+    public backendLoader: BackendLoaderService
   ) {}
 
   async logout() {

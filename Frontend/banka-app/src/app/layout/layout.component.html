@@ -1,4 +1,16 @@
 <div class="layout">
+  <!-- Loader primera carga / cold start backend -->
+  @if (backendLoader.isVisible()) {
+    <div class="backend-loader-overlay" role="status" aria-live="polite">
+      <div class="backend-loader-card">
+        <div class="backend-loader-bar-wrap">
+          <div class="backend-loader-bar"></div>
+        </div>
+        <p class="backend-loader-msg">{{ backendLoader.getMessage(backendLoader.messageIndex()) }}</p>
+      </div>
+    </div>
+  }
+
   <!-- Toast de subida -->
   @if (uploadStatus !== 'idle') {
     <div
