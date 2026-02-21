@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
@@ -9,7 +10,13 @@ import { Transaction } from '../../models/transaction.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './transactions.component.html',
-  styleUrl: './transactions.component.scss'
+  styleUrl: './transactions.component.scss',
+  animations: [
+    trigger('loaderOverlay', [
+      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
+      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
+    ])
+  ]
 })
 export class TransactionsComponent implements OnInit {
   transactions: Transaction[] = [];

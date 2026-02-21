@@ -1,4 +1,19 @@
 <div class="gastos-page">
+  <!-- Overlay de carga mientras se espera la respuesta del backend -->
+  @if (loading) {
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando movimientos...</p>
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  }
+
   <!-- Date filter - arriba del todo -->
   <section class="filter-section">
     <div class="filter-chips">

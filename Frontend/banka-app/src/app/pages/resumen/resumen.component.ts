@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -29,7 +30,13 @@ function makeSubKey(cat: string, sub: string): string {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './resumen.component.html',
-  styleUrl: './resumen.component.scss'
+  styleUrl: './resumen.component.scss',
+  animations: [
+    trigger('loaderOverlay', [
+      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
+      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
+    ])
+  ]
 })
 export class ResumenComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];

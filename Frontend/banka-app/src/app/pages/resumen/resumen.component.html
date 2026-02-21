@@ -1,4 +1,18 @@
 <div class="resumen-page">
+  @if (loading) {
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando resumen...</p>
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  }
+
   <!-- Filtros (mismos que Gastos) -->
   <section class="filter-section">
     <div class="filter-chips">
@@ -34,13 +48,6 @@
       </div>
     }
   </section>
-
-  @if (loading) {
-    <div class="loading-state">
-      <div class="loading-spinner"></div>
-      <p>Cargando resumen...</p>
-    </div>
-  }
 
   @if (error) {
     <div class="error-card">
