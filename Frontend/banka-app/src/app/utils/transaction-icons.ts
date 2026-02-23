@@ -33,6 +33,7 @@ const BRAND_KEYS: Record<string, string> = {
   'ALVARO MORENO': 'alvaro-moreno',
   MILFSHAKES: 'milfshakes',
   Singularu: 'singular',
+  'EL CORTE INGLES': 'el-corte-ingles',
 };
 
 /** Subcategoría -> icono local (archivo prefix-icon.svg) */
