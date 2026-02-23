@@ -37,6 +37,7 @@ const BRANDS = [
   { key: 'druni', domain: 'druni.es' },
   { key: 'milfshakes', domain: 'milfshakes.es' },
   { key: 'singularu', domain: 'singularu.com' },
+  { key: 'el-corte-ingles', domain: 'elcorteingles.com' },
 ];
 
 // Iconify: prefix:icon -> archivo prefix-icon.svg
