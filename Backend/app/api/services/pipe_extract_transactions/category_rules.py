@@ -111,6 +111,7 @@ CATEGORY_RULES = [
     (r'SINGULARU', 'Ropa', 'Singularu'),
     (r'UNIQLO', 'Ropa', 'UNIQLO'),
     (r'MILFSHAKES', 'Ropa', 'MILFSHAKES'),
+    (r'EL CORTE INGLES', 'Ropa', 'EL CORTE INGLES'),
 
 
     # Transferencias
