@@ -222,13 +222,6 @@ export class AjustesComponent implements OnInit {
     const categoriaDraft = (this.draftCategoria[draftKey] || '').toString().trim();
     const subcategoriaDraft = (this.draftSubcategoria[draftKey] || '').toString().trim();
 
-    // Si no hay cambios, no hacemos nada
-    const currentCat = (t.categoria || '').toString().trim();
-    const currentSub = (t.subcategoria || '').toString().trim();
-    if (currentCat === categoriaDraft && currentSub === subcategoriaDraft) {
-      return;
-    }
-
     this.pendingTx = t;
     this.pendingCategoria = categoriaDraft;
     this.pendingSubcategoria = subcategoriaDraft;

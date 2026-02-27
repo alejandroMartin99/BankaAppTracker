@@ -477,6 +477,77 @@
   margin: 0 0 16px 0;
 }
 
+/* Modal de confirmación (mismo estilo que Gastos) */
+
+.calendar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.calendar-popover {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  width: min(320px, 92vw);
+}
+
+.calendar-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  color: var(--color-text);
+}
+
+.calendar-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-cancel {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: 999px;
+
+  &:hover {
+    background: var(--color-border-light);
+    color: var(--color-text);
+  }
+}
+
+.btn-apply {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  background: var(--color-text);
+  border: none;
+  color: var(--color-bg);
+  cursor: pointer;
+  border-radius: 999px;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
 /* Estados vacíos y error */
 
 .error-card {
