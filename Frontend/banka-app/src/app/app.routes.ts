@@ -13,6 +13,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'gastos', pathMatch: 'full' },
       { path: 'gastos', loadComponent: () => import('./pages/gastos/gastos.component').then(m => m.GastosComponent) },
       { path: 'resumen', loadComponent: () => import('./pages/resumen/resumen.component').then(m => m.ResumenComponent) },
+      { path: 'gastos-compartidos', loadComponent: () => import('./pages/shared-expenses/shared-expenses.component').then(m => m.SharedExpensesComponent) },
       { path: 'ajustes', loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent) }
     ]
   },

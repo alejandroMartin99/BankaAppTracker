@@ -1,0 +1,145 @@
+<div class="shared-expenses-page">
+  @if (loading) {
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando suministros...</p>
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  }
+
+  <!-- Filtros (mismo display que Resumen) -->
+  <section class="filter-section">
+    <div class="filter-chips">
+      @for (p of presets; track p.id) {
+        <button
+          type="button"
+          class="chip"
+          [class.active]="activePreset === p.id"
+          (click)="applyPreset(p.id)"
+        >
+          {{ p.label }}
+        </button>
+      }
+    </div>
+    @if (showCalendar) {
+      <div class="calendar-overlay" (click)="closeCalendar()"></div>
+      <div class="calendar-popover">
+        <h3 class="calendar-title">Seleccionar rango</h3>
+        <div class="calendar-fields">
+          <label>
+            <span>Desde</span>
+            <input type="date" [(ngModel)]="customFrom" />
+          </label>
+          <label>
+            <span>Hasta</span>
+            <input type="date" [(ngModel)]="customTo" />
+          </label>
+        </div>
+        <div class="calendar-actions">
+          <button type="button" class="btn-cancel" (click)="closeCalendar()">Cancelar</button>
+          <button type="button" class="btn-apply" (click)="applyCustomRange()">Aplicar</button>
+        </div>
+      </div>
+    }
+  </section>
+
+  @if (error) {
+    <div class="error-card">
+      <p>{{ error }}</p>
+      <button type="button" class="btn-retry" (click)="retry()">Reintentar</button>
+    </div>
+  }
+
+  @if (!loading && !error && displayedTransactions.length > 0) {
+    <!-- Totales (estilo Resumen) -->
+    <section class="totals-section">
+      <div class="totals-row">
+        <span class="totals-label">Total gastos (Suministros + Gimnasio)</span>
+        <span class="totals-value totals-gastos">{{ sharedTotal | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">Has pagado Conjunta</span>
+        <span class="totals-value">{{ totalJoint | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">Has pagado tú</span>
+        <span class="totals-value">{{ totalMine | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">Ha pagado la otra parte</span>
+        <span class="totals-value">{{ totalOther | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row totals-row--balance">
+        <span class="totals-label">Saldo 50/50 (sin Conjunta)</span>
+        @if (settlementAmount > 0) {
+          <span class="totals-value positive">Te deben {{ settlementAmount | number:'1.2-2':'es' }} €</span>
+        } @else if (settlementAmount < 0) {
+          <span class="totals-value negative">Debes {{ (-settlementAmount) | number:'1.2-2':'es' }} €</span>
+        } @else {
+          <span class="totals-value">Estáis en paz</span>
+        }
+      </div>
+    </section>
+
+    <!-- Gastos por categoría (agrupado como Resumen) -->
+    <section class="content-section">
+      <h2 class="section-title">Gastos por categoría</h2>
+      <p class="section-desc">Suministros y Gimnasio (&gt; 20 €). Tuyos y de quien comparte cuenta.</p>
+      <div class="category-list">
+        @for (cat of categoriesSummary; track cat.categoria) {
+          <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
+            <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
+              <span class="category-name">{{ cat.categoria }}</span>
+              <span class="category-amount">{{ cat.total | number:'1.2-2':'es' }} €</span>
+              <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
+            </button>
+            @if (expandedCategory === cat.categoria) {
+              <div class="category-sublist">
+                @for (sub of cat.subcategories; track sub.subcategoria) {
+                  <div class="subcategory-block">
+                    <button type="button" class="subcategory-header" (click)="toggleSubcategory(cat.categoria, sub.subcategoria)">
+                      <span class="subcategory-name">{{ sub.subcategoria }}</span>
+                      <span class="subcategory-amount">{{ sub.total | number:'1.2-2':'es' }} €</span>
+                      <span class="category-chevron">{{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}</span>
+                    </button>
+                    @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
+                      <div class="category-detail">
+                        @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
+                          <div class="detail-row">
+                            <span class="detail-owner" [class.detail-owner-mine]="tx.is_own_account" [class.detail-owner-other]="!tx.is_own_account">
+                              {{ (tx.cuenta || '').toLowerCase() === 'conjunta' ? 'Conjunta' : (tx.is_own_account ? 'Tuyo' : 'Otro') }}
+                            </span>
+                            <span class="detail-desc">{{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}</span>
+                            @if (tx.cuenta) {
+                              <span class="detail-account">{{ getAccountLabel(tx.cuenta) }}</span>
+                            }
+                            <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
+                            <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (!loading && !error && displayedTransactions.length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">💡</span>
+      <p>No hay gastos de Suministros o Gimnasio en este periodo</p>
+      <p class="empty-hint">Suministros (todos) y Gimnasio solo &gt; 20 €. Tuyos y de quien comparte cuenta.</p>
+    </div>
+  }
+</div>

@@ -22,6 +22,7 @@ export interface UploadResponse {
 export class TransactionService {
   private apiUrl = environment.apiUrl;
   private transactionsUrl = `${this.apiUrl}/GET/transactions`;
+  private sharedTransactionsUrl = `${this.apiUrl}/GET/shared-transactions`;
   private balancesUrl = `${this.apiUrl}/GET/balances`;
   private uploadUrl = `${this.apiUrl}/upload/Transactions`;
 
@@ -89,5 +90,16 @@ export class TransactionService {
       limit: pageSize,
       offset: offset
     });
+  }
+
+  /**
+   * Transacciones para análisis de gastos compartidos: propias + de usuarios que comparten alguna cuenta.
+   * Cada item incluye is_own_account.
+   */
+  getSharedTransactions(params?: { from_date?: string; to_date?: string }): Observable<TransactionResponse> {
+    let httpParams = new HttpParams();
+    if (params?.from_date) httpParams = httpParams.set('from_date', params.from_date);
+    if (params?.to_date) httpParams = httpParams.set('to_date', params.to_date);
+    return this.http.get<TransactionResponse>(this.sharedTransactionsUrl, { params: httpParams });
   }
 }

@@ -14,7 +14,7 @@ CATEGORY_RULES = [
     (r'RECIBO AGUA|CANAL DE ISABEL', 'Suministros', 'Agua'),
     (r'COMERCIALIZADORA RE 0053', 'Suministros', 'Luz'),
     (r'NATURGY', 'Suministros', 'Gas'),
-    (r'RECIBO TELEFON|MOVISTAR|VODAFONE|ORANGE|YOIGO|MASMOVIL', 'Suministros', 'Telefono'),
+    (r'DIGI SPAIN TELECOM', 'Suministros', 'Telefono'),
     (r'COMUNIDAD PROPIETARIOS|COM\. PROP', 'Suministros', 'Comunidad'),
 
     # BienEstar

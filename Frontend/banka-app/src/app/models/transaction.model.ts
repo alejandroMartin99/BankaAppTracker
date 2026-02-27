@@ -12,13 +12,15 @@ export interface Transaction {
   referencia?: string;
   /** Transferencia entre cuentas propias (Revolut/Personal/Conjunta); no afecta balances */
   es_transferencia_interna?: boolean;
+  /** En gastos compartidos: true = cuenta del usuario actual, false = cuenta de otro usuario que comparte */
+  is_own_account?: boolean;
 }
 
 export interface TransactionResponse {
   success: boolean;
   count: number;
-  limit: number;
-  offset: number;
+  limit?: number;
+  offset?: number;
   data: Transaction[];
 }
 

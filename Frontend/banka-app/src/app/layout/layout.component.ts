@@ -18,6 +18,7 @@ export class LayoutComponent {
   navItems = [
     { path: '/gastos', label: 'Gastos', icon: 'receipt' },
     { path: '/resumen', label: 'Resumen', icon: 'chart' },
+    { path: '/gastos-compartidos', label: 'Compartidos', icon: 'people' },
     { path: '/ajustes', label: 'Ajustes', icon: 'settings' }
   ];
 

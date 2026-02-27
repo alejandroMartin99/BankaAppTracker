@@ -102,3 +102,54 @@ async def get_transactions(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get(
+    "/shared-transactions",
+    summary="Transacciones para análisis de gastos compartidos (propias + de usuarios que comparten cuenta)",
+    response_model=Dict[str, Any]
+)
+async def get_shared_transactions(
+    from_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD"),
+    to_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD"),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Devuelve gastos del usuario y de las personas que comparten alguna cuenta con él (ej. Conjunta).
+    Cada fila incluye is_own_account: true si la cuenta es del usuario actual, false si es de otro."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    uid = user.get("sub", "")
+    my_account_ids = supabase_service.get_user_account_ids(uid)
+    # Usuarios que comparten al menos una cuenta (ej. Conjunta)
+    other_user_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
+    their_account_ids = supabase_service.get_account_ids_for_users(other_user_ids) if other_user_ids else []
+    all_account_ids = list(dict.fromkeys(my_account_ids + their_account_ids))
+    my_account_set = set(my_account_ids)
+
+    if not all_account_ids:
+        return {"success": True, "count": 0, "data": []}
+
+    try:
+        q = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("*")
+            .in_("account_id", all_account_ids)
+        )
+        if from_date:
+            q = q.gte("dt_date", from_date)
+        if to_date:
+            q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
+        response = q.order("dt_date", desc=True).limit(10000).execute()
+        data = list(response.data or [])
+        names = supabase_service.get_account_display_names(all_account_ids)
+        for row in data:
+            row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
+            row["is_own_account"] = row.get("account_id") in my_account_set
+        return {"success": True, "count": len(data), "data": data}
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] get_shared_transactions: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+

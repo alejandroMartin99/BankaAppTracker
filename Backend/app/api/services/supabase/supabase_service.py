@@ -99,6 +99,42 @@ class SupabaseService:
         except Exception:
             return []
 
+    def get_user_ids_sharing_accounts_with(self, user_id: str) -> List[str]:
+        """Usuarios que comparten al menos una cuenta con este usuario (otros user_id en user_accounts con el mismo account_id)."""
+        if not self.supabase:
+            return []
+        my_accounts = self.get_user_account_ids(user_id)
+        if not my_accounts:
+            return []
+        uid = _uuid_str(user_id)
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("user_id")
+                .in_("account_id", my_accounts)
+                .execute()
+            )
+            other = [x["user_id"] for x in (r.data or []) if x.get("user_id") != uid]
+            return list(dict.fromkeys(other))
+        except Exception:
+            return []
+
+    def get_account_ids_for_users(self, user_ids: List[str]) -> List[str]:
+        """Devuelve todos los account_id de los usuarios indicados."""
+        if not self.supabase or not user_ids:
+            return []
+        uids = [_uuid_str(u) for u in user_ids]
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("account_id")
+                .in_("user_id", uids)
+                .execute()
+            )
+            return list(dict.fromkeys([x["account_id"] for x in (r.data or [])]))
+        except Exception:
+            return []
+
     def get_account_display_names(self, account_ids: List[str]) -> Dict[str, str]:
         """Mapeo account_id -> display_name para mostrar en la UI."""
         if not self.supabase or not account_ids:
