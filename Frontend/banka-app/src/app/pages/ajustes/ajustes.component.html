@@ -72,16 +72,17 @@
                           }
                         </select>
                       </div>
-                      @if (hasDraftChanges(tx)) {
-                        <button
-                          type="button"
-                          class="btn-save"
-                          [disabled]="isSaving(tx)"
-                          (click)="openConfirmSave(tx)"
-                        >
-                          {{ isSaving(tx) ? '✔' : 'OK' }}
-                        </button>
-                      }
+                      <button
+                        type="button"
+                        class="btn-save"
+                        [disabled]="!hasDraftChanges(tx) || isSaving(tx)"
+                        (click)="openConfirmSave(tx)"
+                        aria-label="Guardar cambios de categoría"
+                      >
+                        <span class="btn-save-icon">
+                          {{ isSaving(tx) ? '✔' : '✓' }}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -185,16 +186,17 @@
                                             }
                                           </select>
                                         </div>
-                                        @if (hasDraftChanges(tx)) {
-                                          <button
-                                            type="button"
-                                            class="btn-save"
-                                            [disabled]="isSaving(tx)"
-                                            (click)="openConfirmSave(tx)"
-                                          >
-                                            {{ isSaving(tx) ? '✔' : 'OK' }}
-                                          </button>
-                                        }
+                                        <button
+                                          type="button"
+                                          class="btn-save"
+                                          [disabled]="!hasDraftChanges(tx) || isSaving(tx)"
+                                          (click)="openConfirmSave(tx)"
+                                          aria-label="Guardar cambios de categoría"
+                                        >
+                                          <span class="btn-save-icon">
+                                            {{ isSaving(tx) ? '✔' : '✓' }}
+                                          </span>
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
