@@ -46,7 +46,15 @@
                     <div class="tx-meta-left">
                       <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
                       @if (tx.cuenta) {
-                        <span class="tx-account tx-account-colored">{{ tx.cuenta }}</span>
+                        <span
+                          class="tx-cuenta-badge"
+                          [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'"
+                          [class.tx-cuenta-personal]="tx.cuenta === 'Personal'"
+                          [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'"
+                          [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'"
+                        >
+                          {{ tx.cuenta }}
+                        </span>
                       }
                     </div>
                     <div class="tx-meta-right">
@@ -108,85 +116,105 @@
         </label>
       </div>
 
-      <section class="categories-section ajustes-editor-section">
-        <div class="category-list">
-          @for (cat of groupedFiltered; track cat.categoria) {
-            <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
-              <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
-                <span class="category-name">{{ cat.categoria }}</span>
-                <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
-              </button>
-              @if (expandedCategory === cat.categoria) {
-                <div class="category-sublist">
-                  @for (sub of cat.subcategories; track sub.subcategoria) {
-                    <div class="subcategory-block">
-                      <button
-                        type="button"
-                        class="subcategory-header"
-                        (click)="toggleSubcategory(cat.categoria, sub.subcategoria)"
-                      >
-                        <span class="subcategory-name">{{ sub.subcategoria }}</span>
-                        <span class="category-chevron">
-                          {{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}
-                        </span>
-                      </button>
-                      @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria)) {
-                        <div class="category-detail ajustes-detail">
-                          @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
-                            <div class="detail-row ajustes-detail-row">
-                            <div class="ajustes-detail-main">
-                                <div class="ajustes-detail-top">
-                                  <span class="detail-desc">{{ tx.descripcion || '—' }}</span>
-                                </div>
-                                <div class="ajustes-detail-meta">
-                                  @if (tx.cuenta) {
-                                    <span class="detail-account detail-account-pill">{{ tx.cuenta }}</span>
-                                  }
-                                  <span class="detail-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                                  <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div class="ajustes-detail-edit-line">
-                              <div class="tx-fields-inline">
-                                <select [(ngModel)]="draftCategoria[tx.id!]">
-                                  <option [ngValue]="''">Sin categoría</option>
-                                  @for (catOpt of allCategories; track catOpt) {
-                                    <option [ngValue]="catOpt">{{ catOpt }}</option>
-                                  }
-                                </select>
-                                <select [(ngModel)]="draftSubcategoria[tx.id!]">
-                                  <option [ngValue]="''">Sin subcategoría</option>
-                                  @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
-                                    <option [ngValue]="subOpt">{{ subOpt }}</option>
-                                  }
-                                </select>
-                              </div>
-                              @if (hasDraftChanges(tx)) {
-                                <button
-                                  type="button"
-                                  class="btn-save"
-                                  [disabled]="isSaving(tx)"
-                                  (click)="openConfirmSave(tx)"
-                                >
-                                  {{ isSaving(tx) ? '✔' : 'OK' }}
-                                </button>
-                              }
-                            </div>
-                            @if (lastSavedId === tx.id && lastSaveMessage) {
-                              <div class="tx-save-line">{{ lastSaveMessage }}</div>
-                            }
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
+      @if (filteredTransactions.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          <p>No hay movimientos que coincidan con la búsqueda.</p>
+          <p class="empty-hint">Prueba con otra descripción, categoría o subcategoría.</p>
         </div>
-      </section>
+      } @else {
+        <section class="categories-section ajustes-editor-section">
+          <div class="category-list">
+            @for (cat of groupedFiltered; track cat.categoria) {
+              <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
+                <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
+                  <span class="category-name">{{ cat.categoria }}</span>
+                  <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
+                </button>
+                @if (expandedCategory === cat.categoria) {
+                  <div class="category-sublist">
+                    @for (sub of cat.subcategories; track sub.subcategoria) {
+                      <div class="subcategory-block">
+                        <button
+                          type="button"
+                          class="subcategory-header"
+                          (click)="toggleSubcategory(cat.categoria, sub.subcategoria)"
+                        >
+                          <span class="subcategory-name">{{ sub.subcategoria }}</span>
+                          <span class="category-chevron">
+                            {{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}
+                          </span>
+                        </button>
+                        @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria)) {
+                          <div class="category-detail ajustes-detail">
+                            @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
+                              <div class="tx-row tx-row-nested">
+                                <div class="tx-main">
+                                  <div class="tx-text">
+                                    <div class="tx-line">
+                                      <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                                      <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                                    </div>
+                                    <div class="tx-meta">
+                                      <div class="tx-meta-left">
+                                        <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                                        @if (tx.cuenta) {
+                                          <span
+                                            class="tx-cuenta-badge"
+                                            [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'"
+                                            [class.tx-cuenta-personal]="tx.cuenta === 'Personal'"
+                                            [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'"
+                                            [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'"
+                                          >
+                                            {{ tx.cuenta }}
+                                          </span>
+                                        }
+                                      </div>
+                                      <div class="tx-meta-right">
+                                        <div class="tx-fields-inline">
+                                          <select [(ngModel)]="draftCategoria[tx.id!]">
+                                            <option [ngValue]="''">Sin categoría</option>
+                                            @for (catOpt of allCategories; track catOpt) {
+                                              <option [ngValue]="catOpt">{{ catOpt }}</option>
+                                            }
+                                          </select>
+                                          <select [(ngModel)]="draftSubcategoria[tx.id!]">
+                                            <option [ngValue]="''">Sin subcategoría</option>
+                                            @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
+                                              <option [ngValue]="subOpt">{{ subOpt }}</option>
+                                            }
+                                          </select>
+                                        </div>
+                                        @if (hasDraftChanges(tx)) {
+                                          <button
+                                            type="button"
+                                            class="btn-save"
+                                            [disabled]="isSaving(tx)"
+                                            (click)="openConfirmSave(tx)"
+                                          >
+                                            {{ isSaving(tx) ? '✔' : 'OK' }}
+                                          </button>
+                                        }
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                @if (lastSavedId === tx.id && lastSaveMessage) {
+                                  <div class="tx-save-line">{{ lastSaveMessage }}</div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
     </section>
   }
 </div>
