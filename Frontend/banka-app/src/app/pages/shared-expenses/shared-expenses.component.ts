@@ -22,8 +22,22 @@ interface CategorySummary {
   subcategories: SubcategorySummary[];
 }
 
-function makeSubKey(cat: string, sub: string): string {
-  return `${cat || 'Sin categoría'}|${sub || 'Sin subcategoría'}`;
+interface MonthSummary {
+  monthKey: string;
+  label: string;
+  total: number;
+  totalMine: number;
+  totalOther: number;
+  totalJoint: number;
+  categories: CategorySummary[];
+}
+
+function makeCatKey(monthKey: string, cat: string): string {
+  return `${monthKey}::${cat || 'Sin categoría'}`;
+}
+
+function makeSubKey(monthKey: string, cat: string, sub: string): string {
+  return `${monthKey}::${cat || 'Sin categoría'}|${sub || 'Sin subcategoría'}`;
 }
 
 @Component({
@@ -50,7 +64,8 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   customFrom = '';
   customTo = '';
   showCalendar = false;
-  expandedCategory: string | null = null;
+  expandedMonthKey: string | null = null;
+  expandedCategoryKey: string | null = null;
   expandedSubcategoryKey: string | null = null;
   private destroy$ = new Subject<void>();
 
@@ -206,29 +221,74 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     return this.filteredForSummary;
   }
 
-  /** Agrupado por categoría y subcategoría (mismo display que Resumen) */
-  get categoriesSummary(): CategorySummary[] {
-    const byCat = new Map<string, Map<string, Transaction[]>>();
+  /** Agrupado por mes, luego categoría y subcategoría */
+  get monthsSummary(): MonthSummary[] {
+    const byMonth = new Map<string, Transaction[]>();
+
     for (const t of this.displayedTransactions) {
-      const cat = t.categoria || 'Sin categoría';
-      const sub = t.subcategoria || 'Sin subcategoría';
-      if (!byCat.has(cat)) byCat.set(cat, new Map());
-      const subMap = byCat.get(cat)!;
-      if (!subMap.has(sub)) subMap.set(sub, []);
-      subMap.get(sub)!.push(t);
+      const dateStr = t.dt_date;
+      if (!dateStr) continue;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth.has(key)) byMonth.set(key, []);
+      byMonth.get(key)!.push(t);
     }
-    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
-      const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
-        subcategoria,
-        total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
-        transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-      }));
-      return {
-        categoria,
-        total: subcategories.reduce((s, sc) => s + sc.total, 0),
-        subcategories: subcategories.sort((a, b) => a.total - b.total)
-      };
-    }).sort((a, b) => a.total - b.total);
+
+    const result: MonthSummary[] = Array.from(byMonth.entries()).map(([monthKey, txs]) => {
+      const byCat = new Map<string, Map<string, Transaction[]>>();
+      let totalMine = 0;
+      let totalOther = 0;
+      let totalJoint = 0;
+
+      for (const t of txs) {
+        const cat = t.categoria || 'Sin categoría';
+        const sub = t.subcategoria || 'Sin subcategoría';
+        if (!byCat.has(cat)) byCat.set(cat, new Map());
+        const subMap = byCat.get(cat)!;
+        if (!subMap.has(sub)) subMap.set(sub, []);
+        subMap.get(sub)!.push(t);
+
+        const importeAbs = Math.abs(t.importe ?? 0);
+        if (importeAbs > 0) {
+          const isJoint = (t.cuenta || '').toLowerCase() === 'conjunta';
+          if (isJoint) {
+            totalJoint += importeAbs;
+          } else if (t.is_own_account) {
+            totalMine += importeAbs;
+          } else {
+            totalOther += importeAbs;
+          }
+        }
+      }
+
+      const categories: CategorySummary[] = Array.from(byCat.entries()).map(([categoria, subMap]) => {
+        const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
+          subcategoria,
+          total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
+          transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
+        }));
+        return {
+          categoria,
+          total: subcategories.reduce((s, sc) => s + sc.total, 0),
+          subcategories: subcategories.sort((a, b) => a.total - b.total)
+        };
+      }).sort((a, b) => a.total - b.total);
+
+      const total = categories.reduce((s, c) => s + c.total, 0);
+      const [yearStr, monthStr] = monthKey.split('-');
+      const year = Number(yearStr);
+      const month = Number(monthStr) - 1;
+      const label = new Date(year, month, 1).toLocaleDateString('es-ES', {
+        month: 'long',
+        year: 'numeric'
+      });
+
+      return { monthKey, label, total, totalMine, totalOther, totalJoint, categories };
+    });
+
+    // Ordenar meses descendente (más reciente primero)
+    return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }
 
   /** Total que has pagado tú (todos los gastos del filtro) */
@@ -246,7 +306,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   }
 
   get sharedTotal(): number {
-    return this.totalMine + this.totalOther;
+    return this.totalMine + this.totalOther + this.totalJoint;
   }
 
   /** Total cargado en la cuenta Conjunta (pago de los dos) */
@@ -306,17 +366,30 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     return cuenta;
   }
 
-  toggleCategory(categoria: string) {
-    this.expandedCategory = this.expandedCategory === categoria ? null : categoria;
+  toggleMonth(monthKey: string) {
+    this.expandedMonthKey = this.expandedMonthKey === monthKey ? null : monthKey;
   }
 
-  toggleSubcategory(categoria: string, subcategoria: string) {
-    const key = makeSubKey(categoria, subcategoria);
+  isMonthExpanded(monthKey: string): boolean {
+    return this.expandedMonthKey === monthKey;
+  }
+
+  toggleCategory(monthKey: string, categoria: string) {
+    const key = makeCatKey(monthKey, categoria);
+    this.expandedCategoryKey = this.expandedCategoryKey === key ? null : key;
+  }
+
+  toggleSubcategory(monthKey: string, categoria: string, subcategoria: string) {
+    const key = makeSubKey(monthKey, categoria, subcategoria);
     this.expandedSubcategoryKey = this.expandedSubcategoryKey === key ? null : key;
   }
 
-  isSubcategoryExpanded(categoria: string, subcategoria: string): boolean {
-    return this.expandedSubcategoryKey === makeSubKey(categoria, subcategoria);
+  isCategoryExpanded(monthKey: string, categoria: string): boolean {
+    return this.expandedCategoryKey === makeCatKey(monthKey, categoria);
+  }
+
+  isSubcategoryExpanded(monthKey: string, categoria: string, subcategoria: string): boolean {
+    return this.expandedSubcategoryKey === makeSubKey(monthKey, categoria, subcategoria);
   }
 
   retry() {

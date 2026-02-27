@@ -1,0 +1,162 @@
+<div class="ajustes-page">
+  <header class="page-header">
+    <h1 class="page-title">Ajustes</h1>
+    <p class="page-subtitle">
+      Editor de categoría y subcategoría para tus movimientos.
+    </p>
+  </header>
+
+  @if (loading) {
+    <div class="placeholder">
+      <span class="placeholder-icon">⏳</span>
+      <p>Cargando transacciones...</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-card">
+      <p>{{ error }}</p>
+      <button type="button" class="btn-retry" (click)="loadTransactions()">Reintentar</button>
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <!-- Bloque especial: transacciones sin categoría -->
+    <section class="card card-uncategorized">
+      <h2 class="card-title">Transacciones sin categoría</h2>
+      <p class="card-subtitle">
+        Estas transacciones no tienen categoría asignada. Actualízalas para que los informes sean más precisos.
+      </p>
+
+      @if (uncategorizedTransactions.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">✅</span>
+          <p>Todas las transacciones tienen categoría asignada.</p>
+          <p class="empty-hint">Si subes nuevos ficheros, revisa aquí las que queden sin clasificar.</p>
+        </div>
+      } @else {
+        <div class="tx-list">
+          @for (tx of uncategorizedTransactions; track tx.id || tx.transaction_id || $index) {
+            <div class="tx-row">
+              <div class="tx-main">
+                <div class="tx-line">
+                  <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                  <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                </div>
+                <div class="tx-meta">
+                  <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                  @if (tx.cuenta) {
+                    <span class="tx-account">{{ tx.cuenta }}</span>
+                  }
+                </div>
+              </div>
+              <div class="tx-edit">
+                <div class="tx-fields">
+                  <label>
+                    <span>Categoría</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="tx.categoria"
+                      list="categoryOptions"
+                      placeholder="Ej. Suministros, Ocio..."
+                    />
+                  </label>
+                  <label>
+                    <span>Subcategoría</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="tx.subcategoria"
+                      placeholder="Ej. Luz, Agua, Gimnasio..."
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  class="btn-save"
+                  [disabled]="isSaving(tx)"
+                  (click)="saveCategory(tx)"
+                >
+                  {{ isSaving(tx) ? 'Guardando...' : 'Guardar' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <datalist id="categoryOptions">
+        @for (cat of allCategories; track cat) {
+          <option [value]="cat"></option>
+        }
+      </datalist>
+    </section>
+
+    <!-- Editor general: cualquier transacción -->
+    <section class="card card-editor">
+      <h2 class="card-title">Editor general de categorías</h2>
+      <p class="card-subtitle">
+        Busca por descripción, categoría o subcategoría y ajusta la clasificación de cualquier movimiento.
+      </p>
+
+      <div class="editor-filters">
+        <label>
+          <span>Buscar</span>
+          <input
+            type="text"
+            [(ngModel)]="searchText"
+            placeholder="Ej. Ibercaja, gimnasio, luz..."
+          />
+        </label>
+      </div>
+
+      <div class="tx-list">
+        @for (tx of filteredTransactions; track tx.id || tx.transaction_id || $index) {
+          <div class="tx-row">
+            <div class="tx-main">
+              <div class="tx-line">
+                <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="tx-meta">
+                <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                @if (tx.cuenta) {
+                  <span class="tx-account">{{ tx.cuenta }}</span>
+                }
+              </div>
+            </div>
+            <div class="tx-edit">
+              <div class="tx-fields">
+                <label>
+                  <span>Categoría</span>
+                  <input
+                    type="text"
+                    [(ngModel)]="tx.categoria"
+                    list="categoryOptions"
+                    placeholder="Ej. Suministros, Ocio..."
+                  />
+                </label>
+                <label>
+                  <span>Subcategoría</span>
+                  <input
+                    type="text"
+                    [(ngModel)]="tx.subcategoria"
+                    placeholder="Ej. Luz, Agua, Gimnasio..."
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                class="btn-save"
+                [disabled]="isSaving(tx)"
+                (click)="saveCategory(tx)"
+              >
+                {{ isSaving(tx) ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>
+

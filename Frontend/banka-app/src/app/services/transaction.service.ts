@@ -102,4 +102,15 @@ export class TransactionService {
     if (params?.to_date) httpParams = httpParams.set('to_date', params.to_date);
     return this.http.get<TransactionResponse>(this.sharedTransactionsUrl, { params: httpParams });
   }
+
+  /**
+   * Actualiza categoría y subcategoría de una transacción existente (por id de fila).
+   */
+  updateTransactionCategory(id: number, categoria: string | null, subcategoria: string | null): Observable<{ success: boolean; updated: number }> {
+    const body: any = {
+      categoria,
+      subcategoria
+    };
+    return this.http.patch<{ success: boolean; updated: number }>(`${this.transactionsUrl}/${id}/category`, body);
+  }
 }

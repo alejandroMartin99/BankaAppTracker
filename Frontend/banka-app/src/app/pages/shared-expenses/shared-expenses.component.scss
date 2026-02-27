@@ -192,6 +192,77 @@
   margin: 0 0 12px 0;
 }
 
+/* Mes > categoría > subcategoría (desplegable) */
+.month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.month-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+
+  &.expanded {
+    border-color: var(--color-border);
+  }
+}
+
+.month-header {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.month-header-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.month-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--color-text);
+}
+
+.month-total {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.month-header-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
+
+.month-chevron {
+  align-self: center;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.month-body {
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+  padding: 6px 0 8px 0;
+}
+
 /* Categorías (mismo display que Resumen) */
 .category-list {
   display: flex;

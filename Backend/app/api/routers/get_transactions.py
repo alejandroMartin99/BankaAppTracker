@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import Dict, Any, Optional
+from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.api.services.supabase.supabase_service import supabase_service
@@ -8,6 +9,11 @@ router = APIRouter(
     prefix="/GET",
     tags=["GET"]
 )
+
+
+class CategoryUpdate(BaseModel):
+    categoria: Optional[str] = None
+    subcategoria: Optional[str] = None
 
 
 def _fetch_for_balances(account_ids: list[str]) -> list:
@@ -150,6 +156,63 @@ async def get_shared_transactions(
     except Exception as e:
         import traceback
         print(f"[ERROR] get_shared_transactions: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch(
+    "/transactions/{row_id}/category",
+    summary="Actualizar categoría y subcategoría de una transacción existente",
+    response_model=Dict[str, Any]
+)
+async def update_transaction_category(
+    row_id: int,
+    payload: CategoryUpdate = Body(...),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Permite al usuario actualizar categoria y subcategoria de una transacción propia."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    try:
+        # Comprobar que la transacción existe y pertenece a alguna de las cuentas del usuario
+        r = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("id, account_id")
+            .eq("id", row_id)
+            .limit(1)
+            .execute()
+        )
+        rows = r.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+
+        tx = rows[0]
+        if tx.get("account_id") not in account_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta transacción")
+
+        update_data: Dict[str, Any] = {}
+        if payload.categoria is not None:
+            update_data["categoria"] = payload.categoria.strip() or None
+        if payload.subcategoria is not None:
+            update_data["subcategoria"] = payload.subcategoria.strip() or None
+
+        if not update_data:
+            return {"success": True, "updated": 0}
+
+        supabase_service.supabase.table("transactions").update(update_data).eq("id", row_id).execute()
+        return {"success": True, "updated": 1}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] update_transaction_category: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

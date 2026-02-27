@@ -56,7 +56,7 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
     # 6. Reglas de categorización específicas (usando máscaras booleanas)
     transferencia_interna = df['Concepto'] == 'TRANSFERENCIA INTERNA'
     transferencia_otra = (df['Concepto'] == 'TRANSFERENCIA OTRA ENTIDAD') & (df['Categoria'] == 'None')
-    lucia_transfer = transferencia_interna & df['Descripción'].str.contains('LUCIA ARANZANA SANCHEZ', na=False)
+    lucia_transfer = transferencia_interna & df['Descripción'].str.contains('ARANZANA SANCHEZ', na=False)
     liquidacion = df['Concepto'] == 'LIQUIDACION INTERESES DE LA CUENTA'
     prestamo = df['Concepto'] == 'OPERACION PRESTAMO-CREDITO-AVAL'
     
