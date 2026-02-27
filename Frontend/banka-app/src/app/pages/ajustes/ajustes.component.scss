@@ -1,33 +1,530 @@
+/* Ajustes - diseño propio inspirado en Gastos/Resumen */
+
+.ajustes-page {
+  padding-bottom: 16px;
+  font-size: 11px;
+  max-width: 100%;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
 .page-header {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.03em;
-  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
   color: var(--color-text);
 }
 
 .page-subtitle {
-  font-size: 15px;
+  font-size: 11px;
   color: var(--color-text-muted);
   margin: 0;
   font-weight: 400;
 }
 
-.placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 24px;
-  color: var(--color-text-muted);
-  font-size: 15px;
+.card {
+  margin-bottom: 20px;
 }
 
-.placeholder-icon {
-  font-size: 48px;
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.card-subtitle {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin: 0 0 8px 0;
+}
+
+/* Bloque lista tipo Gastos para categoría "Otro" */
+
+.tx-list {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tx-month-block {
+  border-bottom: 1px solid var(--color-border-light);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tx-month-header {
+  padding: 6px 8px 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+}
+
+.tx-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tx-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tx-main-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tx-icon {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tx-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.tx-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tx-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tx-desc {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.tx-amount {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.tx-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
+
+.tx-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-meta-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tx-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-account {
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border-light);
+  font-size: 8px;
+}
+
+.tx-account-colored {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #1d4ed8;
+}
+
+.tx-edit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tx-fields {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+
+  label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 9px;
+    color: var(--color-text-muted);
+
+    span {
+      font-weight: 500;
+    }
+
+    select {
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+      font-size: 10px;
+      font-family: var(--font-sans);
+      color: var(--color-text);
+    }
+  }
+}
+
+.tx-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.tx-fields-inline {
+  display: flex;
+  gap: 6px;
+
+  select {
+    min-width: 110px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    outline: none;
+    appearance: none;
+
+    &:focus {
+      border-color: var(--color-text-muted);
+      color: var(--color-text);
+    }
+  }
+}
+
+.tx-right-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-save-line {
+  margin-top: 2px;
+  font-size: 9px;
+  color: var(--color-text-muted);
+  width: 100%;
+}
+
+.btn-save {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  border-radius: 999px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-bg);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+/* Editor general: agrupado estilo Resumen */
+
+.editor-filters {
+  margin-bottom: 10px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 9px;
+    color: var(--color-text-muted);
+
+    span {
+      font-weight: 500;
+    }
+
+    input {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+      font-size: 11px;
+      font-family: var(--font-sans);
+      color: var(--color-text);
+    }
+  }
+}
+
+/* Para el editor general reutilizamos la estética de categorías de Resumen,
+   solo añadimos ligeros ajustes para la línea de edición. */
+
+.ajustes-editor-section .category-detail.ajustes-detail {
+  padding-top: 4px;
+}
+
+.ajustes-detail-row {
+  border-bottom: none;
+  padding: 4px 0 0 0;
+}
+
+.ajustes-detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.ajustes-detail-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ajustes-page .tx-amount,
+.ajustes-page .detail-amount {
+  min-width: 90px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ajustes-detail-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  align-items: center;
+  font-size: 9px;
+  color: var(--color-text-muted);
+}
+
+.ajustes-detail-meta-left {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ajustes-detail-meta-right {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.detail-account-pill {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #1d4ed8;
+  font-size: 8px;
+}
+
+.ajustes-detail-edit-line {
+  display: none;
+}
+
+.tx-row-nested:last-child .ajustes-detail-edit-line {
+  border-bottom: none;
+}
+
+.ajustes-confirm-popover {
+  max-width: 320px;
+}
+
+.ajustes-confirm-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0 0 16px 0;
+}
+
+/* Editor general - estilos de categorías inspirados en Resumen */
+
+.ajustes-editor-section .category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ajustes-editor-section .category-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-width: 0;
+
+  &.expanded {
+    border-color: var(--color-border);
+  }
+}
+
+.ajustes-editor-section .category-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 0;
+
+  &:hover {
+    background: var(--color-border-light);
+  }
+}
+
+.ajustes-editor-section .category-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+.ajustes-editor-section .category-chevron {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.ajustes-editor-section .category-sublist {
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+  padding: 4px 0;
+}
+
+.ajustes-editor-section .subcategory-block {
+  border-bottom: 1px solid var(--color-border-light);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.ajustes-editor-section .subcategory-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 20px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 0;
+
+  &:hover {
+    background: var(--color-border-light);
+  }
+}
+
+.ajustes-editor-section .subcategory-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+/* Estados vacíos y error */
+
+.error-card {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 11px;
+  color: var(--color-text-secondary);
   margin-bottom: 16px;
+}
+
+.btn-retry {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  cursor: pointer;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--color-text-muted);
+}
+
+.empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: 10px;
+  color: var(--color-text-muted);
 }

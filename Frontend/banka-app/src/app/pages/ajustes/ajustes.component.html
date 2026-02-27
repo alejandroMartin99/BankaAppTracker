@@ -6,12 +6,7 @@
     </p>
   </header>
 
-  @if (loading) {
-    <div class="placeholder">
-      <span class="placeholder-icon">⏳</span>
-      <p>Cargando transacciones...</p>
-    </div>
-  }
+
 
   @if (error) {
     <div class="error-card">
@@ -21,77 +16,81 @@
   }
 
   @if (!loading && !error) {
-    <!-- Bloque especial: transacciones sin categoría -->
+    <!-- Bloque especial: transacciones con categoría "Otro" -->
     <section class="card card-uncategorized">
-      <h2 class="card-title">Transacciones sin categoría</h2>
+      <h2 class="card-title">Transacciones con categoría "Otro"</h2>
       <p class="card-subtitle">
-        Estas transacciones no tienen categoría asignada. Actualízalas para que los informes sean más precisos.
+        Estas transacciones están clasificadas como "Otro". Actualízalas para mejorar el análisis de tus gastos.
       </p>
 
       @if (uncategorizedTransactions.length === 0) {
         <div class="empty-state">
           <span class="empty-icon">✅</span>
-          <p>Todas las transacciones tienen categoría asignada.</p>
-          <p class="empty-hint">Si subes nuevos ficheros, revisa aquí las que queden sin clasificar.</p>
+          <p>No hay transacciones con categoría "Otro".</p>
+          <p class="empty-hint">Si subes nuevos ficheros, revisa aquí las que queden como "Otro" para afinarlas.</p>
         </div>
       } @else {
         <div class="tx-list">
-          @for (tx of uncategorizedTransactions; track tx.id || tx.transaction_id || $index) {
+          @for (month of uncategorizedByMonth; track month.monthKey) {
+            <div class="tx-month-block">
+              <div class="tx-month-header">{{ month.label | titlecase }}</div>
+              @for (tx of month.transactions; track tx.id || tx.transaction_id || $index) {
             <div class="tx-row">
               <div class="tx-main">
-                <div class="tx-line">
-                  <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
-                  <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                </div>
-                <div class="tx-meta">
-                  <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                  @if (tx.cuenta) {
-                    <span class="tx-account">{{ tx.cuenta }}</span>
-                  }
+                <div class="tx-text">
+                  <div class="tx-line">
+                    <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                    <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                  </div>
+                  <div class="tx-meta">
+                    <div class="tx-meta-left">
+                      <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                      @if (tx.cuenta) {
+                        <span class="tx-account tx-account-colored">{{ tx.cuenta }}</span>
+                      }
+                    </div>
+                    <div class="tx-meta-right">
+                      <div class="tx-fields-inline">
+                        <select [(ngModel)]="draftCategoria[tx.id!]">
+                          <option [ngValue]="''">Sin categoría</option>
+                          @for (cat of allCategories; track cat) {
+                            <option [ngValue]="cat">{{ cat }}</option>
+                          }
+                        </select>
+                        <select [(ngModel)]="draftSubcategoria[tx.id!]">
+                          <option [ngValue]="''">Sin subcategoría</option>
+                          @for (sub of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track sub) {
+                            <option [ngValue]="sub">{{ sub }}</option>
+                          }
+                        </select>
+                      </div>
+                      @if (hasDraftChanges(tx)) {
+                        <button
+                          type="button"
+                          class="btn-save"
+                          [disabled]="isSaving(tx)"
+                          (click)="openConfirmSave(tx)"
+                        >
+                          {{ isSaving(tx) ? '✔' : 'OK' }}
+                        </button>
+                      }
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="tx-edit">
-                <div class="tx-fields">
-                  <label>
-                    <span>Categoría</span>
-                    <input
-                      type="text"
-                      [(ngModel)]="tx.categoria"
-                      list="categoryOptions"
-                      placeholder="Ej. Suministros, Ocio..."
-                    />
-                  </label>
-                  <label>
-                    <span>Subcategoría</span>
-                    <input
-                      type="text"
-                      [(ngModel)]="tx.subcategoria"
-                      placeholder="Ej. Luz, Agua, Gimnasio..."
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  class="btn-save"
-                  [disabled]="isSaving(tx)"
-                  (click)="saveCategory(tx)"
-                >
-                  {{ isSaving(tx) ? 'Guardando...' : 'Guardar' }}
-                </button>
-              </div>
+              @if (lastSavedId === tx.id && lastSaveMessage) {
+                <div class="tx-save-line">{{ lastSaveMessage }}</div>
+              }
+            </div>
+              }
             </div>
           }
         </div>
       }
 
-      <datalist id="categoryOptions">
-        @for (cat of allCategories; track cat) {
-          <option [value]="cat"></option>
-        }
-      </datalist>
     </section>
 
-    <!-- Editor general: cualquier transacción -->
+    <!-- Editor general: agrupado con la estética de Resumen -->
     <section class="card card-editor">
       <h2 class="card-title">Editor general de categorías</h2>
       <p class="card-subtitle">
@@ -109,54 +108,102 @@
         </label>
       </div>
 
-      <div class="tx-list">
-        @for (tx of filteredTransactions; track tx.id || tx.transaction_id || $index) {
-          <div class="tx-row">
-            <div class="tx-main">
-              <div class="tx-line">
-                <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
-                <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-              </div>
-              <div class="tx-meta">
-                <span class="tx-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                @if (tx.cuenta) {
-                  <span class="tx-account">{{ tx.cuenta }}</span>
-                }
-              </div>
-            </div>
-            <div class="tx-edit">
-              <div class="tx-fields">
-                <label>
-                  <span>Categoría</span>
-                  <input
-                    type="text"
-                    [(ngModel)]="tx.categoria"
-                    list="categoryOptions"
-                    placeholder="Ej. Suministros, Ocio..."
-                  />
-                </label>
-                <label>
-                  <span>Subcategoría</span>
-                  <input
-                    type="text"
-                    [(ngModel)]="tx.subcategoria"
-                    placeholder="Ej. Luz, Agua, Gimnasio..."
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                class="btn-save"
-                [disabled]="isSaving(tx)"
-                (click)="saveCategory(tx)"
-              >
-                {{ isSaving(tx) ? 'Guardando...' : 'Guardar' }}
+      <section class="categories-section ajustes-editor-section">
+        <div class="category-list">
+          @for (cat of groupedFiltered; track cat.categoria) {
+            <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
+              <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
+                <span class="category-name">{{ cat.categoria }}</span>
+                <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
               </button>
+              @if (expandedCategory === cat.categoria) {
+                <div class="category-sublist">
+                  @for (sub of cat.subcategories; track sub.subcategoria) {
+                    <div class="subcategory-block">
+                      <button
+                        type="button"
+                        class="subcategory-header"
+                        (click)="toggleSubcategory(cat.categoria, sub.subcategoria)"
+                      >
+                        <span class="subcategory-name">{{ sub.subcategoria }}</span>
+                        <span class="category-chevron">
+                          {{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}
+                        </span>
+                      </button>
+                      @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria)) {
+                        <div class="category-detail ajustes-detail">
+                          @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
+                            <div class="detail-row ajustes-detail-row">
+                            <div class="ajustes-detail-main">
+                                <div class="ajustes-detail-top">
+                                  <span class="detail-desc">{{ tx.descripcion || '—' }}</span>
+                                </div>
+                                <div class="ajustes-detail-meta">
+                                  @if (tx.cuenta) {
+                                    <span class="detail-account detail-account-pill">{{ tx.cuenta }}</span>
+                                  }
+                                  <span class="detail-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                                  <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="ajustes-detail-edit-line">
+                              <div class="tx-fields-inline">
+                                <select [(ngModel)]="draftCategoria[tx.id!]">
+                                  <option [ngValue]="''">Sin categoría</option>
+                                  @for (catOpt of allCategories; track catOpt) {
+                                    <option [ngValue]="catOpt">{{ catOpt }}</option>
+                                  }
+                                </select>
+                                <select [(ngModel)]="draftSubcategoria[tx.id!]">
+                                  <option [ngValue]="''">Sin subcategoría</option>
+                                  @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
+                                    <option [ngValue]="subOpt">{{ subOpt }}</option>
+                                  }
+                                </select>
+                              </div>
+                              @if (hasDraftChanges(tx)) {
+                                <button
+                                  type="button"
+                                  class="btn-save"
+                                  [disabled]="isSaving(tx)"
+                                  (click)="openConfirmSave(tx)"
+                                >
+                                  {{ isSaving(tx) ? '✔' : 'OK' }}
+                                </button>
+                              }
+                            </div>
+                            @if (lastSavedId === tx.id && lastSaveMessage) {
+                              <div class="tx-save-line">{{ lastSaveMessage }}</div>
+                            }
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
             </div>
-          </div>
-        }
-      </div>
+          }
+        </div>
+      </section>
     </section>
   }
 </div>
+
+@if (confirmModalOpen && pendingTx) {
+  <div class="calendar-overlay" (click)="cancelSave()"></div>
+  <div class="calendar-popover ajustes-confirm-popover" (click)="$event.stopPropagation()">
+    <h3 class="calendar-title">Guardar cambios</h3>
+    <p class="ajustes-confirm-text">
+      ¿Quieres guardar la categoría
+      "{{ pendingCategoria || 'Sin categoría' }}" y la subcategoría
+      "{{ pendingSubcategoria || 'Sin subcategoría' }}" para este movimiento?
+    </p>
+    <div class="calendar-actions">
+      <button type="button" class="btn-cancel" (click)="cancelSave()">Cancelar</button>
+      <button type="button" class="btn-apply" (click)="confirmSave()">Guardar</button>
+    </div>
+  </div>
+}
 

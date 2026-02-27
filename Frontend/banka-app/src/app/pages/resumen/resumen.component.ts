@@ -41,6 +41,7 @@ function makeSubKey(cat: string, sub: string): string {
 export class ResumenComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
   loading = false;
+  showLoader = false;
   error: string | null = null;
 
   fromDate = '';
@@ -55,6 +56,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
   expandedIncomeSubcategoryKey: string | null = null;
   selectedAccount: string = '';
   private destroy$ = new Subject<void>();
+  private loaderToken = 0;
 
   readonly accountFilters: { id: string; label: string }[] = [
     { id: '', label: 'Todas' },
@@ -162,6 +164,13 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
+    this.showLoader = false;
+    const token = ++this.loaderToken;
+    setTimeout(() => {
+      if (this.loading && this.loaderToken === token) {
+        this.showLoader = true;
+      }
+    }, 3000);
     this.error = null;
     this.transactionService.getTransactions({
       from_date: this.fromDate || undefined,
@@ -185,10 +194,12 @@ export class ResumenComponent implements OnInit, OnDestroy {
         }));
         this.transactions = mapped;
         this.loading = false;
+        this.showLoader = false;
       },
       error: (err) => {
         this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
         this.loading = false;
+        this.showLoader = false;
       }
     });
   }

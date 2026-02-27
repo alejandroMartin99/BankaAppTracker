@@ -1,6 +1,6 @@
 <div class="gastos-page">
   <!-- Overlay de carga mientras se espera la respuesta del backend -->
-  @if (loading) {
+  @if (showLoader) {
     <div class="loader-overlay" @loaderOverlay>
       <div class="loader-card">
         <div class="loader-spinner">

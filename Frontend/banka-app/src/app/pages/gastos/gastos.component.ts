@@ -32,6 +32,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   balances: Record<string, number> = {};
   transactions: Transaction[] = [];
   loading = false;
+  showLoader = false;
   loadingBalances = false;
   error: string | null = null;
 
@@ -47,6 +48,7 @@ export class GastosComponent implements OnInit, OnDestroy {
   showCalendar = false;
   showInternalTransfers = false;
   private destroy$ = new Subject<void>();
+  private loaderToken = 0;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'month', label: 'Mes en curso' },
@@ -91,6 +93,13 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
+    this.showLoader = false;
+    const token = ++this.loaderToken;
+    setTimeout(() => {
+      if (this.loading && this.loaderToken === token) {
+        this.showLoader = true;
+      }
+    }, 3000);
     this.error = null;
 
     this.transactionService.getTransactions({
@@ -117,6 +126,7 @@ export class GastosComponent implements OnInit, OnDestroy {
           this.transactions = mapped;
           this.totalCount = res?.count ?? mapped.length;
           this.loading = false;
+          this.showLoader = false;
           this.cdr.detectChanges();
         });
       },
@@ -124,6 +134,7 @@ export class GastosComponent implements OnInit, OnDestroy {
         console.error('[Gastos] transactions error:', err);
         this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
         this.loading = false;
+        this.showLoader = false;
       }
     });
   }

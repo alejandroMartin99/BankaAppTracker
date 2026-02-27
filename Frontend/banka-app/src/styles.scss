@@ -99,14 +99,14 @@ html, body {
   content: '';
   display: block;
   height: 100%;
-  width: 40%;
+  width: 0%;
   background: var(--color-text);
   border-radius: 2px;
-  animation: loader-bar 1.2s ease-in-out infinite;
+  animation: loader-progress 80s linear forwards;
 }
 
-@keyframes loader-bar {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(200%); }
-  100% { transform: translateX(-100%); }
+@keyframes loader-progress {
+  0% { width: 0%; }
+  90% { width: 92%; }
+  100% { width: 92%; }
 }

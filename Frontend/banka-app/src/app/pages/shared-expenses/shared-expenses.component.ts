@@ -57,6 +57,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
   loading = false;
   error: string | null = null;
+  showLoader = false;
 
   fromDate = '';
   toDate = '';
@@ -68,6 +69,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   expandedCategoryKey: string | null = null;
   expandedSubcategoryKey: string | null = null;
   private destroy$ = new Subject<void>();
+  private loaderToken = 0;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'all', label: 'Histórico' },
@@ -99,7 +101,14 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
+    this.showLoader = false;
     this.error = null;
+    const token = ++this.loaderToken;
+    setTimeout(() => {
+      if (this.loading && this.loaderToken === token) {
+        this.showLoader = true;
+      }
+    }, 3000);
     this.transactionService.getSharedTransactions({
       from_date: this.fromDate || undefined,
       to_date: this.toDate || undefined
@@ -122,6 +131,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
         this.ngZone.run(() => {
           this.transactions = mapped;
           this.loading = false;
+          this.showLoader = false;
           this.cdr.detectChanges();
         });
       },
@@ -129,6 +139,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
         console.error('[SharedExpenses] error:', err);
         this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
         this.loading = false;
+        this.showLoader = false;
       }
     });
   }
