@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Transaction } from '../../models/transaction.model';
@@ -24,11 +25,23 @@ function makeSubKey(cat: string, sub: string): string {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './ajustes.component.html',
-  styleUrl: './ajustes.component.scss'
+  styleUrl: './ajustes.component.scss',
+  animations: [
+    trigger('loaderOverlay', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('200ms ease-out', style({ opacity: 1 }))
+      ]),
+      transition(':leave', [
+        animate('180ms ease-in', style({ opacity: 0 }))
+      ])
+    ])
+  ]
 })
 export class AjustesComponent implements OnInit {
   transactions: Transaction[] = [];
   loading = false;
+  showLoader = false;
   error: string | null = null;
 
   /** ids en guardado */
@@ -49,6 +62,15 @@ export class AjustesComponent implements OnInit {
   pendingTx: Transaction | null = null;
   pendingCategoria = '';
   pendingSubcategoria = '';
+
+  /** Modal editar detalles de la transacción */
+  editModalTx: Transaction | null = null;
+  /** Fecha y hora original (YYYY-MM-DDTHH:mm:ss) para datetime-local */
+  editDraftDateTime = '';
+  editDraftDesc = '';
+  savingEdit = false;
+  deletingEdit = false;
+  editError: string | null = null;
 
   constructor(private transactionService: TransactionService) {}
 
@@ -75,6 +97,7 @@ export class AjustesComponent implements OnInit {
 
   loadTransactions(): void {
     this.loading = true;
+    this.showLoader = true;
     this.error = null;
     this.transactionService.getTransactions().subscribe({
       next: (res) => {
@@ -103,11 +126,13 @@ export class AjustesComponent implements OnInit {
           }
         }
         this.loading = false;
+        this.showLoader = false;
       },
       error: (err) => {
         console.error('[Ajustes] error loadTransactions', err);
         this.error = err.error?.detail || 'Error al cargar transacciones';
         this.loading = false;
+        this.showLoader = false;
       }
     });
   }
@@ -289,5 +314,91 @@ export class AjustesComponent implements OnInit {
 
   isSubcategoryExpanded(categoria: string, subcategoria: string): boolean {
     return this.expandedSubKey === makeSubKey(categoria, subcategoria);
+  }
+
+  /** Rescata la fecha/hora original de la transacción para input type="datetime-local" (YYYY-MM-DDTHH:mm:ss) */
+  getDateTimeForInput(dt_date: string | undefined): string {
+    if (!dt_date) return '';
+    const s = String(dt_date).trim();
+    if (s.includes('T')) {
+      const part = s.slice(0, 19);
+      if (part.length >= 19) return part;
+      if (part.length === 16) return part + ':00'; // YYYY-MM-DDTHH:mm → añadir segundos
+      return part + '00:00:00'.slice(0, 19 - part.length);
+    }
+    return s.slice(0, 10) + 'T00:00:00';
+  }
+
+  openEditModal(tx: Transaction): void {
+    if (!tx) return;
+    this.editModalTx = tx;
+    this.editDraftDateTime = this.getDateTimeForInput(tx.dt_date);
+    this.editDraftDesc = (tx.descripcion || '').trim();
+    this.editError = null;
+  }
+
+  closeEditModal(): void {
+    this.editModalTx = null;
+    this.savingEdit = false;
+    this.deletingEdit = false;
+    this.editError = null;
+  }
+
+  deleteEditModal(): void {
+    const tx = this.editModalTx;
+    if (!tx || !tx.id) {
+      this.closeEditModal();
+      return;
+    }
+    this.editError = null;
+    this.deletingEdit = true;
+    const id = tx.id;
+    this.transactionService.deleteTransaction(id).subscribe({
+      next: () => {
+        this.transactions = this.transactions.filter(t => t.id !== id);
+        const key = String(id);
+        delete this.draftCategoria[key];
+        delete this.draftSubcategoria[key];
+        this.deletingEdit = false;
+        this.closeEditModal();
+      },
+      error: (err) => {
+        this.editError = err.error?.detail || 'Error al eliminar';
+        this.deletingEdit = false;
+      }
+    });
+  }
+
+  saveEditModal(): void {
+    const tx = this.editModalTx;
+    if (!tx || !tx.id) {
+      this.closeEditModal();
+      return;
+    }
+    this.editError = null;
+    this.savingEdit = true;
+
+    const raw = this.editDraftDateTime.trim();
+    const dt_date = raw
+      ? (raw.length >= 19 ? raw : raw + ':00'.slice(0, 19 - raw.length))
+      : undefined;
+    const descripcion = this.editDraftDesc.trim() || undefined;
+
+    const details: { dt_date?: string; descripcion?: string } = {};
+    if (dt_date) details.dt_date = dt_date;
+    if (descripcion !== undefined) details.descripcion = descripcion;
+
+    this.transactionService.updateTransactionDetails(tx.id, details).subscribe({
+      next: () => {
+        if (dt_date) tx.dt_date = dt_date;
+        if (descripcion !== undefined) tx.descripcion = descripcion;
+        this.savingEdit = false;
+        this.closeEditModal();
+      },
+      error: (err) => {
+        this.editError = err.error?.detail || 'Error al guardar';
+        this.savingEdit = false;
+      }
+    });
   }
 }

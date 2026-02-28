@@ -69,7 +69,6 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   expandedCategoryKey: string | null = null;
   expandedSubcategoryKey: string | null = null;
   private destroy$ = new Subject<void>();
-  private loaderToken = 0;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'all', label: 'Histórico' },
@@ -101,14 +100,8 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
-    this.showLoader = false;
+    this.showLoader = true;
     this.error = null;
-    const token = ++this.loaderToken;
-    setTimeout(() => {
-      if (this.loading && this.loaderToken === token) {
-        this.showLoader = true;
-      }
-    }, 3000);
     this.transactionService.getSharedTransactions({
       from_date: this.fromDate || undefined,
       to_date: this.toDate || undefined

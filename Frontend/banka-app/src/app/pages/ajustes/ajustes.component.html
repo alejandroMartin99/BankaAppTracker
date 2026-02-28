@@ -1,4 +1,18 @@
 <div class="ajustes-page">
+  @if (showLoader) {
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando ajustes...</p>
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  }
+
   <header class="page-header">
     <h1 class="page-title">Ajustes</h1>
     <p class="page-subtitle">
@@ -56,6 +70,14 @@
                           {{ tx.cuenta }}
                         </span>
                       }
+                      <button
+                        type="button"
+                        class="btn-edit-details"
+                        (click)="openEditModal(tx); $event.stopPropagation()"
+                        aria-label="Editar detalles del movimiento"
+                      >
+                        Editar
+                      </button>
                     </div>
                     <div class="tx-meta-right">
                       <div class="tx-fields-inline">
@@ -170,6 +192,14 @@
                                             {{ tx.cuenta }}
                                           </span>
                                         }
+                                        <button
+                                          type="button"
+                                          class="btn-edit-details"
+                                          (click)="openEditModal(tx); $event.stopPropagation()"
+                                          aria-label="Editar detalles del movimiento"
+                                        >
+                                          Editar
+                                        </button>
                                       </div>
                                       <div class="tx-meta-right">
                                         <div class="tx-fields-inline">
@@ -233,6 +263,37 @@
     <div class="calendar-actions">
       <button type="button" class="btn-cancel" (click)="cancelSave()">Cancelar</button>
       <button type="button" class="btn-apply" (click)="confirmSave()">Guardar</button>
+    </div>
+  </div>
+}
+
+@if (editModalTx) {
+  <div class="calendar-overlay" (click)="closeEditModal()"></div>
+  <div class="calendar-popover ajustes-edit-popover" (click)="$event.stopPropagation()">
+    <h3 class="calendar-title">Editar movimiento</h3>
+    <div class="edit-modal-fields">
+      <label>
+        <span>Fecha y hora</span>
+        <input type="datetime-local" step="1" [(ngModel)]="editDraftDateTime" />
+      </label>
+      <label>
+        <span>Descripción</span>
+        <input type="text" [(ngModel)]="editDraftDesc" placeholder="Descripción del movimiento" />
+      </label>
+    </div>
+    @if (editError) {
+      <p class="edit-modal-error">{{ editError }}</p>
+    }
+    <div class="calendar-actions edit-modal-actions">
+      <button type="button" class="btn-delete" (click)="deleteEditModal()" [disabled]="savingEdit || deletingEdit">
+        {{ deletingEdit ? 'Eliminando...' : 'Eliminar' }}
+      </button>
+      <div class="edit-modal-actions-right">
+        <button type="button" class="btn-cancel" (click)="closeEditModal()" [disabled]="savingEdit || deletingEdit">Cancelar</button>
+        <button type="button" class="btn-apply" (click)="saveEditModal()" [disabled]="savingEdit || deletingEdit">
+          {{ savingEdit ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
     </div>
   </div>
 }

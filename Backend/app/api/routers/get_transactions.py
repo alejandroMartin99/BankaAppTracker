@@ -16,6 +16,13 @@ class CategoryUpdate(BaseModel):
     subcategoria: Optional[str] = None
 
 
+class TransactionDetailsUpdate(BaseModel):
+    """Campos editables de una transacción (todos opcionales)."""
+    dt_date: Optional[str] = None  # ISO date or datetime, e.g. YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
+    descripcion: Optional[str] = None
+    importe: Optional[float] = None
+
+
 def _fetch_for_balances(account_ids: list[str]) -> list:
     """Saldos = valor 'saldo' de la última transacción de cada cuenta.
     dt_date incluye hh:mm:ss (Ibercaja: ficticias, Revolut: reales) para orden correcto."""
@@ -213,6 +220,114 @@ async def update_transaction_category(
     except Exception as e:
         import traceback
         print(f"[ERROR] update_transaction_category: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch(
+    "/transactions/{row_id}",
+    summary="Actualizar detalles de una transacción (fecha, descripción, importe)",
+    response_model=Dict[str, Any]
+)
+async def update_transaction_details(
+    row_id: int,
+    payload: TransactionDetailsUpdate = Body(...),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Permite actualizar dt_date, descripcion e importe de una transacción propia."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    try:
+        r = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("id, account_id")
+            .eq("id", row_id)
+            .limit(1)
+            .execute()
+        )
+        rows = r.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+
+        tx = rows[0]
+        if tx.get("account_id") not in account_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta transacción")
+
+        update_data: Dict[str, Any] = {}
+        if payload.dt_date is not None:
+            val = payload.dt_date.strip() if isinstance(payload.dt_date, str) else str(payload.dt_date)
+            if val:
+                if "T" not in val and len(val) <= 10:
+                    val = f"{val}T00:00:00"
+                update_data["dt_date"] = val
+        if payload.descripcion is not None:
+            update_data["descripcion"] = payload.descripcion.strip() if payload.descripcion else None
+        if payload.importe is not None:
+            update_data["importe"] = float(payload.importe)
+
+        if not update_data:
+            return {"success": True, "updated": 0}
+
+        supabase_service.supabase.table("transactions").update(update_data).eq("id", row_id).execute()
+        return {"success": True, "updated": 1}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] update_transaction_details: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/transactions/{row_id}",
+    summary="Eliminar una transacción",
+    response_model=Dict[str, Any]
+)
+async def delete_transaction(
+    row_id: int,
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Elimina una transacción propia (por id de fila)."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    try:
+        r = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("id, account_id")
+            .eq("id", row_id)
+            .limit(1)
+            .execute()
+        )
+        rows = r.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+
+        tx = rows[0]
+        if tx.get("account_id") not in account_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta transacción")
+
+        supabase_service.supabase.table("transactions").delete().eq("id", row_id).execute()
+        return {"success": True, "deleted": 1}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] delete_transaction: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -548,6 +548,105 @@
   }
 }
 
+/* Botón Editar detalles en cada fila */
+.btn-edit-details {
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  margin-left: 4px;
+
+  &:hover {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+}
+
+/* Modal editar movimiento */
+.ajustes-edit-popover {
+  max-width: 360px;
+}
+
+.edit-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 16px 0;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+
+    input {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      color: var(--color-text);
+
+      &[type="number"] {
+        max-width: 140px;
+      }
+    }
+  }
+}
+
+.edit-modal-error {
+  font-size: 11px;
+  color: #b91c1c;
+  margin: -8px 0 8px 0;
+}
+
+.edit-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.edit-modal-actions-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-delete {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
+  cursor: pointer;
+  border-radius: 999px;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 /* Estados vacíos y error */
 
 .error-card {

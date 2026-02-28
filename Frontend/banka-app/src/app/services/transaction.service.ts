@@ -113,4 +113,21 @@ export class TransactionService {
     };
     return this.http.patch<{ success: boolean; updated: number }>(`${this.transactionsUrl}/${id}/category`, body);
   }
+
+  /**
+   * Actualiza detalles de una transacción (fecha, descripción, importe). Solo se envían los campos presentes.
+   */
+  updateTransactionDetails(
+    id: number,
+    details: { dt_date?: string; descripcion?: string; importe?: number }
+  ): Observable<{ success: boolean; updated: number }> {
+    return this.http.patch<{ success: boolean; updated: number }>(`${this.transactionsUrl}/${id}`, details);
+  }
+
+  /**
+   * Elimina una transacción por id.
+   */
+  deleteTransaction(id: number): Observable<{ success: boolean; deleted: number }> {
+    return this.http.delete<{ success: boolean; deleted: number }>(`${this.transactionsUrl}/${id}`);
+  }
 }

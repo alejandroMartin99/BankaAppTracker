@@ -48,7 +48,6 @@ export class GastosComponent implements OnInit, OnDestroy {
   showCalendar = false;
   showInternalTransfers = false;
   private destroy$ = new Subject<void>();
-  private loaderToken = 0;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'month', label: 'Mes en curso' },
@@ -93,13 +92,7 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
-    this.showLoader = false;
-    const token = ++this.loaderToken;
-    setTimeout(() => {
-      if (this.loading && this.loaderToken === token) {
-        this.showLoader = true;
-      }
-    }, 3000);
+    this.showLoader = true;
     this.error = null;
 
     this.transactionService.getTransactions({
