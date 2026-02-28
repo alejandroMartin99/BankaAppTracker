@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     # Database (if needed separately)
     DATABASE_URL: str = ""
 
+    # Keep-alive: URL pública del backend; cada N minutos se hace GET a esta URL para evitar que Render apague la instancia
+    APP_URL: str = Field(default="https://bankaapptracker.onrender.com", description="URL pública del backend")
+    KEEP_ALIVE_INTERVAL_SECONDS: int = Field(default=600, description="Intervalo en segundos entre pings keep-alive (default 10 min)")
+
 
 # Global settings instance
 settings = Settings()

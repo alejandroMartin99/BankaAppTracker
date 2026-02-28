@@ -3,8 +3,11 @@ FastAPI Main Application
 Application entry point for the Rubén Fitness Backend API
 """
 
+import asyncio
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -12,11 +15,54 @@ from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
 from app.api.services.supabase.supabase_service import supabase_service
 
+KEEP_ALIVE_TASK: asyncio.Task | None = None
+
+
+async def _keep_alive_loop() -> None:
+    """Cada N minutos hace GET a la URL pública del backend para que Render no apague la instancia."""
+    base_url = (settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL") or "").rstrip("/")
+    if not base_url:
+        return
+    interval = max(60, settings.KEEP_ALIVE_INTERVAL_SECONDS)
+    url = f"{base_url}/health"
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    print(f"[keep-alive] GET {url} -> {resp.status_code}")
+                else:
+                    print(f"[keep-alive] GET {url} -> {resp.status_code}")
+        except asyncio.CancelledError:
+            print("[keep-alive] detenido")
+            break
+        except Exception as e:
+            print(f"[keep-alive] error: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global KEEP_ALIVE_TASK
+    base_url = settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL")
+    if base_url:
+        KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
+        print(f"[keep-alive] iniciado cada {settings.KEEP_ALIVE_INTERVAL_SECONDS}s -> {base_url}/health")
+    yield
+    if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
+        KEEP_ALIVE_TASK.cancel()
+        try:
+            await KEEP_ALIVE_TASK
+        except asyncio.CancelledError:
+            pass
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="BANK_APP_TRAKER",
     description="Backend API for Bank Account Transaction Tracking",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS to allow frontend requests
