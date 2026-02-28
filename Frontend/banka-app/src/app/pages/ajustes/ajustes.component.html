@@ -70,6 +70,8 @@
                           {{ tx.cuenta }}
                         </span>
                       }
+                    </div>
+                    <div class="tx-meta-right">
                       <button
                         type="button"
                         class="btn-edit-details"
@@ -78,8 +80,6 @@
                       >
                         Editar
                       </button>
-                    </div>
-                    <div class="tx-meta-right">
                       <div class="tx-fields-inline">
                         <select [(ngModel)]="draftCategoria[tx.id!]">
                           <option [ngValue]="''">Sin categoría</option>
@@ -192,6 +192,8 @@
                                             {{ tx.cuenta }}
                                           </span>
                                         }
+                                      </div>
+                                      <div class="tx-meta-right">
                                         <button
                                           type="button"
                                           class="btn-edit-details"
@@ -200,8 +202,6 @@
                                         >
                                           Editar
                                         </button>
-                                      </div>
-                                      <div class="tx-meta-right">
                                         <div class="tx-fields-inline">
                                           <select [(ngModel)]="draftCategoria[tx.id!]">
                                             <option [ngValue]="''">Sin categoría</option>
