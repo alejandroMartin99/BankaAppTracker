@@ -28,12 +28,13 @@ async def _keep_alive_loop() -> None:
     while True:
         try:
             await asyncio.sleep(interval)
+            # Solo mantener vivo entre las 08:00 y las 22:00 (hora del servidor)
+            now_hour = datetime.now().hour
+            if not (8 <= now_hour < 22):
+                continue
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url)
-                if resp.status_code == 200:
-                    print(f"[keep-alive] GET {url} -> {resp.status_code}")
-                else:
-                    print(f"[keep-alive] GET {url} -> {resp.status_code}")
+                print(f"[keep-alive] {now_hour:02d}h GET {url} -> {resp.status_code}")
         except asyncio.CancelledError:
             print("[keep-alive] detenido")
             break
