@@ -63,6 +63,22 @@
   box-shadow: var(--shadow);
 }
 
+/* Tablas: fondo blanco, sin marco */
+.charts-card--analysis {
+  background: #fff;
+  border: none;
+  box-shadow: none;
+}
+
+.charts-table-caption {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin: 14px 0 6px 0;
+}
+
 .charts-card-title {
   font-size: 11px;
   font-weight: 600;

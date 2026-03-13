@@ -87,14 +87,8 @@ export class ChartsComponent implements OnInit, OnDestroy {
   private categoryMonthlySeriesIncome: Record<string, Map<string, number>> = {};
   private categoryAvgPerMonthIncome: Record<string, number> = {};
 
-  /** Vista expandida del gráfico de gastos: por categorías, una línea por mes */
+  /** Vista expandida del gráfico (ojo): por categorías, una línea por mes */
   chartExpensesExpanded = false;
-  /** Vista expandida del gráfico de ingresos: por categorías, una línea por mes */
-  chartIncomeExpanded = false;
-
-  /** Vista expandida del gráfico de gastos: por categorías, una línea por mes */
-  chartExpensesExpanded = false;
-  /** Vista expandida del gráfico de ingresos: por categorías, una línea por mes */
   chartIncomeExpanded = false;
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */

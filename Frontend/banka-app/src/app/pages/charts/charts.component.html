@@ -39,8 +39,9 @@
       </button>
     </div>
 
-    <!-- Gráfico mensual (gastos) -->
+    <!-- Gastos: gráfica -->
     <section class="charts-card charts-card--chart">
+      <h3 class="charts-subtitle">Gastos</h3>
       <div class="charts-chart-wrap">
         @if (averageSpending > 0 && chartScaleRef > 0) {
           <div
@@ -72,8 +73,45 @@
       </div>
     </section>
 
-    <!-- Gráfico mensual (ingresos) -->
+    <!-- Gastos: tabla por categoría -->
+    <section class="charts-card charts-card--analysis">
+      <h3 class="charts-subtitle">Gastos · Por categoría</h3>
+      <div class="charts-table-wrap">
+        <table class="charts-table">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th class="charts-th-num">Total</th>
+              <th class="charts-th-num">Media/mes</th>
+              <th class="charts-th-num">% total</th>
+              <th class="charts-th-num">Últ. mes<br>vs media</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of categoryAnalysisExpenses; track row.categoria) {
+              <tr>
+                <td class="charts-td-cat">{{ row.categoria }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
+                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
+                <td
+                  class="charts-td-num charts-td-num--clickable"
+                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
+                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
+                  (click)="openCategoryDetail(row.categoria, true)"
+                >
+                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ingresos: gráfica -->
     <section class="charts-card charts-card--chart charts-card--income">
+      <h3 class="charts-subtitle">Ingresos</h3>
       @if (hasAnyIncome()) {
         <div class="charts-chart-wrap charts-chart-wrap--compact">
           @if (averageIncome > 0 && incomeScaleRef > 0) {
@@ -109,48 +147,9 @@
       }
     </section>
 
-    <!-- Análisis por categoría: gastos e ingresos por separado -->
+    <!-- Ingresos: tabla por categoría -->
     <section class="charts-card charts-card--analysis">
-      <h2 class="charts-card-title">Por categoría</h2>
-      <p class="charts-card-desc">
-        Total del período, media mensual de la categoría, porcentaje sobre el total (máx. 100 %)
-        y variación del último mes completo frente a la media de la categoría.
-      </p>
-
-      <h3 class="charts-subtitle">Gastos</h3>
-      <div class="charts-table-wrap">
-        <table class="charts-table">
-          <thead>
-            <tr>
-              <th>Categoría</th>
-              <th class="charts-th-num">Total</th>
-              <th class="charts-th-num">Media/mes</th>
-              <th class="charts-th-num">% total</th>
-              <th class="charts-th-num">Últ. mes<br>vs media</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of categoryAnalysisExpenses; track row.categoria) {
-              <tr>
-                <td class="charts-td-cat">{{ row.categoria }}</td>
-                <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
-                <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
-                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
-                <td
-                  class="charts-td-num charts-td-num--clickable"
-                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
-                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
-                  (click)="openCategoryDetail(row.categoria, true)"
-                >
-                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="charts-subtitle">Ingresos</h3>
+      <h3 class="charts-subtitle">Ingresos · Por categoría</h3>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
