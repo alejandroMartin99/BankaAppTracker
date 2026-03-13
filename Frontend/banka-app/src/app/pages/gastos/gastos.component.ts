@@ -251,22 +251,13 @@ export class GastosComponent implements OnInit, OnDestroy {
   }
 
   getAccountLabel(cuenta?: string): string {
-    if (!cuenta) return '';
-    if (cuenta === 'Revolut') return 'Revolut';
-    if (cuenta === 'Personal') return 'Ibercaja Personal';
-    if (cuenta === 'Conjunta') return 'Ibercaja Conjunta';
-    if (cuenta === 'Pluxee') return 'Pluxee';
-    return cuenta;
+    return cuenta || '';
   }
 
   /** Versión corta para balance cards en móvil */
   getAccountLabelShort(cuenta?: string): string {
     if (!cuenta) return '';
-    if (cuenta === 'Revolut') return 'Revolut';
-    if (cuenta === 'Personal') return 'Personal';
-    if (cuenta === 'Conjunta') return 'Conjunta';
-    if (cuenta === 'Pluxee') return 'Pluxee';
-    return cuenta.length > 6 ? cuenta.slice(0, 5) + '.' : cuenta;
+    return cuenta.length > 10 ? cuenta.slice(0, 9) + '…' : cuenta;
   }
 
   previousPage() {

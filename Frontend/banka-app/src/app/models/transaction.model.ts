@@ -41,6 +41,7 @@ export interface Account {
   display_name: string;
   stable_key?: string;
   source?: string;
+  shared?: boolean;
 }
 
 export interface AccountsResponse {

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.api.services.supabase.supabase_service import supabase_service
+from app.api.services.account_config import is_account_shared
 
 router = APIRouter(
     prefix="/GET",
@@ -111,7 +112,8 @@ async def get_transactions(
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(account_ids)
         for row in data:
-            row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
+            # Priorizar siempre el display_name actual de la cuenta
+            row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
         return {"success": True, "count": len(data), "data": data}
     except Exception as e:
         import traceback
@@ -161,7 +163,7 @@ async def get_shared_transactions(
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(all_account_ids)
         for row in data:
-            row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
+            row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
             row["is_own_account"] = row.get("account_id") in my_account_set
         return {"success": True, "count": len(data), "data": data}
     except Exception as e:
@@ -198,7 +200,14 @@ async def get_accounts(user: dict = Depends(get_current_user)) -> Dict[str, Any]
             .order("display_name", desc=False)
             .execute()
         )
-        return {"success": True, "data": list(r.data or [])}
+        data = list(r.data or [])
+        # Anotar si la cuenta es compartida según la config
+        for row in data:
+            row["shared"] = is_account_shared(
+                str(row.get("source") or ""),
+                str(row.get("stable_key") or ""),
+            )
+        return {"success": True, "data": data}
     except Exception as e:
         import traceback
         print(f"[ERROR] get_accounts: {e}")

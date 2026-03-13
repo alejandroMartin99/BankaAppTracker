@@ -79,6 +79,35 @@ def get_pluxee_default_name() -> str:
     return config.get("pluxee", {}).get("default_name", "Pluxee")
 
 
+def is_account_shared(source: str, stable_key: Optional[str] = None) -> bool:
+  """
+  Indica si una cuenta debe tratarse como compartida según la configuración.
+  Se basa en accounts.yaml:
+    - ibercaja: por sufijo (últimos 6 dígitos) dentro de base_pattern.
+    - revolut/pluxee: flag 'shared' a nivel de proveedor.
+  """
+  config = _load_config()
+  src = (source or "").lower()
+  if src == "ibercaja" and stable_key:
+      ibercaja = config.get("ibercaja", {})
+      base = ibercaja.get("base_pattern", "20859254******")
+      accounts = ibercaja.get("accounts", {})
+      # Si stable_key ya es el IBAN completo, intentamos extraer sufijo
+      if base in stable_key and stable_key.startswith(base):
+          suffix = stable_key.replace(base, "")
+      else:
+          # fallback: usar últimos 6 dígitos
+          suffix = stable_key[-6:]
+      info = accounts.get(suffix)
+      if info is not None:
+          return bool(info.get("shared", False))
+  # Proveedores con 'shared' a nivel global
+  provider = config.get(src, {})
+  if isinstance(provider, dict):
+      return bool(provider.get("shared", False))
+  return False
+
+
 def reload_config() -> None:
     """Recarga la config (útil si se edita accounts.yaml en caliente)."""
     global _ACCOUNT_CONFIG

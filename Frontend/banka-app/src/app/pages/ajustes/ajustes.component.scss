@@ -289,6 +289,8 @@
   flex: 1;
   justify-content: flex-end;
   gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
 
   select {
     min-width: auto;
@@ -302,6 +304,28 @@
     color: var(--color-text-secondary);
     outline: none;
     appearance: none;
+
+    &:focus {
+      border-color: var(--color-text-muted);
+      color: var(--color-text);
+    }
+  }
+
+  .subcategory-custom-input {
+    min-width: 100px;
+    max-width: 140px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    outline: none;
+
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
 
     &:focus {
       border-color: var(--color-text-muted);

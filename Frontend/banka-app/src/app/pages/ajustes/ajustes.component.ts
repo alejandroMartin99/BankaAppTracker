@@ -20,6 +20,9 @@ function makeSubKey(cat: string, sub: string): string {
   return `${cat || 'Sin categoría'}::${sub || 'Sin subcategoría'}`;
 }
 
+/** Valor especial en el desplegable para "añadir subcategoría manualmente" */
+const ADD_NEW_SUBCATEGORY = '__ADD_NEW__';
+
 @Component({
   selector: 'app-ajustes',
   standalone: true,
@@ -49,6 +52,10 @@ export class AjustesComponent implements OnInit {
   /** borrador local de categoría/subcategoría por id */
   draftCategoria: Record<string, string> = {};
   draftSubcategoria: Record<string, string> = {};
+  /** texto de subcategoría cuando el usuario elige "Añadir nueva" */
+  draftSubcategoriaCustom: Record<string, string> = {};
+  /** valor del desplegable para opción "Añadir nueva" (expuesto en template) */
+  addNewSubcategoryValue = ADD_NEW_SUBCATEGORY;
   /** feedback de guardado */
   lastSavedId: number | null = null;
   lastSaveMessage: string | null = null;
@@ -79,6 +86,9 @@ export class AjustesComponent implements OnInit {
   accountDraftName: Record<string, string> = {};
   editingAccountId: string | null = null;
   savingAccountId: string | null = null;
+  renameSharedConfirmOpen = false;
+  renamePendingAccount: Account | null = null;
+  renamePendingName = '';
 
   constructor(private transactionService: TransactionService) {}
 
@@ -127,11 +137,20 @@ export class AjustesComponent implements OnInit {
         // Inicializar borradores
         this.draftCategoria = {};
         this.draftSubcategoria = {};
+        this.draftSubcategoriaCustom = {};
         for (const t of mapped) {
           if (t.id != null) {
             const key = String(t.id);
-            this.draftCategoria[key] = t.categoria || '';
-            this.draftSubcategoria[key] = t.subcategoria || '';
+            const cat = t.categoria || '';
+            const sub = (t.subcategoria || '').toString().trim();
+            this.draftCategoria[key] = cat;
+            const subList = this.getSubcategoriesFor(cat);
+            if (sub && !subList.includes(sub)) {
+              this.draftSubcategoria[key] = ADD_NEW_SUBCATEGORY;
+              this.draftSubcategoriaCustom[key] = sub;
+            } else {
+              this.draftSubcategoria[key] = t.subcategoria || '';
+            }
           }
         }
         this.loading = false;
@@ -267,13 +286,23 @@ export class AjustesComponent implements OnInit {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }
 
+  /** Subcategoría efectiva: la del desplegable o la escrita en "Añadir nueva" */
+  getEffectiveSubcategoria(t: Transaction): string {
+    if (!t.id) return '';
+    const key = String(t.id);
+    if (this.draftSubcategoria[key] === ADD_NEW_SUBCATEGORY) {
+      return (this.draftSubcategoriaCustom[key] || '').toString().trim();
+    }
+    return (this.draftSubcategoria[key] || '').toString().trim();
+  }
+
   hasDraftChanges(t: Transaction): boolean {
     if (!t.id) return false;
     const key = String(t.id);
     const currentCat = (t.categoria || '').toString().trim();
     const currentSub = (t.subcategoria || '').toString().trim();
     const draftCat = (this.draftCategoria[key] || '').toString().trim();
-    const draftSub = (this.draftSubcategoria[key] || '').toString().trim();
+    const draftSub = this.getEffectiveSubcategoria(t);
     return currentCat !== draftCat || currentSub !== draftSub;
   }
 
@@ -283,7 +312,7 @@ export class AjustesComponent implements OnInit {
     }
     const draftKey = String(t.id);
     const categoriaDraft = (this.draftCategoria[draftKey] || '').toString().trim();
-    const subcategoriaDraft = (this.draftSubcategoria[draftKey] || '').toString().trim();
+    const subcategoriaDraft = this.getEffectiveSubcategoria(t);
 
     this.pendingTx = t;
     this.pendingCategoria = categoriaDraft;
@@ -328,6 +357,9 @@ export class AjustesComponent implements OnInit {
         // Sincronizar modelo base con lo guardado
         t.categoria = categoria || '';
         t.subcategoria = subcategoria || '';
+        // Salir del modo "Añadir nueva" y dejar el valor guardado en el desplegable
+        this.draftSubcategoria[draftKey] = subcategoria || '';
+        delete this.draftSubcategoriaCustom[draftKey];
         this.lastSavedId = t.id || null;
         this.lastSaveMessage = 'Cambios guardados';
       },
@@ -481,13 +513,41 @@ export class AjustesComponent implements OnInit {
       this.editingAccountId = null;
       return;
     }
+    // Si la cuenta es compartida, pedimos confirmación antes de aplicar el cambio
+    if (acc.shared) {
+      this.renamePendingAccount = acc;
+      this.renamePendingName = draft;
+      this.renameSharedConfirmOpen = true;
+      return;
+    }
+    this.performSaveAccountName(acc, draft);
+  }
+
+  confirmSaveSharedAccount(): void {
+    const acc = this.renamePendingAccount;
+    const name = this.renamePendingName.trim();
+    this.renameSharedConfirmOpen = false;
+    if (!acc || !acc.id || !name) return;
+    this.performSaveAccountName(acc, name);
+  }
+
+  cancelSaveSharedAccount(): void {
+    this.renameSharedConfirmOpen = false;
+    this.renamePendingAccount = null;
+    this.renamePendingName = '';
+  }
+
+  private performSaveAccountName(acc: Account, newName: string): void {
     this.savingAccountId = acc.id;
-    this.transactionService.updateAccountName(acc.id, draft).subscribe({
+    this.savingAccountId = acc.id;
+    this.transactionService.updateAccountName(acc.id, newName).subscribe({
       next: (res) => {
-        acc.display_name = res.display_name || draft;
+        acc.display_name = res.display_name || newName;
         this.accountDraftName[acc.id] = acc.display_name;
         this.savingAccountId = null;
         this.editingAccountId = null;
+        this.renamePendingAccount = null;
+        this.renamePendingName = '';
         // Avisar a otras vistas (Resumen, Gastos) para que recarguen si lo desean
         this.transactionService.dataRefresh$.next();
       },

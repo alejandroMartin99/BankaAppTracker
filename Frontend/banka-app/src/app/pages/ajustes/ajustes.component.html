@@ -105,7 +105,16 @@
                                             @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
                                               <option [ngValue]="subOpt">{{ subOpt }}</option>
                                             }
+                                            <option [ngValue]="addNewSubcategoryValue">➕ Añadir nueva...</option>
                                           </select>
+                                          @if (draftSubcategoria[tx.id!] === addNewSubcategoryValue) {
+                                            <input
+                                              type="text"
+                                              class="subcategory-custom-input"
+                                              [(ngModel)]="draftSubcategoriaCustom[tx.id!]"
+                                              placeholder="Escribe la subcategoría"
+                                            />
+                                          }
                                         </div>
                                         <button
                                           type="button"
@@ -227,7 +236,16 @@
                                             @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
                                               <option [ngValue]="subOpt">{{ subOpt }}</option>
                                             }
+                                            <option [ngValue]="addNewSubcategoryValue">➕ Añadir nueva...</option>
                                           </select>
+                                          @if (draftSubcategoria[tx.id!] === addNewSubcategoryValue) {
+                                            <input
+                                              type="text"
+                                              class="subcategory-custom-input"
+                                              [(ngModel)]="draftSubcategoriaCustom[tx.id!]"
+                                              placeholder="Escribe la subcategoría"
+                                            />
+                                          }
                                         </div>
                                         <button
                                           type="button"
@@ -384,6 +402,23 @@
           {{ savingEdit ? 'Guardando...' : 'Guardar' }}
         </button>
       </div>
+    </div>
+  </div>
+}
+
+@if (renameSharedConfirmOpen && renamePendingAccount) {
+  <div class="calendar-overlay" (click)="cancelSaveSharedAccount()"></div>
+  <div class="calendar-popover ajustes-confirm-popover" (click)="$event.stopPropagation()">
+    <h3 class="calendar-title">Cambiar nombre de cuenta compartida</h3>
+    <p class="ajustes-confirm-text">
+      Esta cuenta está marcada como compartida. Si cambias su nombre a
+      "<strong>{{ renamePendingName }}</strong>", el cambio se aplicará también para
+      otras personas que usen esta cuenta.
+      ¿Quieres continuar?
+    </p>
+    <div class="calendar-actions">
+      <button type="button" class="btn-cancel" (click)="cancelSaveSharedAccount()">Cancelar</button>
+      <button type="button" class="btn-apply" (click)="confirmSaveSharedAccount()">Continuar</button>
     </div>
   </div>
 }

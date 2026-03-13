@@ -26,10 +26,14 @@ CATEGORY_RULES = [
     (r'NOTINO', 'BienEstar', 'Notino'),
     (r'PRIMOR', 'BienEstar', 'Primor'),
     (r'APPLE.COMÑBILL', 'BienEstar', 'Apple'),
+    (r'XANA DENTAL', 'BienEstar', 'Dentista'),
+    (r'HSN STORE', 'BienEstar', 'HSN'),
+    (r'FARMACIA', 'BienEstar', 'Farmacia'),
     (r'HIERBA EN FLOR', 'BienEstar', 'Flores_Lucia'),
 
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
+    
 
     # Seguros
     (r'IBERVIDA', 'Seguros', 'Vida'),
@@ -98,6 +102,7 @@ CATEGORY_RULES = [
     (r'COCHINITA LOCA', 'Restaurantes', 'Cochinita Mex'),
     (r'COFFEE', 'Restaurantes', 'Cafe'),
     (r'DOMINOS PIZZA', 'Restaurantes', 'Dominos Pizza'),
+    (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
 
     # Ropa
     (r'ZARA', 'Ropa', 'ZARA'),
@@ -112,6 +117,10 @@ CATEGORY_RULES = [
     (r'UNIQLO', 'Ropa', 'UNIQLO'),
     (r'MILFSHAKES', 'Ropa', 'MILFSHAKES'),
     (r'EL CORTE INGLES', 'Ropa', 'EL CORTE INGLES'),
+    (r'LEFTIES', 'Ropa', 'LEFTIES'),
+    (r'STRADIVARIUS', 'Ropa', 'STRADIVARIUS'),
+    (r'PARFOIS', 'Ropa', 'PARFOIS'),
+    (r'OYSHO', 'Ropa', 'OYSHO'),
 
 
     # Transferencias
