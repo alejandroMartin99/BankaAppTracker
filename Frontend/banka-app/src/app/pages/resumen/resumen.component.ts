@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { TransactionService } from '../../services/transaction.service';
-import { Transaction } from '../../models/transaction.model';
+import { Transaction, Account } from '../../models/transaction.model';
 
 type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
 
@@ -57,12 +57,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
   selectedAccount: string = '';
   private destroy$ = new Subject<void>();
 
-  readonly accountFilters: { id: string; label: string }[] = [
-    { id: '', label: 'Todas' },
-    { id: 'Revolut', label: 'Revolut' },
-    { id: 'Personal', label: 'Personal' },
-    { id: 'Conjunta', label: 'Conjunta' },
-    { id: 'Pluxee', label: 'Pluxee' }
+  accounts: Account[] = [];
+  accountFilters: { id: string; label: string }[] = [
+    { id: '', label: 'Todas' }
   ];
 
   readonly presets: { id: DatePreset; label: string }[] = [
@@ -76,6 +73,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
   constructor(private transactionService: TransactionService) {}
 
   ngOnInit() {
+    this.loadAccounts();
     this.applyPreset('month');
     this.transactionService.dataRefresh$
       .pipe(takeUntil(this.destroy$))
@@ -197,6 +195,26 @@ export class ResumenComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadAccounts() {
+    this.transactionService.getAccounts().subscribe({
+      next: (res) => {
+        const data = res?.data || [];
+        this.accounts = data;
+        this.accountFilters = [
+          { id: '', label: 'Todas' },
+          ...data.map(acc => ({
+            id: acc.display_name,
+            label: acc.display_name
+          }))
+        ];
+      },
+      error: () => {
+        this.accounts = [];
+        this.accountFilters = [{ id: '', label: 'Todas' }];
+      }
+    });
+  }
+
   applyPreset(preset: DatePreset) {
     if (preset === 'custom') {
       this.showCalendar = true;
@@ -285,11 +303,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
   }
 
   getAccountLabel(cuenta?: string): string {
-    if (!cuenta) return '';
-    if (cuenta === 'Revolut') return 'Revolut';
-    if (cuenta === 'Personal') return 'Ibercaja Personal';
-    if (cuenta === 'Conjunta') return 'Ibercaja Conjunta';
-    if (cuenta === 'Pluxee') return 'Pluxee';
-    return cuenta;
+    return cuenta || '';
   }
 }

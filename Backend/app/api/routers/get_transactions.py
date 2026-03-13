@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
@@ -14,6 +14,10 @@ router = APIRouter(
 class CategoryUpdate(BaseModel):
     categoria: Optional[str] = None
     subcategoria: Optional[str] = None
+
+
+class AccountUpdate(BaseModel):
+    display_name: Optional[str] = None
 
 
 class TransactionDetailsUpdate(BaseModel):
@@ -167,6 +171,41 @@ async def get_shared_transactions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get(
+    "/accounts",
+    summary="Obtener cuentas del usuario actual",
+    response_model=Dict[str, Any],
+)
+async def get_accounts(user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+    """
+    Devuelve las cuentas vinculadas al usuario actual.
+    Cada item incluye id, display_name, stable_key y source.
+    """
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids: List[str] = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        return {"success": True, "data": []}
+
+    try:
+        r = (
+            supabase_service.supabase
+            .table("accounts")
+            .select("id, display_name, stable_key, source")
+            .in_("id", account_ids)
+            .order("display_name", desc=False)
+            .execute()
+        )
+        return {"success": True, "data": list(r.data or [])}
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] get_accounts: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.patch(
     "/transactions/{row_id}/category",
     summary="Actualizar categoría y subcategoría de una transacción existente",
@@ -282,6 +321,50 @@ async def update_transaction_details(
     except Exception as e:
         import traceback
         print(f"[ERROR] update_transaction_details: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch(
+    "/accounts/{account_id}",
+    summary="Actualizar nombre visible de una cuenta",
+    response_model=Dict[str, Any],
+)
+async def update_account_display_name(
+    account_id: str,
+    payload: AccountUpdate = Body(...),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Permite cambiar el display_name de una cuenta propia.
+    """
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    if account_id not in account_ids:
+        raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta cuenta")
+
+    try:
+        new_name_raw = payload.display_name if payload.display_name is not None else ""
+        new_name = new_name_raw.strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="El nombre de cuenta no puede estar vacío")
+
+        supabase_service.supabase.table("accounts").update(
+            {"display_name": new_name}
+        ).eq("id", account_id).execute()
+
+        return {"success": True, "updated": 1, "display_name": new_name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] update_account_display_name: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

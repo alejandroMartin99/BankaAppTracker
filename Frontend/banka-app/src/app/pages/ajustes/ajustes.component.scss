@@ -634,6 +634,71 @@
   margin: -8px 0 8px 0;
 }
 
+.accounts-section {
+  margin-top: 8px;
+}
+
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
+.account-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.account-name-input {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  min-width: 140px;
+}
+
+.account-source-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-border-light);
+  color: var(--color-text-secondary);
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-edit-btn {
+  padding-inline: 10px;
+}
+
 .edit-modal-actions {
   display: flex;
   justify-content: space-between;

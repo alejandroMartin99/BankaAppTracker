@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Transaction } from '../../models/transaction.model';
+import { Transaction, Account } from '../../models/transaction.model';
 import { TransactionService } from '../../services/transaction.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
 
@@ -72,10 +72,19 @@ export class AjustesComponent implements OnInit {
   deletingEdit = false;
   editError: string | null = null;
 
+  /** Editor de cuentas */
+  accounts: Account[] = [];
+  accountsLoading = false;
+  accountsError: string | null = null;
+  accountDraftName: Record<string, string> = {};
+  editingAccountId: string | null = null;
+  savingAccountId: string | null = null;
+
   constructor(private transactionService: TransactionService) {}
 
   ngOnInit(): void {
     this.loadTransactions();
+    this.loadAccounts();
   }
 
   getIconInfo(t: Transaction) {
@@ -427,6 +436,65 @@ export class AjustesComponent implements OnInit {
       error: (err) => {
         this.editError = err.error?.detail || 'Error al guardar';
         this.savingEdit = false;
+      }
+    });
+  }
+
+  private loadAccounts(): void {
+    this.accountsLoading = true;
+    this.accountsError = null;
+    this.transactionService.getAccounts().subscribe({
+      next: (res) => {
+        const list = res?.data || [];
+        this.accounts = list;
+        this.accountDraftName = {};
+        for (const acc of list) {
+          this.accountDraftName[acc.id] = acc.display_name;
+        }
+        this.accountsLoading = false;
+      },
+      error: (err) => {
+        console.error('[Ajustes] error loadAccounts', err);
+        this.accountsError = err.error?.detail || 'Error al cargar cuentas';
+        this.accountsLoading = false;
+      }
+    });
+  }
+
+  startEditAccount(acc: Account): void {
+    this.editingAccountId = acc.id;
+    if (!this.accountDraftName[acc.id]) {
+      this.accountDraftName[acc.id] = acc.display_name;
+    }
+  }
+
+  cancelEditAccount(acc: Account): void {
+    this.accountDraftName[acc.id] = acc.display_name;
+    if (this.editingAccountId === acc.id) {
+      this.editingAccountId = null;
+    }
+  }
+
+  saveAccountName(acc: Account): void {
+    const draft = (this.accountDraftName[acc.id] || '').trim();
+    if (!draft || draft === acc.display_name || this.savingAccountId === acc.id) {
+      this.editingAccountId = null;
+      return;
+    }
+    this.savingAccountId = acc.id;
+    this.transactionService.updateAccountName(acc.id, draft).subscribe({
+      next: (res) => {
+        acc.display_name = res.display_name || draft;
+        this.accountDraftName[acc.id] = acc.display_name;
+        this.savingAccountId = null;
+        this.editingAccountId = null;
+        // Avisar a otras vistas (Resumen, Gastos) para que recarguen si lo desean
+        this.transactionService.dataRefresh$.next();
+      },
+      error: (err) => {
+        console.error('[Ajustes] error updateAccountName', err);
+        this.accountsError = err.error?.detail || 'Error al guardar nombre de cuenta';
+        this.savingAccountId = null;
       }
     });
   }

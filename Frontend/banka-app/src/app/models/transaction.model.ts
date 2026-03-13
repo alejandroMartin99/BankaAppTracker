@@ -35,3 +35,15 @@ export interface BalancesResponse {
   success: boolean;
   data: Record<string, number>;
 }
+
+export interface Account {
+  id: string;
+  display_name: string;
+  stable_key?: string;
+  source?: string;
+}
+
+export interface AccountsResponse {
+  success: boolean;
+  data: Account[];
+}

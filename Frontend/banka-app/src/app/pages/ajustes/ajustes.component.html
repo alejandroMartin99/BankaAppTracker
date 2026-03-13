@@ -261,6 +261,83 @@
         </section>
       }
     </section>
+
+    <!-- Editor de nombres de cuenta -->
+    <section class="card card-accounts">
+      <h2 class="card-title">Cuentas vinculadas</h2>
+      <p class="card-subtitle">
+        Cambia el nombre con el que se muestra cada cuenta en los filtros y listados.
+      </p>
+
+      @if (accountsLoading) {
+        <div class="empty-state">
+          <span class="empty-icon">⏳</span>
+          <p>Cargando cuentas...</p>
+        </div>
+      } @else if (accountsError) {
+        <div class="error-card">
+          <p>{{ accountsError }}</p>
+        </div>
+      } @else if (accounts.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">🏦</span>
+          <p>No hay cuentas vinculadas.</p>
+          <p class="empty-hint">Sube extractos o vincula nuevas cuentas para poder renombrarlas.</p>
+        </div>
+      } @else {
+        <section class="accounts-section">
+          <div class="account-list">
+            @for (acc of accounts; track acc.id) {
+              <div class="account-row">
+                <div class="account-main">
+                  @if (editingAccountId === acc.id) {
+                    <input
+                      type="text"
+                      [(ngModel)]="accountDraftName[acc.id]"
+                      class="account-name-input"
+                      maxlength="50"
+                    />
+                  } @else {
+                    <span class="account-name">{{ acc.display_name }}</span>
+                  }
+                  @if (acc.source) {
+                    <span class="account-source-pill">{{ acc.source | titlecase }}</span>
+                  }
+                </div>
+                <div class="account-actions">
+                  @if (editingAccountId === acc.id) {
+                    <button
+                      type="button"
+                      class="btn-cancel"
+                      (click)="cancelEditAccount(acc)"
+                      [disabled]="savingAccountId === acc.id"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-apply"
+                      (click)="saveAccountName(acc)"
+                      [disabled]="savingAccountId === acc.id"
+                    >
+                      {{ savingAccountId === acc.id ? 'Guardando...' : 'Guardar' }}
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn-edit-details account-edit-btn"
+                      (click)="startEditAccount(acc)"
+                    >
+                      Renombrar
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </section>
   }
 </div>
 

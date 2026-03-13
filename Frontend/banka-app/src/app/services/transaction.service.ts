@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
-import { Transaction, TransactionResponse, TransactionQueryParams, BalancesResponse } from '../models/transaction.model';
+import { Transaction, TransactionResponse, TransactionQueryParams, BalancesResponse, AccountsResponse } from '../models/transaction.model';
 import { environment } from '../../environment';
 
 export interface UploadResponse {
@@ -24,6 +24,7 @@ export class TransactionService {
   private transactionsUrl = `${this.apiUrl}/GET/transactions`;
   private sharedTransactionsUrl = `${this.apiUrl}/GET/shared-transactions`;
   private balancesUrl = `${this.apiUrl}/GET/balances`;
+   private accountsUrl = `${this.apiUrl}/GET/accounts`;
   private uploadUrl = `${this.apiUrl}/upload/Transactions`;
 
   /** Emitido tras subir archivo para refrescar datos */
@@ -42,6 +43,13 @@ export class TransactionService {
 
   getBalances(): Observable<BalancesResponse> {
     return this.http.get<BalancesResponse>(this.balancesUrl);
+  }
+
+  /**
+   * Obtiene las cuentas vinculadas al usuario actual.
+   */
+  getAccounts(): Observable<AccountsResponse> {
+    return this.http.get<AccountsResponse>(this.accountsUrl);
   }
 
   /**
@@ -129,5 +137,15 @@ export class TransactionService {
    */
   deleteTransaction(id: number): Observable<{ success: boolean; deleted: number }> {
     return this.http.delete<{ success: boolean; deleted: number }>(`${this.transactionsUrl}/${id}`);
+  }
+
+  /**
+   * Actualiza el nombre visible de una cuenta.
+   */
+  updateAccountName(accountId: string, displayName: string): Observable<{ success: boolean; updated: number; display_name: string }> {
+    return this.http.patch<{ success: boolean; updated: number; display_name: string }>(
+      `${this.accountsUrl}/${accountId}`,
+      { display_name: displayName }
+    );
   }
 }
