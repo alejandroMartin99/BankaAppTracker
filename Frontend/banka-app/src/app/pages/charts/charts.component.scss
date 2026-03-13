@@ -114,6 +114,17 @@
   font-size: 11px;
   color: var(--color-text-secondary);
   margin: 0 0 12px 0;
+}
+
+.charts-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  color: var(--color-text);
+
+  &:first-of-type {
+    margin-top: 0;
+  }
   line-height: 1.4;
 }
 
@@ -235,10 +246,10 @@
   white-space: nowrap;
 }
 
-/* Table analysis */
+/* Table analysis: contenida, sin scroll horizontal */
 .charts-table-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .charts-table {
@@ -286,6 +297,11 @@
 
 .charts-vs-under {
   color: var(--color-text-muted);
+}
+
+.charts-td-num--clickable {
+  cursor: pointer;
+  text-decoration: underline dotted;
 }
 
 .charts-empty-state {
@@ -376,6 +392,26 @@
   color: var(--color-text-secondary);
   margin: 0 0 12px 0;
   line-height: 1.4;
+}
+
+.charts-modal-chart {
+  margin: 0 0 16px 0;
+  max-height: 280px;
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  .charts-bar-vs-avg {
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .charts-bar-vs-avg--over {
+    color: #b91c1c;
+  }
+  .charts-bar-vs-avg--under {
+    color: #047857;
+  }
 }
 
 .charts-modal-empty {

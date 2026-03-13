@@ -7,8 +7,8 @@
   }
 
   <header class="charts-header">
-    <h1 class="charts-title">Análisis de gastos</h1>
-    <p class="charts-subtitle">Últimos 12 meses · Comparativa por categoría y frente a la media</p>
+    <h1 class="charts-title">Gastos e ingresos</h1>
+    <p class="charts-subtitle">Últimos 12 meses · Por mes y por categoría, comparativa frente a la media</p>
   </header>
 
   @if (error) {
@@ -102,10 +102,15 @@
       }
     </section>
 
-    <!-- Análisis por categoría: comparativa con la media -->
+    <!-- Análisis por categoría: gastos e ingresos por separado -->
     <section class="charts-card charts-card--analysis">
-      <h2 class="charts-card-title">Por categoría vs media global</h2>
-      <p class="charts-card-desc">Total del período, media mensual de la categoría y variación respecto a la media global.</p>
+      <h2 class="charts-card-title">Por categoría</h2>
+      <p class="charts-card-desc">
+        Total del período, media mensual de la categoría, porcentaje sobre el total (máx. 100 %)
+        y variación del último mes completo frente a la media de la categoría.
+      </p>
+
+      <h3 class="charts-subtitle">Gastos</h3>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
@@ -113,14 +118,58 @@
               <th>Categoría</th>
               <th class="charts-th-num">Total</th>
               <th class="charts-th-num">Media/mes</th>
+              <th class="charts-th-num">% total</th>
+              <th class="charts-th-num">Últ. mes<br>vs media</th>
             </tr>
           </thead>
           <tbody>
-            @for (row of categoryAnalysis; track row.categoria) {
+            @for (row of categoryAnalysisExpenses; track row.categoria) {
               <tr>
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
+                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
+                <td
+                  class="charts-td-num charts-td-num--clickable"
+                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
+                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
+                  (click)="openCategoryDetail(row.categoria, true)"
+                >
+                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="charts-subtitle">Ingresos</h3>
+      <div class="charts-table-wrap">
+        <table class="charts-table">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th class="charts-th-num">Total</th>
+              <th class="charts-th-num">Media/mes</th>
+              <th class="charts-th-num">% total</th>
+              <th class="charts-th-num">Últ. mes<br>vs media</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of categoryAnalysisIncome; track row.categoria) {
+              <tr>
+                <td class="charts-td-cat">{{ row.categoria }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
+                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
+                <td
+                  class="charts-td-num charts-td-num--clickable"
+                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
+                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
+                  (click)="openCategoryDetail(row.categoria, false)"
+                >
+                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
+                </td>
               </tr>
             }
           </tbody>
@@ -178,6 +227,47 @@
         </button>
         <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="confirmExcludeModal()">
           {{ excludeModalPending ? 'Excluir de métricas' : 'Incluir en métricas' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: detalle por categoría (evolución mensual) -->
+  @if (categoryDetailOpen) {
+    <div class="charts-modal-overlay" (click)="closeCategoryDetail()"></div>
+    <div class="charts-modal-popover" (click)="$event.stopPropagation()">
+      <h3 class="charts-modal-title">
+        Evolución mensual de {{ categoryDetailName }}
+      </h3>
+      <p class="charts-modal-desc">
+        Para cada mes se muestra el total de la categoría y su variación frente a la media
+        mensual de esa misma categoría.
+      </p>
+      <div class="charts-modal-chart charts-bars-wrap">
+        @for (row of categoryDetailSeries; track row.monthLabel) {
+          <div class="charts-bar-cell">
+            <span
+              class="charts-bar-vs-avg"
+              [class.charts-bar-vs-avg--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
+              [class.charts-bar-vs-avg--under]="(categoryDetailIsExpense && row.vsAvgPct < 0) || (!categoryDetailIsExpense && row.vsAvgPct > 0)"
+            >
+              {{ row.vsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.vsAvgPct) }}
+            </span>
+            <div class="charts-bar-outer">
+              <div
+                class="charts-bar"
+                [style.height.%]="row.heightPct"
+                [class.charts-bar--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
+              ></div>
+            </div>
+            <span class="charts-bar-label">{{ row.monthLabel }}</span>
+            <span class="charts-bar-value">{{ formatAmount(row.total) }}</span>
+          </div>
+        }
+      </div>
+      <div class="charts-modal-actions">
+        <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="closeCategoryDetail()">
+          Cerrar
         </button>
       </div>
     </div>

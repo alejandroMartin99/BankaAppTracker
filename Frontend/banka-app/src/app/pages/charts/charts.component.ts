@@ -22,7 +22,10 @@ export interface CategoryAnalysis {
   total: number;
   avgPerMonth: number;
   pctOfTotal: number;
-  vsGlobalAvgPct: number; // % sobre la media global (positivo = por encima)
+  /** Importe en el último mes completo mostrado en los gráficos */
+  lastMonthValue: number;
+  /** Variación del último mes frente a la media mensual de la categoría (%) */
+  lastMonthVsAvgPct: number;
   monthsWithData: number;
 }
 
@@ -58,8 +61,17 @@ export class ChartsComponent implements OnInit, OnDestroy {
   monthsAboveAvg = 0;
   /** Meses con gasto por debajo de la media */
   monthsBelowAvg = 0;
-  /** Análisis por categoría: total, media mensual, % total, vs media global */
-  categoryAnalysis: CategoryAnalysis[] = [];
+  /** Análisis por categoría (gastos): total, media mensual, % total ≤100, último mes vs media */
+  categoryAnalysisExpenses: CategoryAnalysis[] = [];
+  /** Análisis por categoría (ingresos): total, media mensual, % total ≤100, último mes vs media */
+  categoryAnalysisIncome: CategoryAnalysis[] = [];
+
+  /** Serie mensual por categoría para popup: gastos */
+  private categoryMonthlySeriesExpenses: Record<string, Map<string, number>> = {};
+  private categoryAvgPerMonthExpenses: Record<string, number> = {};
+  /** Serie mensual por categoría para popup: ingresos */
+  private categoryMonthlySeriesIncome: Record<string, Map<string, number>> = {};
+  private categoryAvgPerMonthIncome: Record<string, number> = {};
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */
   excludeAbove5000 = true;
@@ -67,6 +79,16 @@ export class ChartsComponent implements OnInit, OnDestroy {
   excludeModalOpen = false;
   /** Valor que se aplicará al confirmar el modal (true = excluir, false = incluir) */
   excludeModalPending: boolean | null = null;
+
+  /** Popup detalle por categoría (evolución mensual) */
+  categoryDetailOpen = false;
+  categoryDetailName = '';
+  /** true = gastos (positivo=rojo, negativo=verde), false = ingresos (positivo=verde, negativo=rojo) */
+  categoryDetailIsExpense = true;
+  categoryDetailSeries: { monthLabel: string; total: number; vsAvgPct: number; heightPct: number }[] = [];
+  /** Escala y media para la gráfica del popup */
+  categoryDetailScaleRef = 0;
+  categoryDetailAvg = 0;
 
   constructor(private transactionService: TransactionService) {}
 
@@ -243,38 +265,81 @@ export class ChartsComponent implements OnInit, OnDestroy {
       };
     });
 
-    // Análisis por categoría: total, media mensual, % del total, vs media global
-    const byCatMonth = new Map<string, Map<string, number>>();
+    // Gastos por categoría: total, media, % del total gastos (máx 100%)
+    const byCatMonthExp = new Map<string, Map<string, number>>();
     for (const t of this.transactions) {
-      if (this.shouldExclude(t)) continue;
+      if (!this.expenseOnly(t) || this.shouldExclude(t)) continue;
       const cat = t.categoria || 'Sin categoría';
       const dt = (t.dt_date || '').slice(0, 7);
       if (!byMonth.has(dt)) continue;
-      if (!byCatMonth.has(cat)) byCatMonth.set(cat, new Map());
-      const monthTotals = byCatMonth.get(cat)!;
+      if (!byCatMonthExp.has(cat)) byCatMonthExp.set(cat, new Map());
+      const monthTotals = byCatMonthExp.get(cat)!;
       monthTotals.set(dt, (monthTotals.get(dt) || 0) + Math.abs(t.importe || 0));
     }
-
-    const catRows: CategoryAnalysis[] = [];
-    for (const [categoria, monthTotals] of byCatMonth.entries()) {
+    const expenseCatRows: CategoryAnalysis[] = [];
+    for (const [categoria, monthTotals] of byCatMonthExp.entries()) {
       const amounts = Array.from(monthTotals.values());
       const total = amounts.reduce((a, b) => a + b, 0);
       const monthsWithData = amounts.length;
       const avgPerMonth = monthsWithData > 0 ? total / monthsWithData : 0;
-      const pctOfTotal = totalSum > 0 ? (total / totalSum) * 100 : 0;
-      const vsGlobalAvgPct = this.averageSpending > 0
-        ? ((avgPerMonth - this.averageSpending) / this.averageSpending) * 100
-        : 0;
-      catRows.push({
+      const pctOfTotal = totalSum > 0 ? Math.min(100, (total / totalSum) * 100) : 0;
+      this.categoryMonthlySeriesExpenses[categoria] = monthTotals;
+      this.categoryAvgPerMonthExpenses[categoria] = avgPerMonth;
+      const lastMonthKey = entries.length ? entries[entries.length - 1][0] : '';
+      const lastMonthValue = lastMonthKey ? (monthTotals.get(lastMonthKey) || 0) : 0;
+      let lastMonthVsAvgPct = 0;
+      if (avgPerMonth > 0) {
+        lastMonthVsAvgPct = ((lastMonthValue - avgPerMonth) / avgPerMonth) * 100;
+      }
+      expenseCatRows.push({
         categoria,
         total,
         avgPerMonth,
         pctOfTotal,
-        vsGlobalAvgPct,
+        lastMonthValue,
+        lastMonthVsAvgPct,
         monthsWithData
       });
     }
-    this.categoryAnalysis = catRows.sort((a, b) => b.total - a.total);
+    this.categoryAnalysisExpenses = expenseCatRows.sort((a, b) => b.total - a.total);
+
+    // Ingresos por categoría: total, media, % del total ingresos (máx 100%)
+    const byCatMonthInc = new Map<string, Map<string, number>>();
+    for (const t of this.transactions) {
+      if (!this.incomeOnly(t) || this.shouldExclude(t)) continue;
+      const cat = t.categoria || 'Sin categoría';
+      const dt = (t.dt_date || '').slice(0, 7);
+      if (!byMonthIncome.has(dt)) continue;
+      if (!byCatMonthInc.has(cat)) byCatMonthInc.set(cat, new Map());
+      const monthTotals = byCatMonthInc.get(cat)!;
+      monthTotals.set(dt, (monthTotals.get(dt) || 0) + (t.importe || 0));
+    }
+    const incomeCatRows: CategoryAnalysis[] = [];
+    for (const [categoria, monthTotals] of byCatMonthInc.entries()) {
+      const amounts = Array.from(monthTotals.values());
+      const total = amounts.reduce((a, b) => a + b, 0);
+      const monthsWithData = amounts.length;
+      const avgPerMonth = monthsWithData > 0 ? total / monthsWithData : 0;
+      const pctOfTotal = incomeSum > 0 ? Math.min(100, (total / incomeSum) * 100) : 0;
+      this.categoryMonthlySeriesIncome[categoria] = monthTotals;
+      this.categoryAvgPerMonthIncome[categoria] = avgPerMonth;
+      const lastMonthKey = incomeEntries.length ? incomeEntries[incomeEntries.length - 1][0] : '';
+      const lastMonthValue = lastMonthKey ? (monthTotals.get(lastMonthKey) || 0) : 0;
+      let lastMonthVsAvgPct = 0;
+      if (avgPerMonth > 0) {
+        lastMonthVsAvgPct = ((lastMonthValue - avgPerMonth) / avgPerMonth) * 100;
+      }
+      incomeCatRows.push({
+        categoria,
+        total,
+        avgPerMonth,
+        pctOfTotal,
+        lastMonthValue,
+        lastMonthVsAvgPct,
+        monthsWithData
+      });
+    }
+    this.categoryAnalysisIncome = incomeCatRows.sort((a, b) => b.total - a.total);
   }
 
   formatAmount(value: number): string {
@@ -337,5 +402,42 @@ export class ChartsComponent implements OnInit, OnDestroy {
     const s = String(d).slice(0, 10);
     if (s.length < 10) return s;
     return new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  openCategoryDetail(categoria: string, isExpense: boolean): void {
+    const series = isExpense
+      ? this.categoryMonthlySeriesExpenses[categoria]
+      : this.categoryMonthlySeriesIncome[categoria];
+    const avg = isExpense
+      ? (this.categoryAvgPerMonthExpenses[categoria] || 0)
+      : (this.categoryAvgPerMonthIncome[categoria] || 0);
+    if (!series) {
+      this.categoryDetailOpen = false;
+      return;
+    }
+    this.categoryDetailIsExpense = isExpense;
+    const entries = Array.from(series.entries()).sort((e1, e2) => e1[0].localeCompare(e2[0]));
+    const totals = entries.map(([, t]) => t);
+    const maxTotal = totals.length > 0 ? Math.max(...totals) : 0;
+    this.categoryDetailScaleRef = Math.max(1, maxTotal);
+    this.categoryDetailAvg = avg;
+    this.categoryDetailName = categoria;
+    this.categoryDetailSeries = entries.map(([monthKey, total]) => {
+      const [y, m] = monthKey.split('-').map(Number);
+      const monthLabel = `${MONTH_NAMES[m - 1]} ${String(y).slice(2)}`;
+      let vs = 0;
+      if (avg > 0) {
+        vs = ((total - avg) / avg) * 100;
+      }
+      const heightPct = this.categoryDetailScaleRef > 0
+        ? Math.min(100, (total / this.categoryDetailScaleRef) * 100)
+        : 0;
+      return { monthLabel, total, vsAvgPct: vs, heightPct };
+    });
+    this.categoryDetailOpen = true;
+  }
+
+  closeCategoryDetail(): void {
+    this.categoryDetailOpen = false;
   }
 }
