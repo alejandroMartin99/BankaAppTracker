@@ -76,6 +76,10 @@
     <!-- Gastos: tabla por categoría -->
     <section class="charts-card charts-card--analysis">
       <h3 class="charts-subtitle">Gastos · Por categoría</h3>
+      <label class="charts-table-filter">
+        <input type="checkbox" [(ngModel)]="excludeUnder1PctExpenses" />
+        <span>Excluir categorías &lt; 1 % del total</span>
+      </label>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
@@ -88,7 +92,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of categoryAnalysisExpenses; track row.categoria) {
+            @for (row of getExpensesTableRows(); track row.categoria) {
               <tr>
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
@@ -150,6 +154,10 @@
     <!-- Ingresos: tabla por categoría -->
     <section class="charts-card charts-card--analysis">
       <h3 class="charts-subtitle">Ingresos · Por categoría</h3>
+      <label class="charts-table-filter">
+        <input type="checkbox" [(ngModel)]="excludeUnder1PctIncome" />
+        <span>Excluir categorías &lt; 1 % del total</span>
+      </label>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
@@ -162,7 +170,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of categoryAnalysisIncome; track row.categoria) {
+            @for (row of getIncomeTableRows(); track row.categoria) {
               <tr>
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>

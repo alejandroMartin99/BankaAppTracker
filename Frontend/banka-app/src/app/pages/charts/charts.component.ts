@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { TransactionService } from '../../services/transaction.service';
@@ -40,7 +41,7 @@ export interface CategoryChartData {
 @Component({
   selector: 'app-charts',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './charts.component.html',
   styleUrl: './charts.component.scss',
   animations: [
@@ -93,6 +94,11 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */
   excludeAbove5000 = true;
+
+  /** Excluir en la tabla de gastos categorías con &lt; 1 % del total (por defecto activado) */
+  excludeUnder1PctExpenses = true;
+  /** Excluir en la tabla de ingresos categorías con &lt; 1 % del total (por defecto activado) */
+  excludeUnder1PctIncome = true;
   /** Modal: al activar/desactivar el filtro, mostrar lista de movimientos afectados */
   excludeModalOpen = false;
   /** Valor que se aplicará al confirmar el modal (true = excluir, false = incluir) */
@@ -391,6 +397,18 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   hasAnyIncome(): boolean {
     return this.incomeBars.some(b => b.total > 0);
+  }
+
+  /** Filas de la tabla de gastos (filtradas por &lt; 1 % si excludeUnder1PctExpenses) */
+  getExpensesTableRows(): CategoryAnalysis[] {
+    if (!this.excludeUnder1PctExpenses) return this.categoryAnalysisExpenses;
+    return this.categoryAnalysisExpenses.filter(r => r.pctOfTotal >= 1);
+  }
+
+  /** Filas de la tabla de ingresos (filtradas por &lt; 1 % si excludeUnder1PctIncome) */
+  getIncomeTableRows(): CategoryAnalysis[] {
+    if (!this.excludeUnder1PctIncome) return this.categoryAnalysisIncome;
+    return this.categoryAnalysisIncome.filter(r => r.pctOfTotal >= 1);
   }
 
   /** Ticks del eje Y para gastos (25%, 50%, 75% del máximo) */
