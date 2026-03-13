@@ -1,0 +1,195 @@
+<div class="charts-page">
+  @if (showLoader) {
+    <div class="charts-loader">
+      <div class="charts-loader-bar"></div>
+      <p>Cargando análisis...</p>
+    </div>
+  }
+
+  <header class="charts-header">
+    <h1 class="charts-title">Análisis de gastos</h1>
+    <p class="charts-subtitle">Últimos 12 meses · Comparativa por categoría y frente a la media</p>
+  </header>
+
+  @if (error) {
+    <div class="charts-error">
+      <p>{{ error }}</p>
+      <button type="button" class="charts-retry" (click)="loadData()">Reintentar</button>
+    </div>
+  }
+
+  @if (!loading && !error && monthlyBars.length > 0) {
+    <!-- Toggle excluir gastos e ingresos > 5000 € -->
+    <div class="charts-exclude-row">
+      <button
+        type="button"
+        class="charts-exclude-btn"
+        [class.charts-exclude-btn--on]="excludeAbove5000"
+        (click)="openExcludeModal(!excludeAbove5000)"
+      >
+        <span class="charts-exclude-dot"></span>
+        <span class="charts-exclude-label">Excluir gastos e ingresos superiores a 5.000 €</span>
+      </button>
+    </div>
+
+    <!-- KPIs -->
+    <section class="charts-kpi-strip">
+      <div class="charts-kpi">
+        <span class="charts-kpi-value">{{ formatAmount(averageSpending) }}</span>
+        <span class="charts-kpi-label">Media mensual</span>
+      </div>
+      <div class="charts-kpi">
+        <span class="charts-kpi-value">{{ formatAmount(totalPeriodSpending) }}</span>
+        <span class="charts-kpi-label">Total 12 meses</span>
+      </div>
+      <div class="charts-kpi">
+        <span class="charts-kpi-value">{{ monthsAboveAvg }} / {{ monthsBelowAvg }}</span>
+        <span class="charts-kpi-label">Meses sobre / bajo media</span>
+      </div>
+    </section>
+
+    <!-- Gráfico mensual (gastos) -->
+    <section class="charts-card charts-card--chart">
+      <div class="charts-chart-wrap">
+        <div class="charts-y-labels">
+          @for (v of yTicks; track v) {
+            <span class="charts-y-label">{{ formatAmount(v) }}</span>
+          }
+        </div>
+        <div class="charts-bars-wrap">
+          @for (bar of monthlyBars; track bar.monthKey) {
+            <div class="charts-bar-cell">
+              <div class="charts-bar-outer">
+                <div
+                  class="charts-bar"
+                  [style.height.%]="bar.heightPct"
+                  [class.charts-bar--over]="bar.aboveAverage"
+                  [title]="bar.label + ': ' + formatAmount(bar.total)"
+                ></div>
+              </div>
+              <span class="charts-bar-label">{{ bar.label }}</span>
+              <span class="charts-bar-value">{{ formatAmount(bar.total) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Gráfico mensual (ingresos) -->
+    <section class="charts-card charts-card--chart charts-card--income">
+      @if (hasAnyIncome()) {
+        <div class="charts-chart-wrap charts-chart-wrap--compact">
+          <div class="charts-y-labels">
+            @for (v of incomeYTicks; track v) {
+              <span class="charts-y-label">{{ formatAmount(v) }}</span>
+            }
+          </div>
+          <div class="charts-bars-wrap">
+            @for (bar of incomeBars; track bar.monthKey) {
+              <div class="charts-bar-cell">
+                <div class="charts-bar-outer">
+                  <div
+                    class="charts-bar charts-bar--income"
+                    [style.height.%]="bar.heightPct"
+                    [class.charts-bar--income-over]="bar.aboveAverage"
+                    [title]="bar.label + ': ' + formatAmount(bar.total)"
+                  ></div>
+                </div>
+                <span class="charts-bar-label">{{ bar.label }}</span>
+                <span class="charts-bar-value">{{ formatAmount(bar.total) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="charts-empty">No hay ingresos en los últimos 12 meses.</p>
+      }
+    </section>
+
+    <!-- Análisis por categoría: comparativa con la media -->
+    <section class="charts-card charts-card--analysis">
+      <h2 class="charts-card-title">Por categoría vs media global</h2>
+      <p class="charts-card-desc">Total del período, media mensual de la categoría y variación respecto a la media global.</p>
+      <div class="charts-table-wrap">
+        <table class="charts-table">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th class="charts-th-num">Total</th>
+              <th class="charts-th-num">Media/mes</th>
+              <th class="charts-th-num">% total</th>
+              <th class="charts-th-num">Vs media</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of categoryAnalysis; track row.categoria) {
+              <tr>
+                <td class="charts-td-cat">{{ row.categoria }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
+                <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
+                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
+                <td class="charts-td-num" [class.charts-vs-over]="row.vsGlobalAvgPct > 0" [class.charts-vs-under]="row.vsGlobalAvgPct < 0">
+                  {{ row.vsGlobalAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.vsGlobalAvgPct) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  @if (!loading && !error && monthlyBars.length === 0) {
+    <div class="charts-empty-state">
+      <p>No hay datos de gastos en los últimos 12 meses.</p>
+    </div>
+  }
+
+  <!-- Modal: movimientos que se ocultarán o mostrarán al activar/desactivar el filtro -->
+  @if (excludeModalOpen) {
+    <div class="charts-modal-overlay" (click)="closeExcludeModal()"></div>
+    <div class="charts-modal-popover" (click)="$event.stopPropagation()">
+      <h3 class="charts-modal-title">
+        @if (excludeModalPending === true) {
+          Excluir movimientos superiores a 5.000 € de las métricas
+        } @else {
+          Incluir movimientos superiores a 5.000 € en las métricas
+        }
+      </h3>
+      <p class="charts-modal-desc">
+        @if (excludeModalPending === true) {
+          Si confirmas, estos movimientos se ocultarán de los gráficos y de los totales:
+        } @else {
+          Si confirmas, estos movimientos volverán a contarse en los gráficos y en los totales:
+        }
+      </p>
+      @if (highExpenses.length === 0) {
+        <p class="charts-modal-empty">No hay movimientos por encima de 5.000 € en el período.</p>
+      } @else {
+        <ul class="charts-modal-list">
+          @for (tx of highExpenses; track tx.id || $index) {
+            <li class="charts-modal-item">
+              <span class="charts-modal-item-desc">{{ tx.descripcion || '—' }}</span>
+              <span class="charts-modal-item-meta">{{ tx.categoria }} · {{ formatDate(tx.dt_date) }}</span>
+              <span
+                class="charts-modal-item-amount"
+                [class.charts-modal-item-amount--neg]="(tx.importe || 0) < 0"
+                [class.charts-modal-item-amount--pos]="(tx.importe || 0) > 0"
+              >
+                {{ (tx.importe || 0) < 0 ? '-' : '+' }}{{ formatAmount(Math.abs(tx.importe || 0)) }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+      <div class="charts-modal-actions">
+        <button type="button" class="charts-modal-btn charts-modal-btn--cancel" (click)="closeExcludeModal()">
+          Mantener como está
+        </button>
+        <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="confirmExcludeModal()">
+          {{ excludeModalPending ? 'Excluir de métricas' : 'Incluir en métricas' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

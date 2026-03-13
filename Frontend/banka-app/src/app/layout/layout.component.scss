@@ -308,6 +308,13 @@
       opacity: 1;
     }
   }
+
+  &--center {
+    font-size: 12px;
+    .nav-icon {
+      transform: scale(1.08);
+    }
+  }
 }
 
 .nav-icon {

@@ -15,9 +15,11 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
   styleUrl: './layout.component.scss'
 })
 export class LayoutComponent {
+  /** Orden: izquierda → centro → derecha: Resumen, Charts, Gastos (central), Compartidos, Ajustes */
   navItems = [
-    { path: '/gastos', label: 'Gastos', icon: 'receipt' },
-    { path: '/resumen', label: 'Resumen', icon: 'chart' },
+    { path: '/resumen', label: 'Resumen', icon: 'resumen' },
+    { path: '/charts', label: 'Charts', icon: 'chart' },
+    { path: '/gastos', label: 'Gastos', icon: 'receipt', center: true },
     { path: '/gastos-compartidos', label: 'Compartidos', icon: 'people' },
     { path: '/ajustes', label: 'Ajustes', icon: 'settings' }
   ];
