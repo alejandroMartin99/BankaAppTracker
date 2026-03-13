@@ -285,6 +285,15 @@ export class ChartsComponent implements OnInit, OnDestroy {
     return this.formatAmount(Math.abs(value || 0));
   }
 
+  formatSignedAmount(value: number | undefined): string {
+    const v = value || 0;
+    const abs = Math.abs(v);
+    const base = this.formatAmount(abs);
+    if (v > 0) return '+' + base;
+    if (v < 0) return '-' + base;
+    return base;
+  }
+
   formatPercent(value: number): string {
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value) + '%';
   }
@@ -302,17 +311,25 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   /** Ticks del eje Y para gastos (25%, 50%, 75% del máximo) */
-  get yTicks(): number[] {
+  yTicks(): number[] {
     if (this.chartScaleRef <= 0) return [];
-    const step = this.chartScaleRef / 4;
-    return [step, step * 2, step * 3];
+    const factors = [0.75, 0.5, 0.25];
+    return factors.map(f => {
+      const raw = this.chartScaleRef * f;
+      const rounded = Math.ceil(raw / 10);
+      return Math.max(10, rounded * 10);
+    });
   }
 
   /** Ticks del eje Y para ingresos */
-  get incomeYTicks(): number[] {
+  incomeYTicks(): number[] {
     if (this.incomeScaleRef <= 0) return [];
-    const step = this.incomeScaleRef / 4;
-    return [step, step * 2, step * 3];
+    const factors = [0.75, 0.5, 0.25];
+    return factors.map(f => {
+      const raw = this.incomeScaleRef * f;
+      const rounded = Math.ceil(raw / 10);
+      return Math.max(10, rounded * 10);
+    });
   }
 
   formatDate(d: string | undefined): string {

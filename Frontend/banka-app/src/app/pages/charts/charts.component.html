@@ -32,27 +32,17 @@
       </button>
     </div>
 
-    <!-- KPIs -->
-    <section class="charts-kpi-strip">
-      <div class="charts-kpi">
-        <span class="charts-kpi-value">{{ formatAmount(averageSpending) }}</span>
-        <span class="charts-kpi-label">Media mensual</span>
-      </div>
-      <div class="charts-kpi">
-        <span class="charts-kpi-value">{{ formatAmount(totalPeriodSpending) }}</span>
-        <span class="charts-kpi-label">Total 12 meses</span>
-      </div>
-      <div class="charts-kpi">
-        <span class="charts-kpi-value">{{ monthsAboveAvg }} / {{ monthsBelowAvg }}</span>
-        <span class="charts-kpi-label">Meses sobre / bajo media</span>
-      </div>
-    </section>
-
     <!-- Gráfico mensual (gastos) -->
     <section class="charts-card charts-card--chart">
       <div class="charts-chart-wrap">
+        @if (averageSpending > 0 && chartScaleRef > 0) {
+          <div
+            class="charts-avg-line"
+            [style.bottom.%]="(averageSpending / chartScaleRef) * 100"
+          ></div>
+        }
         <div class="charts-y-labels">
-          @for (v of yTicks; track v) {
+          @for (v of yTicks(); track v) {
             <span class="charts-y-label">{{ formatAmount(v) }}</span>
           }
         </div>
@@ -79,8 +69,14 @@
     <section class="charts-card charts-card--chart charts-card--income">
       @if (hasAnyIncome()) {
         <div class="charts-chart-wrap charts-chart-wrap--compact">
+          @if (averageIncome > 0 && incomeScaleRef > 0) {
+            <div
+              class="charts-avg-line charts-avg-line--income"
+              [style.bottom.%]="(averageIncome / incomeScaleRef) * 100"
+            ></div>
+          }
           <div class="charts-y-labels">
-            @for (v of incomeYTicks; track v) {
+            @for (v of incomeYTicks(); track v) {
               <span class="charts-y-label">{{ formatAmount(v) }}</span>
             }
           </div>
@@ -117,8 +113,6 @@
               <th>Categoría</th>
               <th class="charts-th-num">Total</th>
               <th class="charts-th-num">Media/mes</th>
-              <th class="charts-th-num">% total</th>
-              <th class="charts-th-num">Vs media</th>
             </tr>
           </thead>
           <tbody>
@@ -127,10 +121,6 @@
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
-                <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
-                <td class="charts-td-num" [class.charts-vs-over]="row.vsGlobalAvgPct > 0" [class.charts-vs-under]="row.vsGlobalAvgPct < 0">
-                  {{ row.vsGlobalAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.vsGlobalAvgPct) }}
-                </td>
               </tr>
             }
           </tbody>
@@ -176,7 +166,7 @@
                 [class.charts-modal-item-amount--neg]="(tx.importe || 0) < 0"
                 [class.charts-modal-item-amount--pos]="(tx.importe || 0) > 0"
               >
-                {{ (tx.importe || 0) < 0 ? '-' : '+' }}{{ formatAmount(Math.abs(tx.importe || 0)) }}
+                {{ formatSignedAmount(tx.importe) }}
               </span>
             </li>
           }

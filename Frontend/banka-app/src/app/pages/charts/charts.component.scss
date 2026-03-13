@@ -89,39 +89,7 @@
   }
 }
 
-/* KPI strip */
-.charts-kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.charts-kpi {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: 10px;
-  padding: 14px 12px;
-  text-align: center;
-  box-shadow: var(--shadow);
-}
-
-.charts-kpi-value {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  margin-bottom: 2px;
-}
-
-.charts-kpi-label {
-  font-size: 9px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
+/* KPI strip eliminada: solo usamos gráficos y tabla */
 
 /* Card base */
 .charts-card {
@@ -160,25 +128,11 @@
   min-height: 130px;
   position: relative;
   padding: 4px 0;
-  /* Líneas horizontales sutiles (eje Y) */
-  background-image: repeating-linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.03) 0,
-    rgba(0, 0, 0, 0.03) 1px,
-    transparent 1px,
-    transparent 18px
-  );
+  display: flex;
 }
 
 .charts-chart-wrap--compact {
   min-height: 100px;
-  background-image: repeating-linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.03) 0,
-    rgba(0, 0, 0, 0.03) 1px,
-    transparent 1px,
-    transparent 16px
-  );
 }
 
 .charts-bars-wrap {
@@ -199,6 +153,21 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+}
+
+.charts-y-labels {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 4px 4px 0;
+  margin-right: 4px;
+}
+
+.charts-y-label {
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
 }
 
 .charts-bar-outer {
@@ -253,7 +222,7 @@
   height: 4px;
 }
 
-.charts-bars-wrap::-webkit-scrollbar-thumb {
+ .charts-bars-wrap::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 2px;
 }
@@ -456,6 +425,28 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--color-text);
+}
+
+.charts-modal-item-amount--neg {
+  color: #b91c1c;
+}
+
+.charts-modal-item-amount--pos {
+  color: #047857;
+}
+
+/* Línea de media en los gráficos */
+.charts-avg-line {
+  position: absolute;
+  left: 40px; /* espacio para etiquetas Y */
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(0, 0, 0, 0.24);
+  pointer-events: none;
+}
+
+.charts-avg-line--income {
+  border-top-color: rgba(22, 163, 74, 0.6);
 }
 
 .charts-modal-item-meta {
