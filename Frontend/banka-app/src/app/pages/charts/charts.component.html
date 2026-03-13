@@ -1,8 +1,15 @@
 <div class="charts-page">
   @if (showLoader) {
-    <div class="charts-loader">
-      <div class="charts-loader-bar"></div>
-      <p>Cargando análisis...</p>
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando análisis...</p>
+        <div class="loader-bar"></div>
+      </div>
     </div>
   }
 

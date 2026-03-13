@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -29,12 +30,25 @@ export interface CategoryAnalysis {
   monthsWithData: number;
 }
 
+/** Datos para la vista "ver más": eje X = categorías, eje Y = dinero, una línea por mes */
+export interface CategoryChartData {
+  categoryLabels: string[];
+  monthSeries: { label: string; monthKey: string; values: number[] }[];
+  maxAmount: number;
+}
+
 @Component({
   selector: 'app-charts',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './charts.component.html',
-  styleUrl: './charts.component.scss'
+  styleUrl: './charts.component.scss',
+  animations: [
+    trigger('loaderOverlay', [
+      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
+      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
+    ])
+  ]
 })
 export class ChartsComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
@@ -72,6 +86,16 @@ export class ChartsComponent implements OnInit, OnDestroy {
   /** Serie mensual por categoría para popup: ingresos */
   private categoryMonthlySeriesIncome: Record<string, Map<string, number>> = {};
   private categoryAvgPerMonthIncome: Record<string, number> = {};
+
+  /** Vista expandida del gráfico de gastos: por categorías, una línea por mes */
+  chartExpensesExpanded = false;
+  /** Vista expandida del gráfico de ingresos: por categorías, una línea por mes */
+  chartIncomeExpanded = false;
+
+  /** Vista expandida del gráfico de gastos: por categorías, una línea por mes */
+  chartExpensesExpanded = false;
+  /** Vista expandida del gráfico de ingresos: por categorías, una línea por mes */
+  chartIncomeExpanded = false;
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */
   excludeAbove5000 = true;
@@ -395,6 +419,74 @@ export class ChartsComponent implements OnInit, OnDestroy {
       const rounded = Math.ceil(raw / 10);
       return Math.max(10, rounded * 10);
     });
+  }
+
+  /** Datos para vista por categorías (gastos): eje X = categorías, Y = dinero, una línea por mes */
+  getCategoryChartDataExpenses(): CategoryChartData {
+    const categoryLabels = this.categoryAnalysisExpenses.map(r => r.categoria);
+    if (categoryLabels.length === 0) {
+      return { categoryLabels: [], monthSeries: [], maxAmount: 0 };
+    }
+    const monthSeries = this.monthlyBars.map(bar => ({
+      label: bar.label,
+      monthKey: bar.monthKey,
+      values: categoryLabels.map(cat =>
+        this.categoryMonthlySeriesExpenses[cat]?.get(bar.monthKey) ?? 0
+      )
+    }));
+    let maxAmount = 0;
+    for (const s of monthSeries) {
+      for (const v of s.values) {
+        if (v > maxAmount) maxAmount = v;
+      }
+    }
+    return { categoryLabels, monthSeries, maxAmount: Math.max(1, maxAmount) };
+  }
+
+  /** Datos para vista por categorías (ingresos): eje X = categorías, Y = dinero, una línea por mes */
+  getCategoryChartDataIncome(): CategoryChartData {
+    const categoryLabels = this.categoryAnalysisIncome.map(r => r.categoria);
+    if (categoryLabels.length === 0) {
+      return { categoryLabels: [], monthSeries: [], maxAmount: 0 };
+    }
+    const monthSeries = this.incomeBars.map(bar => ({
+      label: bar.label,
+      monthKey: bar.monthKey,
+      values: categoryLabels.map(cat =>
+        this.categoryMonthlySeriesIncome[cat]?.get(bar.monthKey) ?? 0
+      )
+    }));
+    let maxAmount = 0;
+    for (const s of monthSeries) {
+      for (const v of s.values) {
+        if (v > maxAmount) maxAmount = v;
+      }
+    }
+    return { categoryLabels, monthSeries, maxAmount: Math.max(1, maxAmount) };
+  }
+
+  /** Genera el path SVG para una línea (valores por categoría): eje X = dinero, eje Y = categoría */
+  getCategoryLinePath(values: number[], maxAmount: number): string {
+    const n = values.length;
+    if (n === 0 || maxAmount <= 0) return '';
+    const padL = 56;
+    const padR = 24;
+    const padT = 12;
+    const padB = 36;
+    const chartH = 180 - padT - padB;
+    const chartW = 400 - padL - padR;
+    const points = values.map((v, i) => {
+      const x = padL + (v / maxAmount) * chartW;
+      const y = padT + (n <= 1 ? 0 : (i / (n - 1)) * chartH);
+      return `${x},${y}`;
+    });
+    return 'M' + points.join(' L');
+  }
+
+  /** Coordenada X en SVG para etiqueta de categoría (eje Y): índice 0..n-1 */
+  categoryChartYPos(i: number, n: number): number {
+    if (n <= 1) return 12 + 90;
+    return 12 + (i / (n - 1)) * (180 - 12 - 36);
   }
 
   formatDate(d: string | undefined): string {

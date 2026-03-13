@@ -7,44 +7,6 @@
   min-width: 0;
 }
 
-.charts-loader {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(6px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.charts-loader-bar {
-  width: 140px;
-  height: 4px;
-  background: var(--color-border);
-  border-radius: 2px;
-  overflow: hidden;
-
-  &::after {
-    content: '';
-    display: block;
-    height: 100%;
-    width: 36%;
-    background: var(--color-text);
-    border-radius: 2px;
-    animation: charts-load 1s ease-in-out infinite;
-  }
-}
-
-@keyframes charts-load {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
-}
-
 .charts-header {
   margin-bottom: 20px;
 }
