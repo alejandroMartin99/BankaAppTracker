@@ -39,8 +39,20 @@
       </button>
     </div>
 
-    <!-- Gastos: gráfica -->
-    <section class="charts-card charts-card--chart">
+    <!-- Gastos: gráfica (ojo abre popup por categorías) -->
+    <section class="charts-card charts-card--chart charts-card--with-eye">
+      <button
+        type="button"
+        class="charts-chart-eye"
+        (click)="openCategoryChartModal(true)"
+        title="Ver por categorías"
+        aria-label="Ver por categorías"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
       <h3 class="charts-subtitle">Gastos</h3>
       <div class="charts-chart-wrap">
         @if (averageSpending > 0 && chartScaleRef > 0) {
@@ -75,11 +87,13 @@
 
     <!-- Gastos: tabla por categoría -->
     <section class="charts-card charts-card--analysis">
-      <h3 class="charts-subtitle">Gastos · Por categoría</h3>
-      <label class="charts-table-filter">
-        <input type="checkbox" [(ngModel)]="excludeUnder1PctExpenses" />
-        <span>Excluir categorías &lt; 1 % del total</span>
-      </label>
+      <div class="charts-table-header">
+        <h3 class="charts-subtitle">Gastos · Por categoría</h3>
+        <label class="charts-table-filter">
+          <input type="checkbox" [(ngModel)]="excludeUnder1PctExpenses" />
+          <span>Excluir categorías &lt; 1 % del total</span>
+        </label>
+      </div>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
@@ -113,8 +127,20 @@
       </div>
     </section>
 
-    <!-- Ingresos: gráfica -->
-    <section class="charts-card charts-card--chart charts-card--income">
+    <!-- Ingresos: gráfica (ojo abre popup por categorías) -->
+    <section class="charts-card charts-card--chart charts-card--income charts-card--with-eye">
+      <button
+        type="button"
+        class="charts-chart-eye"
+        (click)="openCategoryChartModal(false)"
+        title="Ver por categorías"
+        aria-label="Ver por categorías"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
       <h3 class="charts-subtitle">Ingresos</h3>
       @if (hasAnyIncome()) {
         <div class="charts-chart-wrap charts-chart-wrap--compact">
@@ -153,11 +179,13 @@
 
     <!-- Ingresos: tabla por categoría -->
     <section class="charts-card charts-card--analysis">
-      <h3 class="charts-subtitle">Ingresos · Por categoría</h3>
-      <label class="charts-table-filter">
-        <input type="checkbox" [(ngModel)]="excludeUnder1PctIncome" />
-        <span>Excluir categorías &lt; 1 % del total</span>
-      </label>
+      <div class="charts-table-header">
+        <h3 class="charts-subtitle">Ingresos · Por categoría</h3>
+        <label class="charts-table-filter">
+          <input type="checkbox" [(ngModel)]="excludeUnder1PctIncome" />
+          <span>Excluir categorías &lt; 1 % del total</span>
+        </label>
+      </div>
       <div class="charts-table-wrap">
         <table class="charts-table">
           <thead>
@@ -281,6 +309,52 @@
       </div>
       <div class="charts-modal-actions">
         <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="closeCategoryDetail()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: barras por categoría con filtro de mes -->
+  @if (categoryChartModalOpen) {
+    <div class="charts-modal-overlay" (click)="closeCategoryChartModal()"></div>
+    <div class="charts-modal-popover charts-modal-popover--wide" (click)="$event.stopPropagation()">
+      <h3 class="charts-modal-title">
+        {{ categoryChartModalIsExpense ? 'Gastos' : 'Ingresos' }} · Por categorías
+      </h3>
+      <div class="charts-modal-month-filter">
+        <label for="category-chart-month">Mes:</label>
+        <select
+          id="category-chart-month"
+          [(ngModel)]="selectedCategoryChartMonthKey"
+        >
+          @for (m of getCategoryChartMonths(); track m.monthKey) {
+            <option [value]="m.monthKey">{{ m.label }}</option>
+          }
+        </select>
+      </div>
+      @let bars = getCategoryChartBarsForMonth();
+      @if (bars.length > 0) {
+        <div class="charts-modal-bars">
+          @for (bar of bars; track bar.categoria) {
+            <div class="charts-modal-bar-row">
+              <span class="charts-modal-bar-label">{{ bar.categoria }}</span>
+              <div class="charts-modal-bar-track">
+                <div
+                  class="charts-modal-bar-fill"
+                  [class.charts-modal-bar-fill--income]="!categoryChartModalIsExpense"
+                  [style.width.%]="bar.heightPct"
+                ></div>
+              </div>
+              <span class="charts-modal-bar-value">{{ formatAmount(bar.total) }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="charts-modal-empty">No hay datos para el mes seleccionado.</p>
+      }
+      <div class="charts-modal-actions">
+        <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="closeCategoryChartModal()">
           Cerrar
         </button>
       </div>

@@ -63,6 +63,83 @@
   box-shadow: var(--shadow);
 }
 
+/* Gráficas con botón ojo (ver por categorías) */
+.charts-card--with-eye {
+  position: relative;
+}
+
+.charts-chart-eye {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--color-bg);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: color 0.2s, background 0.2s;
+
+  &:hover {
+    color: var(--color-text);
+    background: var(--color-border-light);
+  }
+
+  &.charts-chart-eye--active {
+    color: var(--color-primary, #2563eb);
+    background: rgba(37, 99, 235, 0.1);
+  }
+}
+
+.charts-category-chart {
+  padding: 8px 0;
+  min-height: 140px;
+}
+
+.charts-category-svg {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  display: block;
+}
+
+.charts-category-line {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+  stroke-opacity: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.charts-category-line--income {
+  stroke: #047857;
+  stroke-opacity: 0.7;
+}
+
+.charts-category-y-label {
+  font-size: 9px;
+  fill: var(--color-text-secondary);
+  text-anchor: start;
+}
+
+.charts-category-x-label {
+  font-size: 9px;
+  fill: var(--color-text-muted);
+  text-anchor: middle;
+}
+
+.charts-category-legend-desc {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin: 8px 0 0 0;
+  line-height: 1.3;
+}
+
 /* Tablas: fondo blanco, sin marco */
 .charts-card--analysis {
   background: #fff;
@@ -225,20 +302,33 @@
 }
 
 /* Table analysis: contenida, sin scroll horizontal */
+.charts-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  .charts-subtitle {
+    margin: 0;
+  }
+}
+
 .charts-table-filter {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
+  gap: 6px;
+  margin: 0;
+  font-size: 10px;
+  color: var(--color-text-muted);
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 
   input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: #000;
+    width: 12px;
+    height: 12px;
+    accent-color: #666;
     cursor: pointer;
   }
 }
@@ -376,6 +466,10 @@
   flex-direction: column;
 }
 
+.charts-modal-popover--wide {
+  width: min(480px, 96vw);
+}
+
 .charts-modal-title {
   font-size: 15px;
   font-weight: 600;
@@ -388,6 +482,82 @@
   color: var(--color-text-secondary);
   margin: 0 0 12px 0;
   line-height: 1.4;
+}
+
+.charts-modal-month-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+
+  label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  select {
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    min-width: 120px;
+  }
+}
+
+.charts-modal-bars {
+  margin: 0 0 16px 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.charts-modal-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.charts-modal-bar-label {
+  flex: 0 0 100px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.charts-modal-bar-track {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  background: var(--color-border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.charts-modal-bar-fill {
+  height: 100%;
+  min-width: 2px;
+  background: var(--color-text-muted);
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+.charts-modal-bar-fill--income {
+  background: #047857;
+}
+
+.charts-modal-bar-value {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 11px;
 }
 
 .charts-modal-chart {

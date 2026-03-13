@@ -88,9 +88,11 @@ export class ChartsComponent implements OnInit, OnDestroy {
   private categoryMonthlySeriesIncome: Record<string, Map<string, number>> = {};
   private categoryAvgPerMonthIncome: Record<string, number> = {};
 
-  /** Vista expandida del gráfico (ojo): por categorías, una línea por mes */
-  chartExpensesExpanded = false;
-  chartIncomeExpanded = false;
+  /** Popup "ver más": barras por categoría con filtro de mes */
+  categoryChartModalOpen = false;
+  categoryChartModalIsExpense = true;
+  /** Mes seleccionado en el popup (monthKey). Por defecto el último. */
+  selectedCategoryChartMonthKey = '';
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */
   excludeAbove5000 = true;
@@ -543,5 +545,40 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   closeCategoryDetail(): void {
     this.categoryDetailOpen = false;
+  }
+
+  openCategoryChartModal(isExpense: boolean): void {
+    this.categoryChartModalIsExpense = isExpense;
+    const months = isExpense ? this.monthlyBars : this.incomeBars;
+    this.selectedCategoryChartMonthKey = months.length > 0 ? months[months.length - 1].monthKey : '';
+    this.categoryChartModalOpen = true;
+  }
+
+  closeCategoryChartModal(): void {
+    this.categoryChartModalOpen = false;
+  }
+
+  /** Lista de meses para el selector del popup (último primero para que el por defecto sea el más reciente) */
+  getCategoryChartMonths(): { monthKey: string; label: string }[] {
+    const bars = this.categoryChartModalIsExpense ? this.monthlyBars : this.incomeBars;
+    return bars.map(b => ({ monthKey: b.monthKey, label: b.label }));
+  }
+
+  /** Barras por categoría para el mes seleccionado en el popup */
+  getCategoryChartBarsForMonth(): { categoria: string; total: number; heightPct: number }[] {
+    const key = this.selectedCategoryChartMonthKey;
+    if (!key) return [];
+    const isExp = this.categoryChartModalIsExpense;
+    const categories = isExp ? this.categoryAnalysisExpenses.map(r => r.categoria) : this.categoryAnalysisIncome.map(r => r.categoria);
+    const series = isExp ? this.categoryMonthlySeriesExpenses : this.categoryMonthlySeriesIncome;
+    const rows: { categoria: string; total: number }[] = categories.map(cat => ({
+      categoria: cat,
+      total: series[cat]?.get(key) ?? 0
+    }));
+    const max = rows.length ? Math.max(...rows.map(r => r.total), 1) : 1;
+    return rows
+      .filter(r => r.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .map(r => ({ ...r, heightPct: Math.min(100, (r.total / max) * 100) }));
   }
 }
