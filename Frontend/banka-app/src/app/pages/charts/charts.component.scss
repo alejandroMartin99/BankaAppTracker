@@ -543,13 +543,13 @@
 .charts-modal-bar-fill {
   height: 100%;
   min-width: 2px;
-  background: var(--color-text-muted);
+  background: #000;
   border-radius: 4px;
   transition: width 0.2s ease;
 }
 
 .charts-modal-bar-fill--income {
-  background: #047857;
+  background: #000;
 }
 
 .charts-modal-bar-value {
