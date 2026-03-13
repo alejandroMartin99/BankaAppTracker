@@ -72,27 +72,18 @@
                               <div class="tx-row tx-row-nested">
                                 <div class="tx-main">
                                   <div class="tx-text">
-                                    <div class="tx-line">
-                                      <div class="tx-line-main">
-                                        <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
-                                        <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                                      </div>
-                                      <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                                    </div>
+                  <div class="tx-line">
+                    <div class="tx-line-main">
+                      <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                      @if (tx.cuenta) {
+                        <span class="tx-account-inline">{{ tx.cuenta }}</span>
+                      }
+                      <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                    </div>
+                    <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                  </div>
                                     <div class="tx-meta">
-                                      <div class="tx-meta-left">
-                                        @if (tx.cuenta) {
-                                          <span
-                                            class="tx-cuenta-badge"
-                                            [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'"
-                                            [class.tx-cuenta-personal]="tx.cuenta === 'Personal'"
-                                            [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'"
-                                            [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'"
-                                          >
-                                            {{ tx.cuenta }}
-                                          </span>
-                                        }
-                                      </div>
+                    <div class="tx-meta-left"></div>
                                       <div class="tx-meta-right">
                                         <button
                                           type="button"
@@ -206,24 +197,15 @@
                                     <div class="tx-line">
                                       <div class="tx-line-main">
                                         <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
+                                        @if (tx.cuenta) {
+                                          <span class="tx-account-inline">{{ tx.cuenta }}</span>
+                                        }
                                         <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
                                       </div>
                                       <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
                                     </div>
                                     <div class="tx-meta">
-                                      <div class="tx-meta-left">
-                                        @if (tx.cuenta) {
-                                          <span
-                                            class="tx-cuenta-badge"
-                                            [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'"
-                                            [class.tx-cuenta-personal]="tx.cuenta === 'Personal'"
-                                            [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'"
-                                            [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'"
-                                          >
-                                            {{ tx.cuenta }}
-                                          </span>
-                                        }
-                                      </div>
+                                      <div class="tx-meta-left"></div>
                                       <div class="tx-meta-right">
                                         <button
                                           type="button"
