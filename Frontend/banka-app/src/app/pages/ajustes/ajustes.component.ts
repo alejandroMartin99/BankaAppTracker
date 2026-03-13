@@ -194,9 +194,38 @@ export class AjustesComponent implements OnInit {
     return list.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''));
   }
 
-  get groupedFiltered(): EditCategoryGroup[] {
+  private isOtherCategory(cat: string | undefined | null): boolean {
+    const c = (cat || '').toString().trim().toLowerCase();
+    return c === 'otro' || c === 'otros';
+  }
+
+  /** Grupos para categoría 'Otro' (usado en el bloque superior) */
+  get groupedOther(): EditCategoryGroup[] {
     const byCat = new Map<string, Map<string, Transaction[]>>();
-    for (const t of this.filteredTransactions) {
+    for (const t of this.filteredTransactions.filter(t => this.isOtherCategory(t.categoria))) {
+      const cat = t.categoria || 'Otro';
+      const sub = t.subcategoria || 'Sin subcategoría';
+      if (!byCat.has(cat)) byCat.set(cat, new Map());
+      const subMap = byCat.get(cat)!;
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(t);
+    }
+    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
+      const subcategories: EditSubcategoryGroup[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
+        subcategoria,
+        transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
+      }));
+      return {
+        categoria,
+        subcategories
+      };
+    });
+  }
+
+  /** Grupos para el editor general (todas las categorías excepto 'Otro') */
+  get groupedNonOther(): EditCategoryGroup[] {
+    const byCat = new Map<string, Map<string, Transaction[]>>();
+    for (const t of this.filteredTransactions.filter(t => !this.isOtherCategory(t.categoria))) {
       const cat = t.categoria || 'Sin categoría';
       const sub = t.subcategoria || 'Sin subcategoría';
       if (!byCat.has(cat)) byCat.set(cat, new Map());

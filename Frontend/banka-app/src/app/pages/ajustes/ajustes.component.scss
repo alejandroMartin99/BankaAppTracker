@@ -109,6 +109,14 @@
   min-width: 0;
 }
 
+.ajustes-page .tx-line-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
 .ajustes-page .tx-desc {
   flex: 1;
   font-size: 11px;
@@ -156,12 +164,20 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .ajustes-page .tx-date {
   font-variant-numeric: tabular-nums;
+}
+
+.ajustes-page .tx-date-inline {
+  font-size: 9px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ajustes-page .tx-account {
@@ -264,8 +280,8 @@
   gap: 4px;
 
   select {
-    min-width: 92px;
-    max-width: 130px;
+    min-width: auto;
+    max-width: 140px;
     padding: 3px 8px;
     font-size: 10px;
     font-family: var(--font-sans);
