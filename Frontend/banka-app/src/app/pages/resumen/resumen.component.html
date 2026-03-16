@@ -79,8 +79,8 @@
         <button
           type="button"
           class="chip chip-account"
-          [class.active]="selectedAccount === acc.id"
-          (click)="selectAccount(acc.id)"
+          [class.active]="isAccountSelected(acc.id)"
+          (click)="toggleAccount(acc.id)"
         >
           {{ acc.label }}
         </button>

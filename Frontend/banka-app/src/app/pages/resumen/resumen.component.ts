@@ -54,7 +54,8 @@ export class ResumenComponent implements OnInit, OnDestroy {
   expandedSubcategoryKey: string | null = null;
   expandedIncomeCategory: string | null = null;
   expandedIncomeSubcategoryKey: string | null = null;
-  selectedAccount: string = '';
+  /** Cuentas seleccionadas para filtrar (multi-select). Vacío = todas. */
+  selectedAccounts: string[] = [];
   private destroy$ = new Subject<void>();
 
   accounts: Account[] = [];
@@ -88,8 +89,8 @@ export class ResumenComponent implements OnInit, OnDestroy {
   /** Transacciones filtradas: incluir todas */
   get filteredTransactions(): Transaction[] {
     let list = [...this.transactions];
-    if (this.selectedAccount) {
-      list = list.filter(t => (t.cuenta || '') === this.selectedAccount);
+    if (this.selectedAccounts.length > 0) {
+      list = list.filter(t => this.selectedAccounts.includes(t.cuenta || ''));
     }
     return list;
   }
@@ -215,6 +216,27 @@ export class ResumenComponent implements OnInit, OnDestroy {
     });
   }
 
+  isAccountSelected(id: string): boolean {
+    if (!id) {
+      // Chip "Todas" activo cuando no hay filtros aplicados
+      return this.selectedAccounts.length === 0;
+    }
+    return this.selectedAccounts.includes(id);
+  }
+
+  toggleAccount(id: string): void {
+    if (!id) {
+      // Al pulsar "Todas" limpiamos todos los filtros
+      this.selectedAccounts = [];
+      return;
+    }
+    if (this.selectedAccounts.includes(id)) {
+      this.selectedAccounts = this.selectedAccounts.filter(a => a !== id);
+    } else {
+      this.selectedAccounts = [...this.selectedAccounts, id];
+    }
+  }
+
   applyPreset(preset: DatePreset) {
     if (preset === 'custom') {
       this.showCalendar = true;
@@ -296,10 +318,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-  }
-
-  selectAccount(accountId: string) {
-    this.selectedAccount = accountId;
   }
 
   getAccountLabel(cuenta?: string): string {
