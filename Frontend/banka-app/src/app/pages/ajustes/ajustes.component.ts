@@ -3,6 +3,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Transaction, Account } from '../../models/transaction.model';
+import { getAccountColorForName } from '../../utils/account-colors';
 import { TransactionService } from '../../services/transaction.service';
 import { AuthService } from '../../services/auth.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
@@ -96,6 +97,19 @@ export class AjustesComponent implements OnInit {
   onIconError(ev: Event) {
     const img = ev.target as HTMLImageElement;
     if (img && !img.src.endsWith('/icons/default.svg')) img.src = '/icons/default.svg';
+  }
+
+  getAccountLabelShort(cuenta?: string): string {
+    if (!cuenta) return '';
+    return cuenta.length > 10 ? cuenta.slice(0, 9) + '…' : cuenta;
+  }
+
+  getAccountColorStyle(cuenta?: string): { [key: string]: string } {
+    const { bg, fg } = getAccountColorForName(cuenta || '');
+    return {
+      'background-color': bg,
+      color: fg
+    };
   }
 
   private txKey(t: Transaction): string {

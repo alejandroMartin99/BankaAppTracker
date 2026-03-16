@@ -74,7 +74,9 @@
                     <div class="tx-line-main">
                       <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
                       @if (tx.cuenta) {
-                        <span class="tx-account-inline">{{ tx.cuenta }}</span>
+                        <span class="tx-cuenta-badge" [ngStyle]="getAccountColorStyle(tx.cuenta)">
+                          {{ getAccountLabelShort(tx.cuenta) }}
+                        </span>
                       }
                       <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
                     </div>
@@ -205,7 +207,9 @@
                                       <div class="tx-line-main">
                                         <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
                                         @if (tx.cuenta) {
-                                          <span class="tx-account-inline">{{ tx.cuenta }}</span>
+                                          <span class="tx-cuenta-badge" [ngStyle]="getAccountColorStyle(tx.cuenta)">
+                                            {{ getAccountLabelShort(tx.cuenta) }}
+                                          </span>
                                         }
                                         <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
                                       </div>

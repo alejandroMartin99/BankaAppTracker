@@ -81,56 +81,6 @@
 
   <!-- Transactions list -->
   <section class="transactions-section">
-    <!-- Transferencias internas ANTES de movimientos -->
-    @if (!loading && !error && internalTransfers.length > 0) {
-      <div class="internal-transfers-section">
-        <button type="button" class="section-toggle" (click)="showInternalTransfers = !showInternalTransfers">
-          <span class="section-title">Transferencias internas</span>
-          <span class="section-count">{{ internalTransfers.length }}</span>
-          <span class="toggle-icon">{{ showInternalTransfers ? '▼' : '▶' }}</span>
-        </button>
-        @if (showInternalTransfers) {
-          <div class="tx-list tx-list-internal">
-            @for (group of internalTransfersByDate; track group.date) {
-              <div class="tx-day-block">
-                <div class="tx-day-header">{{ group.dateLabel }}</div>
-                @for (tx of group.transactions; track tx.id || $index) {
-                  <div class="tx-row tx-row-internal">
-                    <div class="tx-icon" [style.background-color]="'#6366f140'" [style.color]="'#6366f1'">
-                      <span class="tx-icon-arrow">⇄</span>
-                    </div>
-                    <div class="tx-content">
-                      <div class="tx-main">
-                        <div class="tx-titles">
-                          <span class="tx-line1">
-                            @if (tx.cuenta) {
-                              <span class="tx-cuenta-badge" [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'" [class.tx-cuenta-personal]="tx.cuenta === 'Personal'" [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'" [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'">
-                                {{ getAccountLabelShort(tx.cuenta) }}
-                              </span>
-                            }
-                            <span class="tx-categoria">{{ tx.categoria || 'Transferencia' }}</span>
-                            @if (tx.subcategoria || tx.descripcion) {
-                              <span class="tx-subcat">{{ tx.subcategoria || tx.descripcion }}</span>
-                            }
-                          </span>
-                        </div>
-                        <div class="tx-right">
-                          <span class="tx-amount" [class.tx-ingreso]="tx.importe > 0">{{ tx.importe < 0 ? '' : '+' }}{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                          @if (tx.saldo != null) {
-                            <span class="tx-saldo">{{ tx.saldo | number:'1.2-2':'es' }} €</span>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        }
-      </div>
-    }
-
     <h2 class="section-title">
       Movimientos
       @if (!loading && !error && displayedTransactions.length > 0) {
@@ -215,7 +165,7 @@
       }
     }
 
-    @if (!loading && !error && displayedTransactions.length === 0 && internalTransfers.length === 0) {
+    @if (!loading && !error && displayedTransactions.length === 0) {
       <div class="empty-state">
         <span class="empty-icon">📋</span>
         <p>No hay movimientos</p>

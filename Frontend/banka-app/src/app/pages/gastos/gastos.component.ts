@@ -46,7 +46,6 @@ export class GastosComponent implements OnInit, OnDestroy {
   customFrom = '';
   customTo = '';
   showCalendar = false;
-  showInternalTransfers = false;
   private destroy$ = new Subject<void>();
 
   readonly presets: { id: DatePreset; label: string }[] = [
@@ -215,21 +214,16 @@ export class GastosComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Movimientos sin Compra_Inmueble ni Transferencia (estas van al apartado dedicado), solo en rango */
+  /** Movimientos sin Compra_Inmueble, solo en rango (incluye Transferencias) */
   get displayedTransactions(): Transaction[] {
     return this.transactionsInRange.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble' && (t.categoria || '') !== 'Transferencia'
+      (t.categoria || '') !== 'Compra_Inmueble'
     );
   }
 
   /** Transacciones para calcular gastos/ingresos/saldo del periodo = solo rango de fechas */
   get transactionsForBalances(): Transaction[] {
     return this.transactionsInRange;
-  }
-
-  /** Todas las transacciones con concepto Transferencia (se muestran en apartado dedicado), solo en rango */
-  get internalTransfers(): Transaction[] {
-    return this.transactionsInRange.filter(t => (t.categoria || '') === 'Transferencia');
   }
 
   /** Agrupado por fecha. Orden viene del API (dt_date desc). */
@@ -319,24 +313,6 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   get totalBalance(): number {
     return this.transactionsForBalances.reduce((sum, t) => sum + (t.importe || 0), 0);
-  }
-
-  /** Transferencias internas agrupadas por fecha (para sección dedicada) */
-  get internalTransfersByDate(): { date: string; dateLabel: string; transactions: Transaction[] }[] {
-    const grouped = new Map<string, Transaction[]>();
-    for (const t of this.internalTransfers) {
-      const d = (t.dt_date || '').slice(0, 10);
-      if (!d) continue;
-      if (!grouped.has(d)) grouped.set(d, []);
-      grouped.get(d)!.push(t);
-    }
-    return Array.from(grouped.entries())
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, transactions]) => ({
-        date,
-        dateLabel: this.formatDisplayDate(date),
-        transactions
-      }));
   }
 
   get displayedCount(): number {
