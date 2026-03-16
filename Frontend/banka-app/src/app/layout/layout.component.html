@@ -89,7 +89,8 @@
             }
           </button>
           @if (profileMenuOpen) {
-            <div class="app-profile-menu">
+            <div class="app-profile-menu-overlay" (click)="closeProfileMenu()"></div>
+            <div class="app-profile-menu" (click)="$event.stopPropagation()">
               <div class="app-profile-header">
                 <div class="app-profile-avatar-small">
                   @if (avatarUrl; as url) {
