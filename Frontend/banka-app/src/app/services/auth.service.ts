@@ -37,6 +37,56 @@ export class AuthService {
     });
   }
 
+  /**
+   * Sube un avatar a Supabase Storage (bucket 'avatars') y devuelve la URL pública.
+   */
+  async uploadAvatar(file: File): Promise<{ publicUrl: string | null; error: Error | null }> {
+    try {
+      const current = this.session();
+      const user = current?.user;
+      if (!user) {
+        return { publicUrl: null, error: new Error('No hay usuario autenticado') };
+      }
+      const fileExt = file.name.split('.').pop() || 'png';
+      const filePath = `user-${user.id}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await this.supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true, cacheControl: '3600' });
+      if (uploadError) {
+        return { publicUrl: null, error: uploadError as Error };
+      }
+      const { data } = this.supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = data?.publicUrl ?? null;
+      if (!publicUrl) {
+        return { publicUrl: null, error: new Error('No se pudo obtener la URL pública del avatar') };
+      }
+      // Actualizar metadata para que el resto de la app use la foto
+      await this.supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      });
+      return { publicUrl, error: null };
+    } catch (e: any) {
+      return { publicUrl: null, error: e as Error };
+    }
+  }
+
+  async updateProfile(fullName: string, avatarUrl: string): Promise<{ error: Error | null }> {
+    const data: Record<string, any> = {};
+    const name = fullName.trim();
+    const avatar = avatarUrl.trim();
+    if (name) {
+      data['full_name'] = name;
+    }
+    if (avatar) {
+      data['avatar_url'] = avatar;
+    }
+    if (Object.keys(data).length === 0) {
+      return { error: null };
+    }
+    const { error } = await this.supabase.auth.updateUser({ data });
+    return { error: error as Error | null };
+  }
+
   async signIn(email: string, password: string): Promise<{ error: Error | null }> {
     const { error } = await this.supabase.auth.signInWithPassword({ email, password });
     return { error };

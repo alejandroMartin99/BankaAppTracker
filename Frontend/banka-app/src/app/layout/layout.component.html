@@ -54,7 +54,6 @@
   <header class="app-header">
     <h1 class="app-title">BankaApp</h1>
     <div class="app-header-actions">
-      <span class="app-user" *ngIf="auth.user() as u">{{ u.email }}</span>
       <label class="app-upload-btn" [class.uploading]="uploadStatus === 'uploading'">
       <input
         type="file"
@@ -69,7 +68,134 @@
         <line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
     </label>
-      <button type="button" class="app-logout-btn" (click)="logout()" title="Cerrar sesión">Salir</button>
+      @if (auth.user()) {
+        <div class="app-profile-wrapper">
+          <button
+            type="button"
+            class="app-avatar-btn"
+            (click)="toggleProfileMenu()"
+            [attr.aria-expanded]="profileMenuOpen"
+            aria-haspopup="true"
+          >
+            @if (avatarUrl; as url) {
+              <img
+                [src]="url"
+                alt="Perfil"
+                class="app-avatar-img"
+                (error)="onAvatarError()"
+              />
+            } @else {
+              <span class="app-avatar-initials">{{ avatarInitials }}</span>
+            }
+          </button>
+          @if (profileMenuOpen) {
+            <div class="app-profile-menu">
+              <div class="app-profile-header">
+                <div class="app-profile-avatar-small">
+                  @if (avatarUrl; as url) {
+                    <img
+                      [src]="url"
+                      alt="Perfil"
+                      (error)="onAvatarError()"
+                    />
+                  } @else {
+                    <button
+                      type="button"
+                      class="app-avatar-edit-btn app-avatar-initials app-avatar-initials--small"
+                      (click)="openAvatarModal(); $event.stopPropagation()"
+                    >
+                      {{ avatarInitials }}
+                    </button>
+                  }
+                </div>
+                <div class="app-profile-text">
+                  <div class="app-profile-name">{{ avatarDisplayName || 'Sin nombre' }}</div>
+                  <div class="app-profile-email">{{ auth.user()?.email }}</div>
+                </div>
+              </div>
+              <div class="app-profile-edit">
+                <label>
+                  <span>Nombre de perfil</span>
+                  <input type="text" [(ngModel)]="profileName" placeholder="Tu nombre" />
+                </label>
+                @if (profileError) {
+                  <p class="app-profile-error">{{ profileError }}</p>
+                }
+                <button
+                  type="button"
+                  class="app-profile-item app-profile-item--primary"
+                  (click)="saveProfile()"
+                  [disabled]="profileSaving"
+                >
+                  {{ profileSaving ? 'Guardando…' : 'Guardar perfil' }}
+                </button>
+              </div>
+              <div class="app-profile-accounts">
+                <div class="app-profile-accounts-title">Cuentas vinculadas</div>
+                @if (accountsLoading) {
+                  <p class="app-profile-accounts-empty">Cargando cuentas…</p>
+                } @else if (accountsError) {
+                  <p class="app-profile-accounts-error">{{ accountsError }}</p>
+                } @else if (accounts.length === 0) {
+                  <p class="app-profile-accounts-empty">No hay cuentas vinculadas.</p>
+                } @else {
+                  <div class="app-profile-accounts-list">
+                    @for (acc of accounts; track acc.id) {
+                      <div class="app-profile-account-row">
+                        <div class="app-profile-account-main">
+                          @if (editingAccountId === acc.id) {
+                            <input
+                              type="text"
+                              [(ngModel)]="accountDraftName[acc.id]"
+                              maxlength="40"
+                            />
+                          } @else {
+                            <span class="app-profile-account-name">{{ acc.display_name }}</span>
+                          }
+                          @if (acc.source) {
+                            <span class="app-profile-account-source">{{ acc.source | titlecase }}</span>
+                          }
+                        </div>
+                        <div class="app-profile-account-actions">
+                          @if (editingAccountId === acc.id) {
+                            <button
+                              type="button"
+                              class="app-profile-account-btn app-profile-account-btn--link"
+                              (click)="cancelEditAccount(acc)"
+                              [disabled]="savingAccountId === acc.id"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              class="app-profile-account-btn app-profile-account-btn--primary"
+                              (click)="saveAccountName(acc)"
+                              [disabled]="savingAccountId === acc.id"
+                            >
+                              {{ savingAccountId === acc.id ? 'Guardando…' : 'Guardar' }}
+                            </button>
+                          } @else {
+                            <button
+                              type="button"
+                              class="app-profile-account-btn app-profile-account-btn--link"
+                              (click)="startEditAccount(acc)"
+                            >
+                              Renombrar
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+              <button type="button" class="app-profile-item app-profile-item--danger" (click)="logout()">
+                Cerrar sesión
+              </button>
+            </div>
+          }
+        </div>
+      }
     </div>
   </header>
   <main class="main-content">
@@ -131,4 +257,65 @@
       </a>
     }
   </nav>
+
+  @if (avatarModalOpen) {
+    <div class="backend-loader-overlay" (click)="closeAvatarModal()"></div>
+    <div class="app-avatar-popover" (click)="$event.stopPropagation()">
+      <h3 class="app-avatar-title">Cambiar foto de perfil</h3>
+      <p class="app-avatar-desc">Sube una imagen. Se guardará en tu perfil de Supabase.</p>
+      <div class="app-avatar-upload">
+        <input type="file" accept="image/*" (change)="onAvatarFileSelected($event)" />
+        @if (avatarUploadFileName) {
+          <p class="app-avatar-filename">Seleccionado: {{ avatarUploadFileName }}</p>
+        }
+        @if (avatarUploadError) {
+          <p class="app-avatar-error">{{ avatarUploadError }}</p>
+        }
+      </div>
+      <div class="app-avatar-actions">
+        <button type="button" class="app-profile-item" (click)="closeAvatarModal()" [disabled]="avatarUploading">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="app-profile-item app-profile-item--primary"
+          (click)="confirmAvatarUpload()"
+          [disabled]="avatarUploading"
+        >
+          {{ avatarUploading ? 'Subiendo…' : 'Guardar foto' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (renameSharedConfirmOpen && renamePendingAccount) {
+    <div class="backend-loader-overlay" (click)="cancelSaveSharedAccount()"></div>
+    <div class="app-confirm-popover" (click)="$event.stopPropagation()">
+      <h3 class="app-avatar-title">Cambiar nombre de cuenta compartida</h3>
+      <p class="app-avatar-desc">
+        Esta cuenta está marcada como compartida. Si cambias su nombre a
+        "<strong>{{ renamePendingName }}</strong>", el cambio se aplicará también para
+        otras personas que usen esta cuenta.
+        ¿Quieres continuar?
+      </p>
+      <div class="app-avatar-actions">
+        <button
+          type="button"
+          class="app-profile-item"
+          (click)="cancelSaveSharedAccount()"
+          [disabled]="savingAccountId === renamePendingAccount.id"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="app-profile-item app-profile-item--primary"
+          (click)="confirmSaveSharedAccount()"
+          [disabled]="savingAccountId === renamePendingAccount.id"
+        >
+          Continuar
+        </button>
+      </div>
+    </div>
+  }
 </div>

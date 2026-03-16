@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Transaction, Account } from '../../models/transaction.model';
 import { TransactionService } from '../../services/transaction.service';
+import { AuthService } from '../../services/auth.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
 
 interface EditSubcategoryGroup {
@@ -79,22 +80,13 @@ export class AjustesComponent implements OnInit {
   deletingEdit = false;
   editError: string | null = null;
 
-  /** Editor de cuentas */
-  accounts: Account[] = [];
-  accountsLoading = false;
-  accountsError: string | null = null;
-  accountDraftName: Record<string, string> = {};
-  editingAccountId: string | null = null;
-  savingAccountId: string | null = null;
-  renameSharedConfirmOpen = false;
-  renamePendingAccount: Account | null = null;
-  renamePendingName = '';
-
-  constructor(private transactionService: TransactionService) {}
+  constructor(
+    private transactionService: TransactionService,
+    private auth: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.loadTransactions();
-    this.loadAccounts();
   }
 
   getIconInfo(t: Transaction) {
@@ -472,90 +464,4 @@ export class AjustesComponent implements OnInit {
     });
   }
 
-  private loadAccounts(): void {
-    this.accountsLoading = true;
-    this.accountsError = null;
-    this.transactionService.getAccounts().subscribe({
-      next: (res) => {
-        const list = res?.data || [];
-        this.accounts = list;
-        this.accountDraftName = {};
-        for (const acc of list) {
-          this.accountDraftName[acc.id] = acc.display_name;
-        }
-        this.accountsLoading = false;
-      },
-      error: (err) => {
-        console.error('[Ajustes] error loadAccounts', err);
-        this.accountsError = err.error?.detail || 'Error al cargar cuentas';
-        this.accountsLoading = false;
-      }
-    });
-  }
-
-  startEditAccount(acc: Account): void {
-    this.editingAccountId = acc.id;
-    if (!this.accountDraftName[acc.id]) {
-      this.accountDraftName[acc.id] = acc.display_name;
-    }
-  }
-
-  cancelEditAccount(acc: Account): void {
-    this.accountDraftName[acc.id] = acc.display_name;
-    if (this.editingAccountId === acc.id) {
-      this.editingAccountId = null;
-    }
-  }
-
-  saveAccountName(acc: Account): void {
-    const draft = (this.accountDraftName[acc.id] || '').trim();
-    if (!draft || draft === acc.display_name || this.savingAccountId === acc.id) {
-      this.editingAccountId = null;
-      return;
-    }
-    // Si la cuenta es compartida, pedimos confirmación antes de aplicar el cambio
-    if (acc.shared) {
-      this.renamePendingAccount = acc;
-      this.renamePendingName = draft;
-      this.renameSharedConfirmOpen = true;
-      return;
-    }
-    this.performSaveAccountName(acc, draft);
-  }
-
-  confirmSaveSharedAccount(): void {
-    const acc = this.renamePendingAccount;
-    const name = this.renamePendingName.trim();
-    this.renameSharedConfirmOpen = false;
-    if (!acc || !acc.id || !name) return;
-    this.performSaveAccountName(acc, name);
-  }
-
-  cancelSaveSharedAccount(): void {
-    this.renameSharedConfirmOpen = false;
-    this.renamePendingAccount = null;
-    this.renamePendingName = '';
-  }
-
-  private performSaveAccountName(acc: Account, newName: string): void {
-    this.savingAccountId = acc.id;
-    this.savingAccountId = acc.id;
-    this.transactionService.updateAccountName(acc.id, newName).subscribe({
-      next: (res) => {
-        acc.display_name = res.display_name || newName;
-        this.accountDraftName[acc.id] = acc.display_name;
-        this.savingAccountId = null;
-        this.editingAccountId = null;
-        this.renamePendingAccount = null;
-        this.renamePendingName = '';
-        // Avisar a otras vistas (Resumen, Gastos) para que recarguen si lo desean
-        this.transactionService.dataRefresh$.next();
-      },
-      error: (err) => {
-        console.error('[Ajustes] error updateAccountName', err);
-        this.accountsError = err.error?.detail || 'Error al guardar nombre de cuenta';
-        this.savingAccountId = null;
-      }
-    });
-  }
 }
