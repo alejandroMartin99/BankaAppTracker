@@ -93,11 +93,17 @@
               <div class="app-profile-header">
                 <div class="app-profile-avatar-small">
                   @if (avatarUrl; as url) {
-                    <img
-                      [src]="url"
-                      alt="Perfil"
-                      (error)="onAvatarError()"
-                    />
+                    <button
+                      type="button"
+                      class="app-avatar-edit-btn"
+                      (click)="openAvatarModal(); $event.stopPropagation()"
+                    >
+                      <img
+                        [src]="url"
+                        alt="Perfil"
+                        (error)="onAvatarError()"
+                      />
+                    </button>
                   } @else {
                     <button
                       type="button"
@@ -267,6 +273,18 @@
         <input type="file" accept="image/*" (change)="onAvatarFileSelected($event)" />
         @if (avatarUploadFileName) {
           <p class="app-avatar-filename">Seleccionado: {{ avatarUploadFileName }}</p>
+        }
+        @if (avatarPreviewUrl) {
+          <div
+            class="app-avatar-preview"
+            (wheel)="onAvatarPreviewWheel($event)"
+            (touchstart)="onAvatarPreviewTouchStart($event)"
+            (touchmove)="onAvatarPreviewTouchMove($event)"
+            (touchend)="onAvatarPreviewTouchEnd($event)"
+          >
+            <img [src]="avatarPreviewUrl" alt="Previsualización" [style.transform]="'scale(' + avatarZoom + ')'" />
+          </div>
+          <p class="app-avatar-filename">Solo se guardará lo que quede dentro del círculo.</p>
         }
         @if (avatarUploadError) {
           <p class="app-avatar-error">{{ avatarUploadError }}</p>

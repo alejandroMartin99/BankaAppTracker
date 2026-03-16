@@ -46,6 +46,9 @@ export class LayoutComponent {
   avatarUploadFileName = '';
   avatarUploadError: string | null = null;
   avatarUploading = false;
+  avatarPreviewUrl: string | null = null;
+  avatarZoom = 1;
+  private lastPinchDistance: number | null = null;
 
   // Cuentas vinculadas (para menú de usuario)
   accounts: Account[] = [];
@@ -103,12 +106,19 @@ export class LayoutComponent {
 
   openAvatarModal(): void {
     this.avatarUploadError = null;
-    this.avatarUploadFileName = '';
+    this.avatarUploadFileName = this.avatarUrl ? 'Foto actual' : '';
+    this.avatarZoom = 1;
+    this.avatarPreviewUrl = this.avatarUrl;
     this.avatarModalOpen = true;
   }
 
   closeAvatarModal(): void {
     this.avatarModalOpen = false;
+    this.lastPinchDistance = null;
+    if (this.avatarPreviewUrl && this.avatarPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.avatarPreviewUrl);
+    }
+    this.avatarPreviewUrl = null;
   }
 
   toggleProfileMenu(): void {
@@ -141,6 +151,46 @@ export class LayoutComponent {
     }
   }
 
+  onAvatarPreviewWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const delta = event.deltaY;
+    const step = 0.1;
+    if (delta < 0) {
+      this.avatarZoom = Math.min(3, this.avatarZoom + step);
+    } else if (delta > 0) {
+      this.avatarZoom = Math.max(1, this.avatarZoom - step);
+    }
+  }
+
+  onAvatarPreviewTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 2) {
+      const [t1, t2] = [event.touches[0], event.touches[1]];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      this.lastPinchDistance = Math.hypot(dx, dy);
+    }
+  }
+
+  onAvatarPreviewTouchMove(event: TouchEvent): void {
+    if (event.touches.length === 2 && this.lastPinchDistance) {
+      event.preventDefault();
+      const [t1, t2] = [event.touches[0], event.touches[1]];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      const dist = Math.hypot(dx, dy);
+      const delta = dist - this.lastPinchDistance;
+      const factor = 1 + delta / 200; // sensibilidad
+      this.avatarZoom = Math.max(1, Math.min(3, this.avatarZoom * factor));
+      this.lastPinchDistance = dist;
+    }
+  }
+
+  onAvatarPreviewTouchEnd(event: TouchEvent): void {
+    if (event.touches.length < 2) {
+      this.lastPinchDistance = null;
+    }
+  }
+
   async saveProfile(): Promise<void> {
     this.profileError = null;
     this.profileSaving = true;
@@ -160,28 +210,58 @@ export class LayoutComponent {
     }
     this.avatarUploadFileName = file.name;
     this.avatarUploadError = null;
-    // Guardamos temporalmente el File en una propiedad privada
-    (this as any)._avatarFile = file;
+    if (this.avatarPreviewUrl && this.avatarPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.avatarPreviewUrl);
+    }
+    this.avatarPreviewUrl = URL.createObjectURL(file);
   }
 
   async confirmAvatarUpload(): Promise<void> {
-    const file: File | undefined = (this as any)._avatarFile;
-    if (!file) {
-      this.avatarUploadError = 'Selecciona una imagen primero.';
+    if (!this.avatarPreviewUrl) {
+      this.avatarUploadError = 'Selecciona una imagen o usa una foto existente.';
       return;
     }
     this.avatarUploading = true;
     this.avatarUploadError = null;
-    const { publicUrl, error } = await this.auth.uploadAvatar(file);
-    this.avatarUploading = false;
-    if (error || !publicUrl) {
-      this.avatarUploadError =
-        error?.message || 'No se ha podido subir la imagen. Prueba con otro archivo.';
-      return;
+    try {
+      const zoom = Math.max(1, Math.min(this.avatarZoom || 1, 3));
+      const img = new Image();
+      img.src = this.avatarPreviewUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('No se ha podido cargar la imagen para recorte.'));
+      });
+      const iw = img.width;
+      const ih = img.height;
+      const baseSide = Math.min(iw, ih) / zoom;
+      const sx = (iw - baseSide) / 2;
+      const sy = (ih - baseSide) / 2;
+      const canvas = document.createElement('canvas');
+      const size = 256;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('No se ha podido inicializar el contexto de dibujo.');
+      }
+      ctx.drawImage(img, sx, sy, baseSide, baseSide, 0, 0, size, size);
+      const blob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se ha podido generar la imagen recortada.'))), 'image/webp');
+      });
+      const { publicUrl, error } = await this.auth.uploadAvatar(blob, this.avatarUploadFileName || 'avatar.webp');
+      if (error || !publicUrl) {
+        this.avatarUploadError =
+          error?.message || 'No se ha podido subir la imagen. Prueba con otro archivo.';
+        return;
+      }
+      this.profileAvatarUrl = publicUrl;
+      this.avatarError = false;
+      this.closeAvatarModal();
+    } catch (e: any) {
+      this.avatarUploadError = e?.message || 'Error al procesar la imagen.';
+    } finally {
+      this.avatarUploading = false;
     }
-    this.profileAvatarUrl = publicUrl;
-    this.avatarError = false;
-    this.closeAvatarModal();
   }
 
   private loadAccounts(): void {

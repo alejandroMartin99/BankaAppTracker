@@ -39,15 +39,17 @@ export class AuthService {
 
   /**
    * Sube un avatar a Supabase Storage (bucket 'avatars') y devuelve la URL pública.
+   * Acepta un Blob ya procesado (recortado) y el nombre original para conservar la extensión.
    */
-  async uploadAvatar(file: File): Promise<{ publicUrl: string | null; error: Error | null }> {
+  async uploadAvatar(file: Blob, fileName?: string): Promise<{ publicUrl: string | null; error: Error | null }> {
     try {
       const current = this.session();
       const user = current?.user;
       if (!user) {
         return { publicUrl: null, error: new Error('No hay usuario autenticado') };
       }
-      const fileExt = file.name.split('.').pop() || 'png';
+      const name = fileName || 'avatar.png';
+      const fileExt = name.split('.').pop() || 'png';
       const filePath = `user-${user.id}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await this.supabase.storage
         .from('avatars')
