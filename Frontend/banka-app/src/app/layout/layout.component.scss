@@ -222,10 +222,32 @@
   min-width: 0;
 }
 
+.app-profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .app-profile-name {
   font-size: 13px;
   font-weight: 600;
   margin: 0 0 2px 0;
+}
+
+.app-profile-name-edit-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+
+  &:hover {
+    color: #111827;
+  }
 }
 
 .app-profile-email {
@@ -401,7 +423,7 @@
   border-radius: 12px;
   padding: 18px 20px 14px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-  width: min(360px, 94vw);
+  width: min(380px, 94vw);
 }
 
 .app-avatar-title {
@@ -475,6 +497,19 @@
 }
 
 .app-confirm-popover {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 400;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px 20px 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  width: min(380px, 94vw);
+}
+
+.app-profile-popover {
   position: fixed;
   top: 50%;
   left: 50%;

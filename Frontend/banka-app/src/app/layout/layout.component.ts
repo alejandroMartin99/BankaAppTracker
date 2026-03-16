@@ -40,6 +40,7 @@ export class LayoutComponent {
   profileAvatarUrl = '';
   profileSaving = false;
   profileError: string | null = null;
+  profileNameModalOpen = false;
 
   // Modal avatar
   avatarModalOpen = false;
@@ -102,6 +103,20 @@ export class LayoutComponent {
 
   onAvatarError(): void {
     this.avatarError = true;
+  }
+
+  openProfileNameModal(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!this.profileName) {
+      this.ensureProfileLoaded();
+    }
+    this.profileNameModalOpen = true;
+  }
+
+  closeProfileNameModal(): void {
+    this.profileNameModalOpen = false;
   }
 
   openAvatarModal(): void {

@@ -115,26 +115,21 @@
                   }
                 </div>
                 <div class="app-profile-text">
+                <div class="app-profile-name-row">
                   <div class="app-profile-name">{{ avatarDisplayName || 'Sin nombre' }}</div>
+                  <button
+                    type="button"
+                    class="app-profile-name-edit-btn"
+                    (click)="openProfileNameModal($event)"
+                  >
+                    <!-- icono editar -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 3a2.828 2.828 0 0 1 4 4L7 21H3v-4L17 3z"/>
+                    </svg>
+                  </button>
+                </div>
                   <div class="app-profile-email">{{ auth.user()?.email }}</div>
                 </div>
-              </div>
-              <div class="app-profile-edit">
-                <label>
-                  <span>Nombre de perfil</span>
-                  <input type="text" [(ngModel)]="profileName" placeholder="Tu nombre" />
-                </label>
-                @if (profileError) {
-                  <p class="app-profile-error">{{ profileError }}</p>
-                }
-                <button
-                  type="button"
-                  class="app-profile-item app-profile-item--primary"
-                  (click)="saveProfile()"
-                  [disabled]="profileSaving"
-                >
-                  {{ profileSaving ? 'Guardando…' : 'Guardar perfil' }}
-                </button>
               </div>
               <div class="app-profile-accounts">
                 <div class="app-profile-accounts-title">Cuentas vinculadas</div>
@@ -301,6 +296,35 @@
           [disabled]="avatarUploading"
         >
           {{ avatarUploading ? 'Subiendo…' : 'Guardar foto' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (profileNameModalOpen) {
+    <div class="backend-loader-overlay" (click)="closeProfileNameModal()"></div>
+    <div class="app-profile-popover" (click)="$event.stopPropagation()">
+      <h3 class="app-avatar-title">Editar nombre de perfil</h3>
+      <div class="app-profile-edit">
+        <label>
+          <span>Nombre de perfil</span>
+          <input type="text" [(ngModel)]="profileName" placeholder="Tu nombre" />
+        </label>
+        @if (profileError) {
+          <p class="app-profile-error">{{ profileError }}</p>
+        }
+      </div>
+      <div class="app-avatar-actions">
+        <button type="button" class="app-profile-item" (click)="closeProfileNameModal()" [disabled]="profileSaving">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="app-profile-item app-profile-item--primary"
+          (click)="saveProfile()"
+          [disabled]="profileSaving"
+        >
+          {{ profileSaving ? 'Guardando…' : 'Guardar perfil' }}
         </button>
       </div>
     </div>
