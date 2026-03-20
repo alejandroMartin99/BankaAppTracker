@@ -38,6 +38,11 @@ const BRANDS = [
   { key: 'milfshakes', domain: 'milfshakes.es' },
   { key: 'singularu', domain: 'singularu.com' },
   { key: 'el-corte-ingles', domain: 'elcorteingles.com' },
+  { key: 'booking', domain: 'booking.com' },
+  { key: 'aldi', domain: 'aldi.es' },
+  { key: 'obramat', domain: 'obramat.es' },
+  { key: 'indra', domain: 'indragroup.com' },
+  { key: 'delikia-cafe', domain: 'delikia.es' },
 ];
 
 // Iconify: prefix:icon -> archivo prefix-icon.svg

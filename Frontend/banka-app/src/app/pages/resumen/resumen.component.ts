@@ -105,7 +105,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
     return this.incomesSummary.reduce((sum, cat) => sum + cat.total, 0);
   }
 
-  /** Balance = Ingresos + Gastos (coherente con los totales mostrados; excluye transferencias internas) */
+  /** Balance = Ingresos + Gastos (coherente con los totales mostrados) */
   get totalBalance(): number {
     return this.totalIngresos + this.totalGastos;
   }
@@ -138,7 +138,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
   get categoriesSummary(): CategorySummary[] {
     const byCat = new Map<string, Map<string, Transaction[]>>();
     for (const t of this.filteredTransactions) {
-      if ((t.importe || 0) >= 0 || (t.categoria || '') === 'Transferencia') continue;
+      if ((t.importe || 0) >= 0) continue;
       const cat = t.categoria || 'Sin categoría';
       const sub = t.subcategoria || 'Sin subcategoría';
       if (!byCat.has(cat)) byCat.set(cat, new Map());

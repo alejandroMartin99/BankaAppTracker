@@ -28,6 +28,10 @@ const BRANDS = [
   { key: 'revolut', domain: 'revolut.com' },
   { key: 'kraken', domain: 'kraken.com' },
   { key: 'siemens', domain: 'siemens.com' },
+  { key: 'booking', domain: 'booking.com' },
+  { key: 'obramat', domain: 'obramat.es' },
+  { key: 'indra', domain: 'indragroup.com' },
+  { key: 'delikia-cafe', domain: 'delikia.es' },
 ];
 
 const OUT_DIR = path.join(__dirname, '../public/icons');

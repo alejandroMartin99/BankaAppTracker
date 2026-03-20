@@ -30,6 +30,7 @@ CATEGORY_RULES = [
     (r'HSN STORE', 'BienEstar', 'HSN'),
     (r'FARMACIA', 'BienEstar', 'Farmacia'),
     (r'HIERBA EN FLOR', 'BienEstar', 'Flores_Lucia'),
+    (r'BOOKING', 'BienEstar', 'Booking'),
 
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
@@ -67,6 +68,7 @@ CATEGORY_RULES = [
     (r'HIPERHOGAR', 'Hogar', None),
     (r'ALIEXPRESS', 'Hogar', 'AliExpress'),
     (r'AMAZON', 'Hogar', 'Amazon'),
+    (r'OBRAMAT|OBRAMAT\.ES', 'Hogar', 'Obramat'),
     (r'HOGARDEXTER', 'Hogar', 'Hogardexter'),
     (r'CMB SUPERKIT', 'Hogar', 'Centro Maderero Valdebernardo'),
     (r'RESTANTE MESA LU', 'Hogar', 'Mesa'),
