@@ -83,6 +83,7 @@ CATEGORY_RULES = [
     (r'AUCHAN', 'Supermercado', 'Alcampo'),
     (r'ALCAMPO', 'Supermercado', 'Alcampo'),
     (r'AHORRAMAS', 'Supermercado', 'Ahorramas'),
+    (r'CARNICAS', 'Supermercado', 'Carniceria'),
     (r'LA VIDA VERDE', 'Supermercado', 'General'),
 
     
@@ -104,6 +105,7 @@ CATEGORY_RULES = [
     (r'COCHINITA LOCA', 'Restaurantes', 'Cochinita Mex'),
     (r'COFFEE', 'Restaurantes', 'Cafe'),
     (r'DOMINOS PIZZA', 'Restaurantes', 'Dominos Pizza'),
+    (r'LA GRUTA', 'Restaurantes', 'La Gruta'),
     (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
 
     # Ropa
