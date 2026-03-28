@@ -28,133 +28,25 @@
   }
 
   @if (!loading && !error) {
-    <!-- Bloque especial: transacciones con categoría "Otro" -->
-    <section class="card card-uncategorized">
-      <h2 class="card-title">Transacciones con categoría "Otro"</h2>
-      <p class="card-subtitle">
-        Estas transacciones están clasificadas como "Otro". Actualízalas para mejorar el análisis de tus gastos.
-      </p>
-
-      @if (groupedOther.length === 0) {
-        <div class="empty-state">
-          <span class="empty-icon">✅</span>
-          <p>No hay transacciones con categoría "Otro".</p>
-          <p class="empty-hint">Si subes nuevos ficheros, revisa aquí las que queden como "Otro" para afinarlas.</p>
-        </div>
-      } @else {
-        <section class="categories-section ajustes-editor-section">
-          <div class="category-list">
-            @for (cat of groupedOther; track cat.categoria) {
-              <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
-                <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
-                  <span class="category-name">{{ cat.categoria }}</span>
-                  <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
-                </button>
-                @if (expandedCategory === cat.categoria) {
-                  <div class="category-sublist">
-                    @for (sub of cat.subcategories; track sub.subcategoria) {
-                      <div class="subcategory-block">
-                        <button
-                          type="button"
-                          class="subcategory-header"
-                          (click)="toggleSubcategory(cat.categoria, sub.subcategoria)"
-                        >
-                          <span class="subcategory-name">{{ sub.subcategoria }}</span>
-                          <span class="category-chevron">
-                            {{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}
-                          </span>
-                        </button>
-                        @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria)) {
-                          <div class="category-detail ajustes-detail">
-                            @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
-                              <div class="tx-row tx-row-nested">
-                                <div class="tx-main">
-                                  <div class="tx-text">
-                  <div class="tx-line">
-                    <div class="tx-line-main">
-                      <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
-                      @if (tx.cuenta) {
-                        <span class="tx-cuenta-badge" [ngStyle]="getAccountColorStyle(tx.cuenta)">
-                          {{ getAccountLabelShort(tx.cuenta) }}
-                        </span>
-                      }
-                      <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                    </div>
-                    <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                  </div>
-                                    <div class="tx-meta">
-                    <div class="tx-meta-left"></div>
-                                      <div class="tx-meta-right">
-                                        <button
-                                          type="button"
-                                          class="btn-edit-details"
-                                          (click)="openEditModal(tx); $event.stopPropagation()"
-                                          aria-label="Editar detalles del movimiento"
-                                        >
-                                          Editar
-                                        </button>
-                                        <div class="tx-fields-inline">
-                                          <select [(ngModel)]="draftCategoria[tx.id!]">
-                                            <option [ngValue]="''">Sin categoría</option>
-                                            @for (catOpt of allCategories; track catOpt) {
-                                              <option [ngValue]="catOpt">{{ catOpt }}</option>
-                                            }
-                                          </select>
-                                          <select [(ngModel)]="draftSubcategoria[tx.id!]">
-                                            <option [ngValue]="''">Sin subcategoría</option>
-                                            @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
-                                              <option [ngValue]="subOpt">{{ subOpt }}</option>
-                                            }
-                                            <option [ngValue]="addNewSubcategoryValue">➕ Añadir nueva...</option>
-                                          </select>
-                                          @if (draftSubcategoria[tx.id!] === addNewSubcategoryValue) {
-                                            <input
-                                              type="text"
-                                              class="subcategory-custom-input"
-                                              [(ngModel)]="draftSubcategoriaCustom[tx.id!]"
-                                              placeholder="Escribe la subcategoría"
-                                            />
-                                          }
-                                        </div>
-                                        <button
-                                          type="button"
-                                          class="btn-save"
-                                          [disabled]="!hasDraftChanges(tx) || isSaving(tx)"
-                                          (click)="openConfirmSave(tx)"
-                                          aria-label="Guardar cambios de categoría"
-                                        >
-                                          <span class="btn-save-icon">
-                                            {{ isSaving(tx) ? '✔' : '✓' }}
-                                          </span>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                                @if (lastSavedId === tx.id && lastSaveMessage) {
-                                  <div class="tx-save-line">{{ lastSaveMessage }}</div>
-                                }
-                              </div>
-                            }
-                          </div>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </section>
-      }
-
-    </section>
-
-    <!-- Editor general: agrupado con la estética de Resumen -->
     <section class="card card-editor">
       <h2 class="card-title">Editor general de categorías</h2>
       <p class="card-subtitle">
-        Busca por descripción, categoría o subcategoría y ajusta la clasificación de cualquier movimiento.
+        Las categorías "Otro" / "Otros" aparecen primero para revisarlas antes. Busca por descripción,
+        categoría o subcategoría y ajusta la clasificación de cualquier movimiento.
+      </p>
+
+      <p
+        class="ajustes-otro-status"
+        [class.ajustes-otro-status--ok]="otherCategoryCount === 0"
+        [class.ajustes-otro-status--warn]="otherCategoryCount > 0"
+        role="status"
+      >
+        @if (otherCategoryCount === 0) {
+          No hay movimientos con categoría Otro u Otros.
+        } @else {
+          Se detectan {{ otherCategoryCount }}
+          {{ otherCategoryCount === 1 ? 'movimiento' : 'movimientos' }} en Otro / Otros; revísalos primero en la lista.
+        }
       </p>
 
       <div class="editor-filters">
@@ -168,7 +60,7 @@
         </label>
       </div>
 
-      @if (groupedNonOther.length === 0) {
+      @if (groupedForEditor.length === 0) {
         <div class="empty-state">
           <span class="empty-icon">🔍</span>
           <p>No hay movimientos que coincidan con la búsqueda.</p>
@@ -177,7 +69,7 @@
       } @else {
         <section class="categories-section ajustes-editor-section">
           <div class="category-list">
-            @for (cat of groupedNonOther; track cat.categoria) {
+            @for (cat of groupedForEditor; track cat.categoria) {
               <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
                 <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
                   <span class="category-name">{{ cat.categoria }}</span>

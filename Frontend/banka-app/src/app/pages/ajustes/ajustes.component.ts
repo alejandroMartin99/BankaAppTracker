@@ -171,41 +171,6 @@ export class AjustesComponent implements OnInit {
     });
   }
 
-  get uncategorizedTransactions(): Transaction[] {
-    return this.transactions
-      .filter(t => {
-        const cat = (t.categoria || '').toString().trim().toLowerCase();
-        // Solo transacciones cuya categoría sea "otro"
-        return cat === 'otro' || cat === 'otros';
-      })
-      .sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''));
-  }
-
-  get uncategorizedByMonth(): { monthKey: string; label: string; transactions: Transaction[] }[] {
-    const groups = new Map<string, Transaction[]>();
-    for (const t of this.uncategorizedTransactions) {
-      const dateStr = t.dt_date;
-      if (!dateStr) continue;
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(t);
-    }
-    return Array.from(groups.entries())
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([monthKey, txs]) => {
-        const [yearStr, monthStr] = monthKey.split('-');
-        const year = Number(yearStr);
-        const month = Number(monthStr) - 1;
-        const label = new Date(year, month, 1).toLocaleDateString('es-ES', {
-          month: 'long',
-          year: 'numeric'
-        });
-        return { monthKey, label, transactions: txs };
-      });
-  }
-
   get allCategories(): string[] {
     const set = new Set<string>();
     for (const t of this.transactions) {
@@ -233,33 +198,18 @@ export class AjustesComponent implements OnInit {
     return c === 'otro' || c === 'otros';
   }
 
-  /** Grupos para categoría 'Otro' (usado en el bloque superior) */
-  get groupedOther(): EditCategoryGroup[] {
-    const byCat = new Map<string, Map<string, Transaction[]>>();
-    for (const t of this.filteredTransactions.filter(t => this.isOtherCategory(t.categoria))) {
-      const cat = t.categoria || 'Otro';
-      const sub = t.subcategoria || 'Sin subcategoría';
-      if (!byCat.has(cat)) byCat.set(cat, new Map());
-      const subMap = byCat.get(cat)!;
-      if (!subMap.has(sub)) subMap.set(sub, []);
-      subMap.get(sub)!.push(t);
-    }
-    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
-      const subcategories: EditSubcategoryGroup[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
-        subcategoria,
-        transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-      }));
-      return {
-        categoria,
-        subcategories
-      };
-    });
+  /** Movimientos con categoría Otro/Otros en todos los datos cargados (ignora el cuadro de búsqueda). */
+  get otherCategoryCount(): number {
+    return this.transactions.filter(t => this.isOtherCategory(t.categoria)).length;
   }
 
-  /** Grupos para el editor general (todas las categorías excepto 'Otro') */
-  get groupedNonOther(): EditCategoryGroup[] {
+  /**
+   * Todas las categorías que pasan el filtro de búsqueda; "Otro"/"Otros" van primero,
+   * el resto ordenado alfabéticamente por nombre de categoría.
+   */
+  get groupedForEditor(): EditCategoryGroup[] {
     const byCat = new Map<string, Map<string, Transaction[]>>();
-    for (const t of this.filteredTransactions.filter(t => !this.isOtherCategory(t.categoria))) {
+    for (const t of this.filteredTransactions) {
       const cat = t.categoria || 'Sin categoría';
       const sub = t.subcategoria || 'Sin subcategoría';
       if (!byCat.has(cat)) byCat.set(cat, new Map());
@@ -267,16 +217,24 @@ export class AjustesComponent implements OnInit {
       if (!subMap.has(sub)) subMap.set(sub, []);
       subMap.get(sub)!.push(t);
     }
-    return Array.from(byCat.entries()).map(([categoria, subMap]) => {
-      const subcategories: EditSubcategoryGroup[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
-        subcategoria,
-        transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-      }));
-      return {
-        categoria,
-        subcategories
-      };
+    const groups: EditCategoryGroup[] = Array.from(byCat.entries()).map(([categoria, subMap]) => {
+      const subcategories: EditSubcategoryGroup[] = Array.from(subMap.entries()).map(
+        ([subcategoria, transactions]) => ({
+          subcategoria,
+          transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
+        })
+      );
+      return { categoria, subcategories };
     });
+    groups.sort((a, b) => {
+      const aOther = this.isOtherCategory(a.categoria);
+      const bOther = this.isOtherCategory(b.categoria);
+      if (aOther !== bOther) {
+        return aOther ? -1 : 1;
+      }
+      return a.categoria.localeCompare(b.categoria, 'es', { sensitivity: 'base' });
+    });
+    return groups;
   }
 
   getSubcategoriesFor(categoria: string): string[] {

@@ -133,6 +133,21 @@
   margin: 0 0 8px 0;
 }
 
+.ajustes-otro-status {
+  font-size: 10px;
+  font-weight: 500;
+  margin: 0 0 10px 0;
+  line-height: 1.35;
+
+  &--ok {
+    color: #047857;
+  }
+
+  &--warn {
+    color: #b91c1c;
+  }
+}
+
 /* Bloque lista tipo Gastos para categoría "Otro" */
 
 .tx-list {
