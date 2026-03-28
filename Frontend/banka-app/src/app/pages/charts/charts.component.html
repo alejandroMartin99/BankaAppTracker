@@ -285,11 +285,91 @@
         <h3 class="charts-modal-title">
           {{ categoryDetailName }} · Subcategorías ({{ categoryDetailSubDrillMonthLabel }})
         </h3>
-        <p class="charts-modal-desc">
-          Importe del mes seleccionado y variación frente a la <strong>media mensual</strong> de cada
-          subcategoría en los últimos 12 meses (misma lógica que la categoría). Sin transferencias;
-          respeta el filtro de 5.000 € si lo tienes activo.
+        <p class="charts-modal-desc charts-modal-desc--tight">
+          Mes vs media por subcategoría. Sin transferencias; filtro 5.000 € si aplica.
         </p>
+        @if (categoryDetailSubLineChart && categoryDetailSubLineChart.series.length > 0) {
+          <div class="charts-sub-line-block">
+            <h4 class="charts-sub-line-title">Por mes (máx. 12 subcategorías del mes pulsado)</h4>
+            <svg
+              class="charts-sub-line-svg"
+              [attr.viewBox]="subLineSvgViewBox()"
+              preserveAspectRatio="xMidYMid meet"
+              aria-hidden="true"
+            >
+              @for (g of getSubLineYGridTicks(); track g.value) {
+                <line
+                  [class.charts-sub-line-grid]="!g.base"
+                  [class.charts-sub-line-grid-base]="g.base"
+                  [attr.x1]="subLinePadLeft"
+                  [attr.x2]="subLineChartRight()"
+                  [attr.y1]="g.y"
+                  [attr.y2]="g.y"
+                />
+                <text
+                  class="charts-sub-line-yaxis"
+                  x="2"
+                  [attr.y]="g.y"
+                  dominant-baseline="middle"
+                >
+                  {{ formatSubLineYAxis(g.value) }}
+                </text>
+              }
+              @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
+                @if (s.avgPerMonth > 0) {
+                  <line
+                    class="charts-sub-line-avg"
+                    [attr.x1]="subLinePadLeft"
+                    [attr.x2]="subLineChartRight()"
+                    [attr.y1]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
+                    [attr.y2]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
+                    [attr.stroke]="s.color"
+                  />
+                }
+              }
+              @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
+                <path
+                  class="charts-sub-line-path"
+                  fill="none"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  [attr.stroke]="s.color"
+                  [attr.d]="getSubcategoryTrendPath(s.values, categoryDetailSubLineChart.maxAmount)"
+                />
+              }
+              @for (dot of getSubLineAllDots(); track dot.key) {
+                <circle
+                  class="charts-sub-line-dot"
+                  [attr.cx]="dot.cx"
+                  [attr.cy]="dot.cy"
+                  r="3.25"
+                  fill="#fff"
+                  stroke-width="2"
+                  [attr.stroke]="dot.stroke"
+                />
+              }
+              @for (label of categoryDetailSubLineChart.monthLabels; track $index) {
+                <text
+                  class="charts-sub-line-xlabel"
+                  [attr.x]="subLineMonthLabelX($index)"
+                  [attr.y]="subLineChartBottomY() + 14"
+                  text-anchor="middle"
+                >
+                  {{ label }}
+                </text>
+              }
+            </svg>
+            <div class="charts-sub-line-legend">
+              @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
+                <span class="charts-sub-line-legend-item">
+                  <i class="charts-sub-line-swatch" [style.background-color]="s.color"></i>
+                  <span class="charts-sub-line-legend-text">{{ s.subcategoria }}</span>
+                </span>
+              }
+            </div>
+          </div>
+        }
         @if (categoryDetailSubRows.length > 0) {
           <div class="charts-modal-bars charts-modal-bars--detail-sub">
             @for (sub of categoryDetailSubRows; track sub.subcategoria) {

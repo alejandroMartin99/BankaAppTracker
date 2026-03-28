@@ -38,6 +38,13 @@ export interface CategoryChartData {
   maxAmount: number;
 }
 
+/** Prueba en popup subcategorías: eje X = meses, una línea por subcategoría */
+export interface SubcategoryLineChartModel {
+  monthLabels: string[];
+  series: { subcategoria: string; values: number[]; color: string; avgPerMonth: number }[];
+  maxAmount: number;
+}
+
 @Component({
   selector: 'app-charts',
   standalone: true,
@@ -125,6 +132,12 @@ export class ChartsComponent implements OnInit, OnDestroy {
   categoryDetailSubDrillOpen = false;
   categoryDetailSubDrillMonthLabel = '';
   categoryDetailSubRows: { subcategoria: string; total: number; heightPct: number; vsAvgPct: number }[] = [];
+  /** Diagrama de líneas mes × subcategoría (mismo período que la evolución de la categoría) */
+  categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
+
+  private static readonly SUB_LINE_VB = { vw: 340, vh: 172, padL: 52, padR: 10, padT: 10, padB: 40 } as const;
+  /** Expuesto para el SVG del drill de subcategorías */
+  readonly subLinePadLeft = ChartsComponent.SUB_LINE_VB.padL;
 
   constructor(private transactionService: TransactionService) {}
 
@@ -513,6 +526,113 @@ export class ChartsComponent implements OnInit, OnDestroy {
     return 12 + (i / (n - 1)) * (180 - 12 - 36);
   }
 
+  /** Path SVG: evolución mensual (eje X = tiempo, Y = importe) para una subcategoría */
+  getSubcategoryTrendPath(values: number[], maxAmount: number): string {
+    const pts = this.getSubcategoryTrendPoints(values, maxAmount);
+    if (pts.length === 0) return '';
+    return 'M ' + pts.map(p => `${p.x},${p.y}`).join(' L ');
+  }
+
+  getSubcategoryTrendPoints(values: number[], maxAmount: number): { x: number; y: number }[] {
+    const { vw, vh, padL, padR, padT, padB } = ChartsComponent.SUB_LINE_VB;
+    const chartW = vw - padL - padR;
+    const chartH = vh - padT - padB;
+    const n = values.length;
+    if (n === 0 || maxAmount <= 0) return [];
+    return values.map((v, i) => {
+      const x = n <= 1 ? padL + chartW / 2 : padL + (i / (n - 1)) * chartW;
+      const clamped = Math.min(v, maxAmount);
+      const y = padT + chartH - (clamped / maxAmount) * chartH;
+      return { x, y };
+    });
+  }
+
+  /** Posición Y en el SVG del gráfico de líneas para un importe (media, punto, etc.). */
+  subLineYForValue(value: number, maxAmount: number): number {
+    const { vh, padT, padB } = ChartsComponent.SUB_LINE_VB;
+    const chartH = vh - padT - padB;
+    if (maxAmount <= 0) return padT + chartH;
+    const clamped = Math.min(Math.max(0, value), maxAmount);
+    return padT + chartH - (clamped / maxAmount) * chartH;
+  }
+
+  /** Líneas horizontales de rejilla + valores eje Y (0 … máx). `base` = eje X inferior. */
+  getSubLineYGridTicks(): { y: number; value: number; base: boolean }[] {
+    const c = this.categoryDetailSubLineChart;
+    if (!c) return [];
+    const max = c.maxAmount;
+    const { vh, padT, padB } = ChartsComponent.SUB_LINE_VB;
+    const chartH = vh - padT - padB;
+    const segments = 4;
+    const out: { y: number; value: number; base: boolean }[] = [];
+    for (let i = 0; i <= segments; i++) {
+      const frac = 1 - i / segments;
+      out.push({
+        y: padT + chartH * (1 - frac),
+        value: max * frac,
+        base: i === segments
+      });
+    }
+    return out;
+  }
+
+  subLineChartRight(): number {
+    const { vw, padR } = ChartsComponent.SUB_LINE_VB;
+    return vw - padR;
+  }
+
+  subLineChartBottomY(): number {
+    const { vh, padB } = ChartsComponent.SUB_LINE_VB;
+    return vh - padB;
+  }
+
+  /** Etiquetas eje Y compactas */
+  formatSubLineYAxis(value: number): string {
+    const v = Math.max(0, value);
+    if (v >= 1000) {
+      const k = v / 1000;
+      return (k >= 10 ? k.toFixed(0) : k.toFixed(1)) + 'k €';
+    }
+    if (v < 1 && v > 0) return v.toFixed(0) + ' €';
+    return Math.round(v) + ' €';
+  }
+
+  /** Posición X centrada para etiqueta de mes bajo el gráfico de líneas */
+  subLineMonthLabelX(i: number): number {
+    const c = this.categoryDetailSubLineChart;
+    if (!c) return 0;
+    const { vw, padL, padR } = ChartsComponent.SUB_LINE_VB;
+    const chartW = vw - padL - padR;
+    const n = c.monthLabels.length;
+    if (n <= 1) return padL + chartW / 2;
+    return padL + (i / (n - 1)) * chartW;
+  }
+
+  subLineSvgViewBox(): string {
+    const { vw, vh } = ChartsComponent.SUB_LINE_VB;
+    return `0 0 ${vw} ${vh}`;
+  }
+
+  /** Puntos para marcadores (evita @for anidado con track inválido). */
+  getSubLineAllDots(): { cx: number; cy: number; stroke: string; key: string }[] {
+    const c = this.categoryDetailSubLineChart;
+    if (!c) return [];
+    const max = c.maxAmount;
+    const out: { cx: number; cy: number; stroke: string; key: string }[] = [];
+    for (const s of c.series) {
+      const pts = this.getSubcategoryTrendPoints(s.values, max);
+      pts.forEach((p, i) => {
+        out.push({
+          cx: p.x,
+          cy: p.y,
+          stroke: s.color,
+          key: `${s.subcategoria}:${i}`
+        });
+      });
+    }
+    return out;
+  }
+
   formatDate(d: string | undefined): string {
     if (!d) return '—';
     const s = String(d).slice(0, 10);
@@ -553,6 +673,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     this.categoryDetailSubDrillOpen = false;
     this.categoryDetailSubRows = [];
     this.categoryDetailSubDrillMonthLabel = '';
+    this.categoryDetailSubLineChart = null;
     this.categoryDetailOpen = true;
   }
 
@@ -600,6 +721,43 @@ export class ChartsComponent implements OnInit, OnDestroy {
       heightPct: (r.total / max) * 100
     }));
     this.categoryDetailSubDrillMonthLabel = monthLabel;
+
+    const monthKeysOrder = this.categoryDetailSeries.map(s => s.monthKey);
+    const monthLabelsShort = monthKeysOrder.map(k => {
+      const [y, m] = k.split('-').map(Number);
+      return `${String(m).padStart(2, '0')}/${String(y).slice(2)}`;
+    });
+    const maxLines = 12;
+    const seriesForChart = rows.slice(0, maxLines).map((r, idx) => {
+      const mm = subMonthlyMaps.get(r.subcategoria)!;
+      const values = monthKeysOrder.map(k => mm.get(k) ?? 0);
+      const sumPeriod = Array.from(mm.values()).reduce((a, b) => a + b, 0);
+      const monthsWithData = mm.size;
+      const avgPerMonth = monthsWithData > 0 ? sumPeriod / monthsWithData : 0;
+      const hue = (idx * 47 + 18) % 360;
+      return {
+        subcategoria: r.subcategoria,
+        values,
+        color: `hsl(${hue}, 62%, 42%)`,
+        avgPerMonth
+      };
+    });
+    let lineMax = 0;
+    for (const s of seriesForChart) {
+      for (const v of s.values) {
+        if (v > lineMax) lineMax = v;
+      }
+      if (s.avgPerMonth > lineMax) lineMax = s.avgPerMonth;
+    }
+    this.categoryDetailSubLineChart =
+      seriesForChart.length > 0 && monthLabelsShort.length > 0
+        ? {
+            monthLabels: monthLabelsShort,
+            series: seriesForChart,
+            maxAmount: Math.max(1, lineMax)
+          }
+        : null;
+
     this.categoryDetailSubDrillOpen = true;
   }
 
@@ -607,6 +765,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     this.categoryDetailSubDrillOpen = false;
     this.categoryDetailSubRows = [];
     this.categoryDetailSubDrillMonthLabel = '';
+    this.categoryDetailSubLineChart = null;
   }
 
   closeCategoryDetail(): void {
