@@ -111,10 +111,20 @@ export class ChartsComponent implements OnInit, OnDestroy {
   categoryDetailName = '';
   /** true = gastos (positivo=rojo, negativo=verde), false = ingresos (positivo=verde, negativo=rojo) */
   categoryDetailIsExpense = true;
-  categoryDetailSeries: { monthLabel: string; total: number; vsAvgPct: number; heightPct: number }[] = [];
+  categoryDetailSeries: {
+    monthKey: string;
+    monthLabel: string;
+    total: number;
+    vsAvgPct: number;
+    heightPct: number;
+  }[] = [];
   /** Escala y media para la gráfica del popup */
   categoryDetailScaleRef = 0;
   categoryDetailAvg = 0;
+  /** Drill-down: subcategorías del mes pulsado en el popup de evolución */
+  categoryDetailSubDrillOpen = false;
+  categoryDetailSubDrillMonthLabel = '';
+  categoryDetailSubRows: { subcategoria: string; total: number; heightPct: number; vsAvgPct: number }[] = [];
 
   constructor(private transactionService: TransactionService) {}
 
@@ -538,13 +548,70 @@ export class ChartsComponent implements OnInit, OnDestroy {
       const heightPct = this.categoryDetailScaleRef > 0
         ? Math.min(100, (total / this.categoryDetailScaleRef) * 100)
         : 0;
-      return { monthLabel, total, vsAvgPct: vs, heightPct };
+      return { monthKey, monthLabel, total, vsAvgPct: vs, heightPct };
     });
+    this.categoryDetailSubDrillOpen = false;
+    this.categoryDetailSubRows = [];
+    this.categoryDetailSubDrillMonthLabel = '';
     this.categoryDetailOpen = true;
+  }
+
+  openCategoryDetailSubDrill(monthKey: string, monthLabel: string): void {
+    const cat = this.categoryDetailName;
+    const isExp = this.categoryDetailIsExpense;
+    /** Serie mensual por subcategoría (mismo período que la categoría en el popup) */
+    const subMonthlyMaps = new Map<string, Map<string, number>>();
+    for (const t of this.transactions) {
+      if (this.shouldExclude(t)) continue;
+      if (isExp) {
+        if (!this.expenseOnly(t)) continue;
+      } else {
+        if (!this.incomeOnly(t)) continue;
+      }
+      if ((t.categoria || 'Sin categoría') !== cat) continue;
+      const m = (t.dt_date || '').slice(0, 7);
+      const sub = (t.subcategoria || '').toString().trim() || 'Sin subcategoría';
+      const add = isExp ? Math.abs(t.importe || 0) : (t.importe || 0);
+      if (!subMonthlyMaps.has(sub)) subMonthlyMaps.set(sub, new Map());
+      const mm = subMonthlyMaps.get(sub)!;
+      mm.set(m, (mm.get(m) || 0) + add);
+    }
+    const bySub = new Map<string, number>();
+    for (const [sub, mm] of subMonthlyMaps) {
+      const v = mm.get(monthKey) ?? 0;
+      if (v > 0) bySub.set(sub, v);
+    }
+    const rows = Array.from(bySub.entries())
+      .map(([subcategoria, total]) => {
+        const monthly = subMonthlyMaps.get(subcategoria)!;
+        const sumPeriod = Array.from(monthly.values()).reduce((a, b) => a + b, 0);
+        const monthsWithData = monthly.size;
+        const avgPerMonth = monthsWithData > 0 ? sumPeriod / monthsWithData : 0;
+        let vsAvgPct = 0;
+        if (avgPerMonth > 0) {
+          vsAvgPct = ((total - avgPerMonth) / avgPerMonth) * 100;
+        }
+        return { subcategoria, total, vsAvgPct };
+      })
+      .sort((a, b) => b.total - a.total);
+    const max = rows.length ? Math.max(...rows.map(r => r.total), 1) : 1;
+    this.categoryDetailSubRows = rows.map(r => ({
+      ...r,
+      heightPct: (r.total / max) * 100
+    }));
+    this.categoryDetailSubDrillMonthLabel = monthLabel;
+    this.categoryDetailSubDrillOpen = true;
+  }
+
+  closeCategoryDetailSubDrill(): void {
+    this.categoryDetailSubDrillOpen = false;
+    this.categoryDetailSubRows = [];
+    this.categoryDetailSubDrillMonthLabel = '';
   }
 
   closeCategoryDetail(): void {
     this.categoryDetailOpen = false;
+    this.closeCategoryDetailSubDrill();
   }
 
   openCategoryChartModal(isExpense: boolean): void {
