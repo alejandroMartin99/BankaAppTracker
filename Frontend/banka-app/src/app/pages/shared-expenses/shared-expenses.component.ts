@@ -345,10 +345,13 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
    * > 0: te deben. < 0: debes. 0: estáis en paz.
    */
   get settlementAmount(): number {
-    const total = this.totalMineNoConjunta + this.totalOtherNoConjunta;
-    if (total === 0) return 0;
-    const idealPorPersona = total / 2;
     const mine = this.totalMineNoConjunta;
+    const other = this.totalOtherNoConjunta;
+    const total = mine + other;
+    if (total === 0) return 0;
+    // Sin visibilidad de cuentas personales del otro (privacidad), no hay reparto 50/50 fiable
+    if (other === 0) return 0;
+    const idealPorPersona = total / 2;
     return +(mine - idealPorPersona).toFixed(2);
   }
 

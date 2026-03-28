@@ -10,6 +10,9 @@ from datetime import datetime
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from app.core.config import settings
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
@@ -66,23 +69,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS to allow frontend requests
-# In development, use explicit origins; in production, allow all origins
-cors_origins = settings.CORS_ORIGINS
-
-# Check if we're in production
-is_production = os.getenv("ENVIRONMENT") == "production" or os.getenv("ENV") == "production"
-
-if is_production:
-    # In production, allow all origins for easier deployment
-    cors_origins = ["*"]
-    # CRITICAL: allow_credentials=True + "*" is INVALID per CORS spec - browser rejects response
-    # We use Bearer token (no cookies), so credentials=False is fine
-    cors_credentials = False
-    print(f"[CORS] Production mode: origins=*, credentials=False")
-else:
-    cors_credentials = True
-    print(f"[CORS] Development mode: origins={cors_origins}")
+# CORS: lista explícita siempre (añade previews en CORS_ORIGINS en Render/Vercel)
+cors_origins = settings.cors_origins_list
+if not cors_origins:
+    cors_origins = ["http://localhost:4200"]
+    print("[CORS] CORS_ORIGINS vacío; usando http://localhost:4200")
+cors_credentials = False
+print(f"[CORS] origins={cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -91,6 +84,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(upload_router)
@@ -114,16 +120,25 @@ async def health_check():
 
 @app.get("/test")
 async def test():
-    """Test endpoint para diagnosticar Render vs local.
-    Usar: GET https://tu-backend.onrender.com/test"""
+    """Diagnóstico opcional; desactivado en producción salvo ENABLE_DIAGNOSTIC_ENDPOINT=true."""
+    if not settings.ENABLE_DIAGNOSTIC_ENDPOINT:
+        return {"status": "ok"}
     supabase_ok = supabase_service.is_connected()
-    uses_sr = supabase_service.uses_service_role() if hasattr(supabase_service, "uses_service_role") else None
+    uses_sr = (
+        supabase_service.uses_service_role()
+        if hasattr(supabase_service, "uses_service_role")
+        else None
+    )
     return {
         "status": "ok",
         "environment": os.getenv("ENVIRONMENT", "development"),
         "supabase_connected": supabase_ok,
         "supabase_uses_service_role": uses_sr,
-        "hint": "Si uses_service_role=false en Render, añade SUPABASE_SERVICE_ROLE_KEY en Environment" if (supabase_ok and uses_sr is False) else None,
+        "hint": (
+            "Si uses_service_role=false, configura SUPABASE_SERVICE_ROLE_KEY"
+            if (supabase_ok and uses_sr is False)
+            else None
+        ),
         "timestamp": datetime.now().isoformat(),
     }
 

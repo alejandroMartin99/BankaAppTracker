@@ -136,6 +136,13 @@
   border-radius: var(--radius);
 }
 
+.totals-privacy-note {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
 .totals-row {
   display: flex;
   justify-content: space-between;

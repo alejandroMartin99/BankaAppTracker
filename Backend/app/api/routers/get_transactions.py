@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
+from app.api.errors import internal_server_error
 from app.api.services.supabase.supabase_service import supabase_service
 from app.api.services.account_config import is_account_shared
 
@@ -74,10 +75,7 @@ async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]
                 balances[cuenta] = float(saldo) if saldo is not None else 0.0
         return {"success": True, "data": balances}
     except Exception as e:
-        import traceback
-        print(f"[ERROR] get_balances: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "get_balances")
 
 @router.get(
     "/transactions",
@@ -116,15 +114,12 @@ async def get_transactions(
             row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
         return {"success": True, "count": len(data), "data": data}
     except Exception as e:
-        import traceback
-        print(f"[ERROR] get_transactions: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "get_transactions")
 
 
 @router.get(
     "/shared-transactions",
-    summary="Transacciones para análisis de gastos compartidos (propias + de usuarios que comparten cuenta)",
+    summary="Transacciones para gastos compartidos (solo cuentas vinculadas a tu usuario)",
     response_model=Dict[str, Any]
 )
 async def get_shared_transactions(
@@ -132,20 +127,23 @@ async def get_shared_transactions(
     to_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD"),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    """Devuelve gastos del usuario y de las personas que comparten alguna cuenta con él (ej. Conjunta).
-    Cada fila incluye is_own_account: true si la cuenta es del usuario actual, false si es de otro."""
+    """Misma visibilidad que /transactions: solo cuentas que tienes en user_accounts.
+
+    No expone cuentas personales de otras personas aunque compartáis una cuenta conjunta.
+    La cuenta conjunta tiene el mismo account_id para quienes la enlazan: todos ven esas
+    transacciones si la tienen vinculada.
+
+    is_own_account se mantiene por compatibilidad con el cliente (True si account_id está
+    entre tus cuentas vinculadas; con este alcance, siempre True).
+    """
     if not supabase_service.is_connected():
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     uid = user.get("sub", "")
     my_account_ids = supabase_service.get_user_account_ids(uid)
-    # Usuarios que comparten al menos una cuenta (ej. Conjunta)
-    other_user_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
-    their_account_ids = supabase_service.get_account_ids_for_users(other_user_ids) if other_user_ids else []
-    all_account_ids = list(dict.fromkeys(my_account_ids + their_account_ids))
     my_account_set = set(my_account_ids)
 
-    if not all_account_ids:
+    if not my_account_ids:
         return {"success": True, "count": 0, "data": []}
 
     try:
@@ -153,7 +151,7 @@ async def get_shared_transactions(
             supabase_service.supabase
             .table("transactions")
             .select("*")
-            .in_("account_id", all_account_ids)
+            .in_("account_id", my_account_ids)
         )
         if from_date:
             q = q.gte("dt_date", from_date)
@@ -161,16 +159,13 @@ async def get_shared_transactions(
             q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
         response = q.order("dt_date", desc=True).limit(10000).execute()
         data = list(response.data or [])
-        names = supabase_service.get_account_display_names(all_account_ids)
+        names = supabase_service.get_account_display_names(my_account_ids)
         for row in data:
             row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
             row["is_own_account"] = row.get("account_id") in my_account_set
         return {"success": True, "count": len(data), "data": data}
     except Exception as e:
-        import traceback
-        print(f"[ERROR] get_shared_transactions: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "get_shared_transactions")
 
 
 @router.get(
@@ -209,10 +204,7 @@ async def get_accounts(user: dict = Depends(get_current_user)) -> Dict[str, Any]
             )
         return {"success": True, "data": data}
     except Exception as e:
-        import traceback
-        print(f"[ERROR] get_accounts: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "get_accounts")
 
 
 @router.patch(
@@ -266,10 +258,7 @@ async def update_transaction_category(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[ERROR] update_transaction_category: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "update_transaction_category")
 
 
 @router.patch(
@@ -328,10 +317,7 @@ async def update_transaction_details(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[ERROR] update_transaction_details: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "update_transaction_details")
 
 
 @router.patch(
@@ -372,10 +358,7 @@ async def update_account_display_name(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[ERROR] update_account_display_name: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "update_account_display_name")
 
 
 @router.delete(
@@ -418,8 +401,5 @@ async def delete_transaction(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[ERROR] delete_transaction: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_server_error(e, "delete_transaction")
 

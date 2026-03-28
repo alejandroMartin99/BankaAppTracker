@@ -1,3 +1,4 @@
+// supabaseAnonKey es pública por diseño; no pongas service_role en el frontend.
 export const environment = {
   production: true,
   // Prod: URL del backend en Render (cámbiala por la tuya)

@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from typing import Dict, Any
+import logging
 import math
+from typing import Dict, Any
+
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 
 import pandas as pd
 
@@ -8,12 +10,16 @@ from app.api.deps import get_current_user
 from app.api.services.pipe_extract_transactions.main import main_file_parser
 from app.api.services.supabase.supabase_service import supabase_service
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/upload",
     tags=["Upload"]
 )
 
-ALLOWED_EXTENSIONS = {".xlsx", ".xls",".csv"}
+ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
+# Límite para mitigar DoS por memoria (pandas + Excel)
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 
 def _sanitize_for_json(records: list[dict]) -> list[dict]:
@@ -47,17 +53,26 @@ async def upload_transactions_file(
             detail="Formato no soportado. Solo Excel (.xlsx, .xls, .csv)"
         )
 
-    # Leer contenido del archivo
     file_bytes = await file.read()
-    print(f"Archivo leído: {file.filename}, tamaño: {len(file_bytes)} bytes")
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Archivo demasiado grande (máximo {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)",
+        )
 
     # Detectar tipo de archivo
     is_csv = file.filename.lower().endswith('.csv')
     
-    # Ejecutar pipeline de parseo
-    df_transactions, source_type, account_identifier, display_name = main_file_parser(
-        file_bytes, is_csv=is_csv
-    )
+    try:
+        df_transactions, source_type, account_identifier, display_name = main_file_parser(
+            file_bytes, is_csv=is_csv
+        )
+    except Exception as e:
+        logger.exception("upload parse failed: %s", e)
+        raise HTTPException(
+            status_code=400,
+            detail="No se pudo procesar el archivo. Comprueba formato y que no esté corrupto.",
+        )
 
     # Validar resultado no vacío
     if df_transactions.empty:

@@ -33,11 +33,11 @@
           id="password"
           type="password"
           formControlName="password"
-          placeholder="Mínimo 6 caracteres"
+          placeholder="Mínimo 8 caracteres"
           autocomplete="new-password"
         />
         @if (form.get('password')?.invalid && form.get('password')?.touched) {
-          <span class="form-error">Mínimo 6 caracteres</span>
+          <span class="form-error">Mínimo 8 caracteres</span>
         }
       </div>
       @if (errorMessage) {

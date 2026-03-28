@@ -75,6 +75,9 @@
         <span class="totals-label">Ha pagado la otra parte</span>
         <span class="totals-value">{{ totalOther | number:'1.2-2':'es' }} €</span>
       </div>
+      <p class="totals-privacy-note">
+        Solo se muestran cuentas vinculadas a tu usuario. Los gastos personales del otro no se incluyen por privacidad.
+      </p>
       <div class="totals-row totals-row--balance">
         <span class="totals-label">Saldo 50/50 (sin Conjunta)</span>
         @if (settlementAmount > 0) {

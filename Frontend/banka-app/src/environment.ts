@@ -1,3 +1,4 @@
+// supabaseAnonKey es pública por diseño; la seguridad real está en RLS y en el backend.
 export const environment = {
   production: false,
   // Dev: llamada directa (CORS permite localhost:4200)

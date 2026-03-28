@@ -4,9 +4,8 @@ Centralized configuration management using Pydantic Settings
 """
 
 from pathlib import Path
+from pydantic import Field, AliasChoices, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, AliasChoices
-from typing import List
 
 # .env en Backend/ (junto a app/)
 _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
@@ -14,53 +13,63 @@ _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
-    
+
     model_config = SettingsConfigDict(
         env_file=str(_ENV_PATH) if _ENV_PATH.exists() else None,
         case_sensitive=True,
-        extra="ignore"
+        extra="ignore",
     )
-    
+
     # Application
-    APP_NAME: str = "Rubén Fitness API"
+    APP_NAME: str = "BANK_APP_TRAKER"
     DEBUG: bool = False
-    
-    # CORS - el middleware hace match EXACTO (no soporta *.vercel.app)
-    # In production (ENVIRONMENT=production) se usa ["*"] en main.py
-    # Añade tu URL de Vercel si usas otra distinta
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:4200",
-        "http://localhost:3000",
-        "https://banka-app-tracker.vercel.app",  # Producción Vercel (match exacto)
-    ]
-    
-    # Supabase Configuration
-    SUPABASE_URL: str = "https://eowsozcqryodxtpsduab.supabase.co"
+
+    # CORS: lista separada por comas (nunca uses * en producción)
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:4200,http://localhost:3000,https://banka-app-tracker.vercel.app",
+        description="Orígenes permitidos, separados por coma",
+    )
+
+    # Supabase: sin valores secretos por defecto; definir en .env o variables de entorno
+    SUPABASE_URL: str = Field(default="", validation_alias=AliasChoices("SUPABASE_URL"))
     SUPABASE_KEY: str = Field(
-        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd3NvemNxcnlvZHh0cHNkdWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjIyODIsImV4cCI6MjA4Mzg5ODI4Mn0.vfl0o9mgHtyw0Q20fPLkH2U8xSngvUAge4MrzYvToso",
+        default="",
         validation_alias=AliasChoices("SUPABASE_KEY", "SUPABASE_ANON_KEY"),
     )
-    # Service Role Key: bypassa RLS y valida tokens. Project Settings -> API -> service_role
     SUPABASE_SERVICE_ROLE_KEY: str = Field(
         default="",
         validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"),
     )
-    
-    # OpenAI Configuration
+
     OPENAI_API_KEY: str = ""
-    
-    # Firebase Configuration
     FIREBASE_CREDENTIALS_PATH: str = ""
-    
-    # Database (if needed separately)
     DATABASE_URL: str = ""
 
-    # Keep-alive: URL pública del backend; cada N minutos se hace GET a esta URL para evitar que Render apague la instancia
-    APP_URL: str = Field(default="https://bankaapptracker.onrender.com", description="URL pública del backend")
-    KEEP_ALIVE_INTERVAL_SECONDS: int = Field(default=720, description="Intervalo en segundos entre pings keep-alive (default 12 min)")
+    APP_URL: str = Field(
+        default="https://bankaapptracker.onrender.com",
+        description="URL pública del backend",
+    )
+    KEEP_ALIVE_INTERVAL_SECONDS: int = Field(
+        default=720,
+        description="Intervalo en segundos entre pings keep-alive (default 12 min)",
+    )
+
+    # Si true, expone GET /test con detalles de diagnóstico (solo desarrollo)
+    ENABLE_DIAGNOSTIC_ENDPOINT: bool = Field(default=False)
+
+    @field_validator("ENABLE_DIAGNOSTIC_ENDPOINT", mode="before")
+    @classmethod
+    def _parse_diagnostic_flag(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.strip().lower() in ("1", "true", "yes", "on")
+        return False
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
 
 # Global settings instance
 settings = Settings()
-
-

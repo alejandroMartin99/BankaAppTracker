@@ -2,10 +2,16 @@
 Dependencies for API endpoints (auth, etc.)
 """
 
+import logging
+import traceback
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core.config import settings
 from app.api.services.supabase.supabase_service import supabase_service
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer(auto_error=False)
 
@@ -36,9 +42,9 @@ def get_current_user(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"[Auth] get_user failed: {type(e).__name__}: {e}")
-        traceback.print_exc()
+        logger.warning("Auth get_user failed: %s: %s", type(e).__name__, e)
+        if settings.DEBUG:
+            traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",

@@ -49,7 +49,9 @@ export class AuthService {
         return { publicUrl: null, error: new Error('No hay usuario autenticado') };
       }
       const name = fileName || 'avatar.png';
-      const fileExt = name.split('.').pop() || 'png';
+      const rawExt = (name.split('.').pop() || 'png').toLowerCase();
+      const allowed = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
+      const fileExt = allowed.has(rawExt) ? rawExt : 'png';
       const filePath = `user-${user.id}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await this.supabase.storage
         .from('avatars')

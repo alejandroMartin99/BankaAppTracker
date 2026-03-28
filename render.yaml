@@ -15,9 +15,14 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: ENABLE_DIAGNOSTIC_ENDPOINT
+        value: "false"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Orígenes permitidos (coma). Añade previews de Vercel si los usas.
+      - key: CORS_ORIGINS
+        value: "https://banka-app-tracker.vercel.app,http://localhost:4200"
