@@ -128,10 +128,8 @@ export class ChartsComponent implements OnInit, OnDestroy {
   /** Escala y media para la gráfica del popup */
   categoryDetailScaleRef = 0;
   categoryDetailAvg = 0;
-  /** Drill-down: subcategorías del mes pulsado en el popup de evolución */
-  categoryDetailSubDrillOpen = false;
-  categoryDetailSubDrillMonthLabel = '';
-  categoryDetailSubRows: { subcategoria: string; total: number; heightPct: number; vsAvgPct: number }[] = [];
+  /** Vista del modal detalle por categoría */
+  categoryDetailViewMode: 'categoria' | 'subcategoria' = 'categoria';
   /** Diagrama de líneas mes × subcategoría (mismo período que la evolución de la categoría) */
   categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
 
@@ -670,16 +668,28 @@ export class ChartsComponent implements OnInit, OnDestroy {
         : 0;
       return { monthKey, monthLabel, total, vsAvgPct: vs, heightPct };
     });
-    this.categoryDetailSubDrillOpen = false;
-    this.categoryDetailSubRows = [];
-    this.categoryDetailSubDrillMonthLabel = '';
+    this.categoryDetailViewMode = 'categoria';
     this.categoryDetailSubLineChart = null;
+    this.buildCategoryDetailSubLineChartAllMonths();
     this.categoryDetailOpen = true;
   }
 
-  openCategoryDetailSubDrill(monthKey: string, monthLabel: string): void {
+  setCategoryDetailViewMode(mode: 'categoria' | 'subcategoria'): void {
+    this.categoryDetailViewMode = mode;
+    if (mode === 'subcategoria' && !this.categoryDetailSubLineChart) {
+      this.buildCategoryDetailSubLineChartAllMonths();
+    }
+  }
+
+  private buildCategoryDetailSubLineChartAllMonths(): void {
     const cat = this.categoryDetailName;
     const isExp = this.categoryDetailIsExpense;
+    const monthKeysOrder = this.categoryDetailSeries.map(s => s.monthKey);
+    if (monthKeysOrder.length === 0) {
+      this.categoryDetailSubLineChart = null;
+      return;
+    }
+
     /** Serie mensual por subcategoría (mismo período que la categoría en el popup) */
     const subMonthlyMaps = new Map<string, Map<string, number>>();
     for (const t of this.transactions) {
@@ -697,38 +707,21 @@ export class ChartsComponent implements OnInit, OnDestroy {
       const mm = subMonthlyMaps.get(sub)!;
       mm.set(m, (mm.get(m) || 0) + add);
     }
-    const bySub = new Map<string, number>();
-    for (const [sub, mm] of subMonthlyMaps) {
-      const v = mm.get(monthKey) ?? 0;
-      if (v > 0) bySub.set(sub, v);
-    }
-    const rows = Array.from(bySub.entries())
-      .map(([subcategoria, total]) => {
-        const monthly = subMonthlyMaps.get(subcategoria)!;
-        const sumPeriod = Array.from(monthly.values()).reduce((a, b) => a + b, 0);
-        const monthsWithData = monthly.size;
-        const avgPerMonth = monthsWithData > 0 ? sumPeriod / monthsWithData : 0;
-        let vsAvgPct = 0;
-        if (avgPerMonth > 0) {
-          vsAvgPct = ((total - avgPerMonth) / avgPerMonth) * 100;
-        }
-        return { subcategoria, total, vsAvgPct };
-      })
-      .sort((a, b) => b.total - a.total);
-    const max = rows.length ? Math.max(...rows.map(r => r.total), 1) : 1;
-    this.categoryDetailSubRows = rows.map(r => ({
-      ...r,
-      heightPct: (r.total / max) * 100
-    }));
-    this.categoryDetailSubDrillMonthLabel = monthLabel;
 
-    const monthKeysOrder = this.categoryDetailSeries.map(s => s.monthKey);
     const monthLabelsShort = monthKeysOrder.map(k => {
       const [y, m] = k.split('-').map(Number);
       return `${String(m).padStart(2, '0')}/${String(y).slice(2)}`;
     });
+
+    const totalsBySub: { subcategoria: string; totalPeriod: number }[] = [];
+    for (const [sub, mm] of subMonthlyMaps) {
+      const totalPeriod = Array.from(mm.values()).reduce((a, b) => a + b, 0);
+      if (totalPeriod > 0) totalsBySub.push({ subcategoria: sub, totalPeriod });
+    }
+    totalsBySub.sort((a, b) => b.totalPeriod - a.totalPeriod);
+
     const maxLines = 12;
-    const seriesForChart = rows.slice(0, maxLines).map((r, idx) => {
+    const seriesForChart = totalsBySub.slice(0, maxLines).map((r, idx) => {
       const mm = subMonthlyMaps.get(r.subcategoria)!;
       const values = monthKeysOrder.map(k => mm.get(k) ?? 0);
       const sumPeriod = Array.from(mm.values()).reduce((a, b) => a + b, 0);
@@ -757,20 +750,12 @@ export class ChartsComponent implements OnInit, OnDestroy {
             maxAmount: Math.max(1, lineMax)
           }
         : null;
-
-    this.categoryDetailSubDrillOpen = true;
-  }
-
-  closeCategoryDetailSubDrill(): void {
-    this.categoryDetailSubDrillOpen = false;
-    this.categoryDetailSubRows = [];
-    this.categoryDetailSubDrillMonthLabel = '';
-    this.categoryDetailSubLineChart = null;
   }
 
   closeCategoryDetail(): void {
     this.categoryDetailOpen = false;
-    this.closeCategoryDetailSubDrill();
+    this.categoryDetailViewMode = 'categoria';
+    this.categoryDetailSubLineChart = null;
   }
 
   openCategoryChartModal(isExpense: boolean): void {

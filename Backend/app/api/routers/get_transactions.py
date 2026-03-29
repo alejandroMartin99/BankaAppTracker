@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.api.errors import internal_server_error
 from app.api.services.supabase.supabase_service import supabase_service
 from app.api.services.account_config import is_account_shared
+from app.api.services.pipe_extract_transactions.category_rules import get_category_catalog_from_rules
 
 router = APIRouter(
     prefix="/GET",
@@ -51,6 +52,20 @@ def _fetch_for_balances(account_ids: list[str]) -> list:
     for row in data:
         row["cuenta"] = row.get("cuenta") or names.get(row.get("account_id", ""), "Cuenta")
     return data
+
+
+@router.get(
+    "/category-catalog",
+    summary="Catálogo de categorías/subcategorías (reglas del importador)",
+    response_model=Dict[str, Any],
+)
+async def get_category_catalog(_user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+    """Categorías deducidas de CATEGORY_RULES; no depende de la base de datos."""
+    try:
+        data = get_category_catalog_from_rules()
+        return {"success": True, **data}
+    except Exception as e:
+        raise internal_server_error(e, "get_category_catalog")
 
 
 @router.get(

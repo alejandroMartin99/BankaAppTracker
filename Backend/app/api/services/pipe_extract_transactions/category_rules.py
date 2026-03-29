@@ -1,14 +1,16 @@
 import re
+from collections import defaultdict
 import pandas as pd
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, Any, List
 
 CATEGORY_RULES = [
     # Nómina
     (r'INDRA', 'Nómina', 'INDRA'),
+    (r'ING.', 'Nómina', 'INECO'),
     (r'NóMINA', 'Nómina', 'EX-EMPRESA'),
 
     # Bizum
-    (r'BIZUM', 'bizum', None),
+    (r'BIZUM', 'Bizum', None),
 
     # Suministros
     (r'RECIBO AGUA|CANAL DE ISABEL', 'Suministros', 'Agua'),
@@ -138,12 +140,36 @@ CATEGORY_RULES = [
     (r'ALEJANDRO MARTÍN IGLESIAS', 'Transferencia', 'Revolut'),
 
     # Banco
-    (r'COMISION|LIQUIDACION INTERESES', 'banco', None),
+    (r'COMISION|LIQUIDACION INTERESES', 'Banco', None),
 
     # INVERSIONES
     (r'KRAKEN', 'INVERSIONES', 'Kraken'),
     (r'TAL ASSETS EUROPE LTD', 'INVERSIONES', 'Crypto_Revolut'),
 ]
+
+
+def get_category_catalog_from_rules() -> Dict[str, Any]:
+    """
+    Lista de categorías y subcategorías usadas en las reglas del pipe (importación).
+    Sirve al frontend (p. ej. Ajustes) para desplegables aunque el usuario no tenga
+    aún movimientos en todas ellas.
+    """
+    subs_by_cat: Dict[str, set] = defaultdict(set)
+    for _pattern, category, subcategory in CATEGORY_RULES:
+        if not category:
+            continue
+        if subcategory:
+            subs_by_cat[category].add(subcategory)
+    # Valores habituales al clasificar manualmente / fallback del categorizador
+    for label in ("Otro", "Otros", "otros"):
+        subs_by_cat.setdefault(label, set())
+    categories: List[str] = sorted(subs_by_cat.keys(), key=lambda x: (x.lower(), x))
+    subcategories_by_category = {c: sorted(subs_by_cat[c]) for c in categories}
+    return {
+        "categories": categories,
+        "subcategories_by_category": subcategories_by_category,
+    }
+
 
 def categorize_transaction(description: str, category_rules) -> Tuple[str, Optional[str]]:
     """Categoriza una transacción según las reglas definidas"""

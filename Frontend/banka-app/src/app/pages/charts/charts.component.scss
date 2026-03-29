@@ -242,21 +242,27 @@
   }
 }
 
-.charts-detail-back {
-  align-self: flex-start;
-  margin: 0 0 8px 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.charts-detail-toggle {
+  display: inline-flex;
+  gap: 6px;
+  margin: 0 0 10px 0;
+}
 
-  &:hover {
-    color: var(--color-text);
+.charts-detail-toggle-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+
+  &--active {
+    border-color: var(--color-text);
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-weight: 600;
   }
 }
 

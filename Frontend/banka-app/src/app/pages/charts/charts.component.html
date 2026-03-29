@@ -278,19 +278,61 @@
   @if (categoryDetailOpen) {
     <div class="charts-modal-overlay" (click)="closeCategoryDetail()"></div>
     <div class="charts-modal-popover" (click)="$event.stopPropagation()">
-      @if (categoryDetailSubDrillOpen) {
-        <button type="button" class="charts-detail-back" (click)="closeCategoryDetailSubDrill()">
-          ← Volver a evolución mensual
+      <h3 class="charts-modal-title">
+        Evolución mensual de {{ categoryDetailName }}
+      </h3>
+      <div class="charts-detail-toggle">
+        <button
+          type="button"
+          class="charts-detail-toggle-btn"
+          [class.charts-detail-toggle-btn--active]="categoryDetailViewMode === 'categoria'"
+          (click)="setCategoryDetailViewMode('categoria')"
+        >
+          Categoría
         </button>
-        <h3 class="charts-modal-title">
-          {{ categoryDetailName }} · Subcategorías ({{ categoryDetailSubDrillMonthLabel }})
-        </h3>
+        <button
+          type="button"
+          class="charts-detail-toggle-btn"
+          [class.charts-detail-toggle-btn--active]="categoryDetailViewMode === 'subcategoria'"
+          (click)="setCategoryDetailViewMode('subcategoria')"
+        >
+          Subcategoría
+        </button>
+      </div>
+
+      @if (categoryDetailViewMode === 'categoria') {
+        <p class="charts-modal-desc">
+          Total mensual y variación frente a su media mensual.
+        </p>
+        <div class="charts-modal-chart charts-bars-wrap">
+          @for (row of categoryDetailSeries; track row.monthKey) {
+            <div class="charts-bar-cell">
+              <span
+                class="charts-bar-vs-avg"
+                [class.charts-bar-vs-avg--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
+                [class.charts-bar-vs-avg--under]="(categoryDetailIsExpense && row.vsAvgPct < 0) || (!categoryDetailIsExpense && row.vsAvgPct > 0)"
+              >
+                {{ row.vsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.vsAvgPct) }}
+              </span>
+              <div class="charts-bar-outer">
+                <div
+                  class="charts-bar"
+                  [style.height.%]="row.heightPct"
+                  [class.charts-bar--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
+                ></div>
+              </div>
+              <span class="charts-bar-label">{{ row.monthLabel }}</span>
+              <span class="charts-bar-value">{{ formatAmount(row.total) }}</span>
+            </div>
+          }
+        </div>
+      } @else {
         <p class="charts-modal-desc charts-modal-desc--tight">
           Mes vs media por subcategoría. Sin transferencias; filtro 5.000 € si aplica.
         </p>
         @if (categoryDetailSubLineChart && categoryDetailSubLineChart.series.length > 0) {
           <div class="charts-sub-line-block">
-            <h4 class="charts-sub-line-title">Por mes (máx. 12 subcategorías del mes pulsado)</h4>
+            <h4 class="charts-sub-line-title">Por mes (top 12 subcategorías del período)</h4>
             <svg
               class="charts-sub-line-svg"
               [attr.viewBox]="subLineSvgViewBox()"
@@ -369,67 +411,9 @@
               }
             </div>
           </div>
-        }
-        @if (categoryDetailSubRows.length > 0) {
-          <div class="charts-modal-bars charts-modal-bars--detail-sub">
-            @for (sub of categoryDetailSubRows; track sub.subcategoria) {
-              <div class="charts-modal-bar-row charts-modal-bar-row--sub">
-                <span class="charts-modal-bar-label">{{ sub.subcategoria }}</span>
-                <span
-                  class="charts-sub-vs-avg"
-                  [class.charts-sub-vs-avg--over]="(categoryDetailIsExpense && sub.vsAvgPct > 0) || (!categoryDetailIsExpense && sub.vsAvgPct < 0)"
-                  [class.charts-sub-vs-avg--under]="(categoryDetailIsExpense && sub.vsAvgPct < 0) || (!categoryDetailIsExpense && sub.vsAvgPct > 0)"
-                >
-                  {{ sub.vsAvgPct > 0 ? '+' : '' }}{{ formatPercent(sub.vsAvgPct) }}
-                </span>
-                <div class="charts-modal-bar-track">
-                  <div
-                    class="charts-modal-bar-fill"
-                    [class.charts-modal-bar-fill--income]="!categoryDetailIsExpense"
-                    [style.width.%]="sub.heightPct"
-                  ></div>
-                </div>
-                <span class="charts-modal-bar-value">{{ formatAmount(sub.total) }}</span>
-              </div>
-            }
-          </div>
         } @else {
-          <p class="charts-modal-empty">No hay movimientos con subcategoría en ese mes.</p>
+          <p class="charts-modal-empty">No hay datos de subcategorías para el período.</p>
         }
-      } @else {
-        <h3 class="charts-modal-title">
-          Evolución mensual de {{ categoryDetailName }}
-        </h3>
-        <p class="charts-modal-desc">
-          Para cada mes se muestra el total de la categoría y su variación frente a la media
-          mensual de esa misma categoría. Pulsa una barra para ver el desglose por subcategorías.
-        </p>
-        <div class="charts-modal-chart charts-bars-wrap">
-          @for (row of categoryDetailSeries; track row.monthKey) {
-            <button
-              type="button"
-              class="charts-bar-cell charts-bar-cell--clickable"
-              (click)="openCategoryDetailSubDrill(row.monthKey, row.monthLabel)"
-            >
-              <span
-                class="charts-bar-vs-avg"
-                [class.charts-bar-vs-avg--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
-                [class.charts-bar-vs-avg--under]="(categoryDetailIsExpense && row.vsAvgPct < 0) || (!categoryDetailIsExpense && row.vsAvgPct > 0)"
-              >
-                {{ row.vsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.vsAvgPct) }}
-              </span>
-              <div class="charts-bar-outer">
-                <div
-                  class="charts-bar"
-                  [style.height.%]="row.heightPct"
-                  [class.charts-bar--over]="(categoryDetailIsExpense && row.vsAvgPct > 0) || (!categoryDetailIsExpense && row.vsAvgPct < 0)"
-                ></div>
-              </div>
-              <span class="charts-bar-label">{{ row.monthLabel }}</span>
-              <span class="charts-bar-value">{{ formatAmount(row.total) }}</span>
-            </button>
-          }
-        </div>
       }
       <div class="charts-modal-actions">
         <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="closeCategoryDetail()">

@@ -4,6 +4,13 @@ import { Observable, Subject } from 'rxjs';
 import { Transaction, TransactionResponse, TransactionQueryParams, BalancesResponse, AccountsResponse } from '../models/transaction.model';
 import { environment } from '../../environment';
 
+/** Respuesta de GET /GET/category-catalog (reglas del importador). */
+export interface CategoryCatalogResponse {
+  success: boolean;
+  categories: string[];
+  subcategories_by_category: Record<string, string[]>;
+}
+
 export interface UploadResponse {
   success: boolean;
   filename?: string;
@@ -23,6 +30,7 @@ export class TransactionService {
   private apiUrl = environment.apiUrl;
   private transactionsUrl = `${this.apiUrl}/GET/transactions`;
   private sharedTransactionsUrl = `${this.apiUrl}/GET/shared-transactions`;
+  private categoryCatalogUrl = `${this.apiUrl}/GET/category-catalog`;
   private balancesUrl = `${this.apiUrl}/GET/balances`;
    private accountsUrl = `${this.apiUrl}/GET/accounts`;
   private uploadUrl = `${this.apiUrl}/upload/Transactions`;
@@ -43,6 +51,13 @@ export class TransactionService {
 
   getBalances(): Observable<BalancesResponse> {
     return this.http.get<BalancesResponse>(this.balancesUrl);
+  }
+
+  /**
+   * Catálogo de categorías/subcategorías definidas en las reglas de importación (no depende de los datos del usuario).
+   */
+  getCategoryCatalog(): Observable<CategoryCatalogResponse> {
+    return this.http.get<CategoryCatalogResponse>(this.categoryCatalogUrl);
   }
 
   /**

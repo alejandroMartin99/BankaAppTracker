@@ -22,6 +22,18 @@ function makeSubKey(cat: string, sub: string): string {
   return `${cat || 'Sin categoría'}::${sub || 'Sin subcategoría'}`;
 }
 
+/** Une listas de categorías sin duplicar por mayúsculas/minúsculas; orden es-ES. */
+function mergeUniqueSortedCategories(fromTx: string[], fromCatalog: string[]): string[] {
+  const keyToCanon = new Map<string, string>();
+  for (const x of [...fromTx, ...fromCatalog]) {
+    const t = (x || '').trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (!keyToCanon.has(k)) keyToCanon.set(k, t);
+  }
+  return Array.from(keyToCanon.values()).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+}
+
 /** Valor especial en el desplegable para "añadir subcategoría manualmente" */
 const ADD_NEW_SUBCATEGORY = '__ADD_NEW__';
 
@@ -62,6 +74,10 @@ export class AjustesComponent implements OnInit {
   lastSavedId: number | null = null;
   lastSaveMessage: string | null = null;
 
+  /** Catálogo desde reglas del backend (además de categorías vistas en transacciones). */
+  catalogCategories: string[] = [];
+  catalogSubByCategory: Record<string, string[]> = {};
+
   /** texto de búsqueda para el editor general */
   searchText = '';
 
@@ -87,7 +103,65 @@ export class AjustesComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadCategoryCatalog();
     this.loadTransactions();
+  }
+
+  private loadCategoryCatalog(): void {
+    this.transactionService.getCategoryCatalog().subscribe({
+      next: (res) => {
+        if (res?.success && Array.isArray(res.categories)) {
+          this.catalogCategories = res.categories;
+          this.catalogSubByCategory = res.subcategories_by_category || {};
+        } else {
+          this.catalogCategories = [];
+          this.catalogSubByCategory = {};
+        }
+        this.reconcileDraftSubcategories();
+      },
+      error: (err) => {
+        console.warn('[Ajustes] category catalog unavailable', err);
+        this.catalogCategories = [];
+        this.catalogSubByCategory = {};
+      }
+    });
+  }
+
+  /** Coincidencia de nombre de categoría con las claves del catálogo (case-insensitive). */
+  private findCatalogCategoryKey(cat: string): string | null {
+    const c = (cat || '').trim();
+    if (!c) return null;
+    if (this.catalogSubByCategory[c]) return c;
+    const lower = c.toLowerCase();
+    for (const k of Object.keys(this.catalogSubByCategory)) {
+      if (k.toLowerCase() === lower) return k;
+    }
+    return null;
+  }
+
+  private getCatalogSubsForCategory(cat: string): string[] {
+    const key = this.findCatalogCategoryKey(cat);
+    if (!key) return [];
+    return this.catalogSubByCategory[key] || [];
+  }
+
+  /**
+   * Si el catálogo llega después de las transacciones, pasa de "Añadir nueva" a opción de lista cuando aplique.
+   */
+  private reconcileDraftSubcategories(): void {
+    for (const t of this.transactions) {
+      if (t.id == null) continue;
+      const key = String(t.id);
+      const cat = (this.draftCategoria[key] ?? t.categoria ?? '').toString().trim();
+      const subList = this.getSubcategoriesFor(cat);
+      if (this.draftSubcategoria[key] === ADD_NEW_SUBCATEGORY) {
+        const custom = (this.draftSubcategoriaCustom[key] || '').toString().trim();
+        if (custom && subList.includes(custom)) {
+          this.draftSubcategoria[key] = custom;
+          delete this.draftSubcategoriaCustom[key];
+        }
+      }
+    }
   }
 
   getIconInfo(t: Transaction) {
@@ -159,6 +233,7 @@ export class AjustesComponent implements OnInit {
             }
           }
         }
+        this.reconcileDraftSubcategories();
         this.loading = false;
         this.showLoader = false;
       },
@@ -172,12 +247,16 @@ export class AjustesComponent implements OnInit {
   }
 
   get allCategories(): string[] {
-    const set = new Set<string>();
+    const fromTx: string[] = [];
+    const seen = new Set<string>();
     for (const t of this.transactions) {
       const c = (t.categoria || '').toString().trim();
-      if (c) set.add(c);
+      if (c && !seen.has(c.toLowerCase())) {
+        seen.add(c.toLowerCase());
+        fromTx.push(c);
+      }
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return mergeUniqueSortedCategories(fromTx, this.catalogCategories);
   }
 
   get filteredTransactions(): Transaction[] {
@@ -243,11 +322,14 @@ export class AjustesComponent implements OnInit {
     const set = new Set<string>();
     for (const t of this.transactions) {
       const c = (t.categoria || '').toString().trim();
-      if (c !== key) continue;
+      if (c.toLowerCase() !== key.toLowerCase()) continue;
       const s = (t.subcategoria || '').toString().trim();
       if (s) set.add(s);
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    for (const s of this.getCatalogSubsForCategory(key)) {
+      set.add(s);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   }
 
   /** Subcategoría efectiva: la del desplegable o la escrita en "Añadir nueva" */
