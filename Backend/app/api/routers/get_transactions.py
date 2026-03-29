@@ -1,3 +1,4 @@
+from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
@@ -54,15 +55,43 @@ def _fetch_for_balances(account_ids: list[str]) -> list:
     return data
 
 
+def _merge_category_catalogs(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+    """Une dos catálogos {categories, subcategories_by_category} sin duplicar por nombre."""
+    merged: Dict[str, set] = defaultdict(set)
+    for part in (a, b):
+        for c in part.get("categories") or []:
+            c = (c or "").strip()
+            if c:
+                merged.setdefault(c, set())
+        for cat, subs in (part.get("subcategories_by_category") or {}).items():
+            cat = (cat or "").strip()
+            if not cat:
+                continue
+            merged.setdefault(cat, set())
+            for s in subs or []:
+                s = (s or "").strip()
+                if s:
+                    merged[cat].add(s)
+    categories = sorted(merged.keys(), key=lambda x: (x.lower(), x))
+    return {
+        "categories": categories,
+        "subcategories_by_category": {c: sorted(merged[c]) for c in categories},
+    }
+
+
 @router.get(
     "/category-catalog",
-    summary="Catálogo de categorías/subcategorías (reglas del importador)",
+    summary="Catálogo de categorías/subcategorías (BD + reglas del importador)",
     response_model=Dict[str, Any],
 )
-async def get_category_catalog(_user: dict = Depends(get_current_user)) -> Dict[str, Any]:
-    """Categorías deducidas de CATEGORY_RULES; no depende de la base de datos."""
+async def get_category_catalog(user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+    """Unión de valores distintos en tus transacciones (Supabase) y de CATEGORY_RULES."""
     try:
-        data = get_category_catalog_from_rules()
+        rules = get_category_catalog_from_rules()
+        if not supabase_service.is_connected():
+            return {"success": True, **rules}
+        db_cat = supabase_service.get_category_catalog_from_user_transactions(user.get("sub", ""))
+        data = _merge_category_catalogs(db_cat, rules)
         return {"success": True, **data}
     except Exception as e:
         raise internal_server_error(e, "get_category_catalog")

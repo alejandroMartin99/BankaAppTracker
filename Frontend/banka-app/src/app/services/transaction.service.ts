@@ -4,7 +4,7 @@ import { Observable, Subject } from 'rxjs';
 import { Transaction, TransactionResponse, TransactionQueryParams, BalancesResponse, AccountsResponse } from '../models/transaction.model';
 import { environment } from '../../environment';
 
-/** Respuesta de GET /GET/category-catalog (reglas del importador). */
+/** Respuesta de GET /GET/category-catalog (transacciones del usuario en BD + reglas del importador). */
 export interface CategoryCatalogResponse {
   success: boolean;
   categories: string[];
@@ -54,7 +54,7 @@ export class TransactionService {
   }
 
   /**
-   * Catálogo de categorías/subcategorías definidas en las reglas de importación (no depende de los datos del usuario).
+   * Catálogo para desplegables: valores distintos en tus transacciones (Supabase) unidos a las reglas del importador.
    */
   getCategoryCatalog(): Observable<CategoryCatalogResponse> {
     return this.http.get<CategoryCatalogResponse>(this.categoryCatalogUrl);

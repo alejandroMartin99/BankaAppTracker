@@ -3,6 +3,7 @@ Supabase Service - Conexión y operaciones sobre cuentas y transacciones.
 """
 
 import uuid
+from collections import defaultdict
 from typing import Optional, List, Dict, Any, Set
 from supabase import create_client, Client
 from app.core.config import settings
@@ -152,6 +153,54 @@ class SupabaseService:
             }
         except Exception:
             return {}
+
+    def get_category_catalog_from_user_transactions(self, user_id: str) -> Dict[str, Any]:
+        """
+        Categorías y subcategorías distintas presentes en transacciones de las cuentas del usuario.
+        Paginado para cubrir más allá del límite por petición de PostgREST.
+        """
+        if not self.supabase:
+            return {"categories": [], "subcategories_by_category": {}}
+        account_ids = self.get_user_account_ids(user_id)
+        if not account_ids:
+            return {"categories": [], "subcategories_by_category": {}}
+        subs_by_cat: Dict[str, Set[str]] = defaultdict(set)
+        offset = 0
+        batch = 1000
+        while True:
+            try:
+                r = (
+                    self.supabase.table("transactions")
+                    .select("categoria, subcategoria")
+                    .in_("account_id", account_ids)
+                    .order("id")
+                    .range(offset, offset + batch - 1)
+                    .execute()
+                )
+            except Exception:
+                break
+            rows = r.data or []
+            for row in rows:
+                raw_c = row.get("categoria")
+                raw_s = row.get("subcategoria")
+                cat = str(raw_c).strip() if raw_c is not None else ""
+                sub = str(raw_s).strip() if raw_s is not None else ""
+                if not cat:
+                    continue
+                if sub:
+                    subs_by_cat[cat].add(sub)
+                else:
+                    subs_by_cat.setdefault(cat, set())
+            if len(rows) < batch:
+                break
+            offset += batch
+            if offset > 500_000:
+                break
+        categories = sorted(subs_by_cat.keys(), key=lambda x: (x.lower(), x))
+        return {
+            "categories": categories,
+            "subcategories_by_category": {c: sorted(subs_by_cat[c]) for c in categories},
+        }
 
     def get_existing_transaction_ids(self, transaction_ids: List[str]) -> Set[str]:
         if not self.supabase or not transaction_ids:
