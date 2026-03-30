@@ -11,6 +11,11 @@ export interface CategoryCatalogResponse {
   subcategories_by_category: Record<string, string[]>;
 }
 
+export interface SharedTransactionsResponse extends TransactionResponse {
+  shared_with_user_name?: string | null;
+  shared_balances_enabled?: boolean;
+}
+
 export interface UploadResponse {
   success: boolean;
   filename?: string;
@@ -119,11 +124,19 @@ export class TransactionService {
    * Transacciones para análisis de gastos compartidos: propias + de usuarios que comparten alguna cuenta.
    * Cada item incluye is_own_account.
    */
-  getSharedTransactions(params?: { from_date?: string; to_date?: string }): Observable<TransactionResponse> {
+  getSharedTransactions(params?: { from_date?: string; to_date?: string }): Observable<SharedTransactionsResponse> {
     let httpParams = new HttpParams();
     if (params?.from_date) httpParams = httpParams.set('from_date', params.from_date);
     if (params?.to_date) httpParams = httpParams.set('to_date', params.to_date);
-    return this.http.get<TransactionResponse>(this.sharedTransactionsUrl, { params: httpParams });
+    return this.http.get<SharedTransactionsResponse>(this.sharedTransactionsUrl, { params: httpParams });
+  }
+
+  /** Activa/desactiva la inclusión de saldos de usuarios vinculados en Compartidos. */
+  updateSharedConsent(enabled: boolean): Observable<{ success: boolean; shared_balances_enabled: boolean }> {
+    return this.http.patch<{ success: boolean; shared_balances_enabled: boolean }>(
+      `${this.apiUrl}/GET/shared-consent`,
+      { enabled }
+    );
   }
 
   /**

@@ -57,6 +57,12 @@
   }
 
   @if (!loading && !error && displayedTransactions.length > 0) {
+    @if (sharedWithUserName) {
+      <div class="shared-user-banner">
+        <span class="shared-user-banner-label">Cuenta compartida detectada con</span>
+        <strong class="shared-user-banner-name">{{ sharedWithUserName }}</strong>
+      </div>
+    }
     <!-- Totales (estilo Resumen) -->
     <section class="totals-section">
       <div class="totals-row">
@@ -76,7 +82,14 @@
         <span class="totals-value">{{ totalOther | number:'1.2-2':'es' }} €</span>
       </div>
       <p class="totals-privacy-note">
-        Solo se muestran cuentas vinculadas a tu usuario. Los gastos personales del otro no se incluyen por privacidad.
+        {{ sharedBalancesEnabled
+          ? 'Se incluyen cuentas vinculadas a usuarios que comparten cuenta contigo.'
+          : 'La vinculación de saldos está desactivada: solo ves tus propios movimientos.' }}
+      </p>
+      <p class="totals-privacy-note">
+        <button type="button" class="manage-link" (click)="openManageAccountsModal()">
+          Gestionar o desvincular cuentas
+        </button>
       </p>
       <div class="totals-row totals-row--balance">
         <span class="totals-label">Saldo 50/50 (sin Conjunta)</span>
@@ -89,6 +102,49 @@
         }
       </div>
     </section>
+
+    @if (showManageAccountsModal) {
+      <div class="modal-overlay" (click)="closeManageAccountsModal()"></div>
+      <section class="manage-modal" role="dialog" aria-modal="true" aria-label="Gestionar cuentas compartidas">
+        <h3 class="manage-modal-title">Privacidad de saldos compartidos</h3>
+        <p class="manage-modal-text">
+          Elige si quieres mostrar en esta pantalla los importes pagados por la otra persona en cuentas vinculadas.
+        </p>
+        <p class="manage-modal-text">
+          <strong>Privacidad:</strong> en esta vista solo se muestran totales/saldos de movimientos asignados a
+          <strong>Gimnasio</strong> y <strong>Suministros</strong>. En ningún caso la otra parte podrá acceder al resto
+          de tus movimientos o categorías personales.
+        </p>
+        <p class="manage-modal-text">
+          Persona vinculada:
+          <strong>{{ sharedWithUserName || 'Usuario vinculado' }}</strong>
+        </p>
+        <p class="manage-modal-text">
+          Cuentas detectadas:
+          @if (linkedAccountNames.length > 0) {
+            <strong>{{ linkedAccountNames.join(', ') }}</strong>
+          } @else {
+            <strong>Sin cuentas de la otra parte en el periodo seleccionado</strong>
+          }
+        </p>
+        <p class="manage-modal-status">
+          Estado actual
+          <strong>{{ sharedBalancesEnabled ? 'Vinculación aceptada' : 'Vinculación desactivada' }}</strong>
+        </p>
+        @if (sharedConsentError) {
+          <p class="manage-modal-error">{{ sharedConsentError }}</p>
+        }
+        <div class="manage-modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeManageAccountsModal()" [disabled]="savingSharedConsent">Cancelar</button>
+          <button type="button" class="btn-ghost" (click)="saveSharedConsent(false)" [disabled]="savingSharedConsent">
+            No mostrar lo de la otra parte
+          </button>
+          <button type="button" class="btn-apply" (click)="saveSharedConsent(true)" [disabled]="savingSharedConsent">
+            {{ savingSharedConsent ? 'Guardando...' : 'Mostrar saldos compartidos' }}
+          </button>
+        </div>
+      </section>
+    }
 
     <!-- Gastos por mes, categoría y subcategoría (solo en Compartidos) -->
     <section class="content-section">

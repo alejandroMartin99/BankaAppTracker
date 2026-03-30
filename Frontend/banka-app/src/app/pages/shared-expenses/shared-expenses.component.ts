@@ -55,6 +55,7 @@ function makeSubKey(monthKey: string, cat: string, sub: string): string {
 })
 export class SharedExpensesComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
+  sharedWithUserName: string | null = null;
   loading = false;
   error: string | null = null;
   showLoader = false;
@@ -65,6 +66,10 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   customFrom = '';
   customTo = '';
   showCalendar = false;
+  showManageAccountsModal = false;
+  sharedBalancesEnabled = false;
+  savingSharedConsent = false;
+  sharedConsentError: string | null = null;
   expandedMonthKey: string | null = null;
   expandedCategoryKey: string | null = null;
   expandedSubcategoryKey: string | null = null;
@@ -123,6 +128,9 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
         }));
         this.ngZone.run(() => {
           this.transactions = mapped;
+          this.sharedWithUserName = ((res as any)?.shared_with_user_name || '').toString().trim() || null;
+          this.sharedBalancesEnabled = !!(res as any)?.shared_balances_enabled;
+          this.sharedConsentError = null;
           this.loading = false;
           this.showLoader = false;
           this.cdr.detectChanges();
@@ -131,6 +139,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('[SharedExpenses] error:', err);
         this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
+        this.sharedWithUserName = null;
         this.loading = false;
         this.showLoader = false;
       }
@@ -221,6 +230,17 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Nombres de cuentas detectadas de la otra parte en este periodo. */
+  get linkedAccountNames(): string[] {
+    const names = new Set<string>();
+    for (const t of this.filteredForSummary) {
+      if (t.is_own_account) continue;
+      const n = (t.cuenta || '').toString().trim();
+      if (n) names.add(n);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }
+
   get displayedTransactions(): Transaction[] {
     return this.filteredForSummary;
   }
@@ -302,7 +322,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
       .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
   }
 
-  /** Total que ha pagado la otra persona */
+  /** Total que ha pagado la otra parte (datos reales recibidos del backend). */
   get totalOther(): number {
     return this.filteredForSummary
       .filter(t => !t.is_own_account)
@@ -349,8 +369,6 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     const other = this.totalOtherNoConjunta;
     const total = mine + other;
     if (total === 0) return 0;
-    // Sin visibilidad de cuentas personales del otro (privacidad), no hay reparto 50/50 fiable
-    if (other === 0) return 0;
     const idealPorPersona = total / 2;
     return +(mine - idealPorPersona).toFixed(2);
   }
@@ -392,5 +410,31 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   retry() {
     this.loadTransactions();
+  }
+
+  openManageAccountsModal(): void {
+    this.sharedConsentError = null;
+    this.showManageAccountsModal = true;
+  }
+
+  closeManageAccountsModal(): void {
+    this.showManageAccountsModal = false;
+  }
+
+  saveSharedConsent(enabled: boolean): void {
+    this.savingSharedConsent = true;
+    this.sharedConsentError = null;
+    this.transactionService.updateSharedConsent(enabled).subscribe({
+      next: (res) => {
+        this.sharedBalancesEnabled = !!res?.shared_balances_enabled;
+        this.savingSharedConsent = false;
+        this.closeManageAccountsModal();
+        this.loadTransactions();
+      },
+      error: (err) => {
+        this.sharedConsentError = err?.error?.detail || 'No se pudo guardar la vinculación';
+        this.savingSharedConsent = false;
+      }
+    });
   }
 }

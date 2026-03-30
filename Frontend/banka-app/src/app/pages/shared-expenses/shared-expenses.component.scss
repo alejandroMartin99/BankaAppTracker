@@ -143,6 +143,119 @@
   color: var(--color-text-muted);
 }
 
+.shared-user-banner {
+  margin: 0 0 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shared-user-banner-label {
+  font-size: 11px;
+  color: #3730a3;
+}
+
+.shared-user-banner-name {
+  font-size: 13px;
+  color: #1e1b4b;
+}
+
+.manage-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-text);
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 120;
+}
+
+.manage-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 121;
+  width: min(92vw, 400px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
+}
+
+.manage-modal-title {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.manage-modal-text {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.manage-modal-status {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.manage-modal-error {
+  margin: -6px 0 12px 0;
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.manage-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.manage-modal-actions .btn-cancel,
+.manage-modal-actions .btn-ghost,
+.manage-modal-actions .btn-apply {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 8px;
+  min-height: 30px;
+}
+
+.manage-modal-actions .btn-ghost {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.manage-modal-actions .btn-apply {
+  border: 1px solid var(--color-text);
+}
+
+.manage-modal-actions button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .totals-row {
   display: flex;
   justify-content: space-between;

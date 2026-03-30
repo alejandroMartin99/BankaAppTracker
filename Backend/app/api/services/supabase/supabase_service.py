@@ -120,6 +120,95 @@ class SupabaseService:
         except Exception:
             return []
 
+    def get_user_display_name(self, user_id: str) -> str:
+        """
+        Intenta resolver el nombre visible de un usuario.
+        Orden: public.profiles -> auth.users metadata/email -> id abreviado.
+        """
+        if not self.supabase:
+            return str(user_id)[:8]
+        uid = _uuid_str(user_id)
+        # 1) Tabla pública opcional `profiles`
+        try:
+            r = (
+                self.supabase.table("profiles")
+                .select("full_name, first_name, last_name, display_name, name, email")
+                .eq("id", uid)
+                .limit(1)
+                .execute()
+            )
+            if r.data:
+                row = r.data[0]
+                first = str(row.get("first_name") or "").strip()
+                last = str(row.get("last_name") or "").strip()
+                if first and last:
+                    return f"{first} {last}"
+                for key in ("display_name", "full_name", "name"):
+                    v = str(row.get(key) or "").strip()
+                    if v:
+                        return v
+                email = str(row.get("email") or "").strip()
+                if email and "@" in email:
+                    return email.split("@")[0]
+        except Exception:
+            pass
+        # 2) auth.users (requiere service role y permisos)
+        try:
+            r = (
+                self.supabase.schema("auth")
+                .table("users")
+                .select("email, raw_user_meta_data")
+                .eq("id", uid)
+                .limit(1)
+                .execute()
+            )
+            if r.data:
+                row = r.data[0]
+                meta = row.get("raw_user_meta_data") or {}
+                first = str(meta.get("first_name") or meta.get("given_name") or "").strip()
+                last = str(
+                    meta.get("last_name")
+                    or meta.get("family_name")
+                    or meta.get("surnames")
+                    or ""
+                ).strip()
+                if first and last:
+                    return f"{first} {last}"
+                for key in ("display_name", "full_name", "name", "user_name"):
+                    v = str(meta.get(key) or "").strip()
+                    if v:
+                        return v
+                email = str(row.get("email") or "").strip()
+                if email and "@" in email:
+                    return email.split("@")[0]
+        except Exception:
+            pass
+        # 3) Admin API de Auth (service role): suele exponer metadata/email sin depender de PostgREST en schema auth
+        try:
+            admin_res = self.supabase.auth.admin.get_user_by_id(uid)
+            user = getattr(admin_res, "user", None)
+            if user:
+                meta = getattr(user, "user_metadata", None) or {}
+                first = str(meta.get("first_name") or meta.get("given_name") or "").strip()
+                last = str(
+                    meta.get("last_name")
+                    or meta.get("family_name")
+                    or meta.get("surnames")
+                    or ""
+                ).strip()
+                if first and last:
+                    return f"{first} {last}"
+                for key in ("display_name", "full_name", "name", "user_name"):
+                    v = str(meta.get(key) or "").strip()
+                    if v:
+                        return v
+                email = str(getattr(user, "email", "") or "").strip()
+                if email and "@" in email:
+                    return email.split("@")[0]
+        except Exception:
+            pass
+        return uid[:8]
+
     def get_account_ids_for_users(self, user_ids: List[str]) -> List[str]:
         """Devuelve todos los account_id de los usuarios indicados."""
         if not self.supabase or not user_ids:
