@@ -363,10 +363,10 @@ export class LayoutComponent {
     });
   }
 
-  async logout() {
+  logout() {
     this.closeProfileMenu();
-    await this.auth.signOut();
-    this.router.navigateByUrl('/login');
+    this.auth.signOut();
+    void this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 
   onFileSelected(event: Event) {

@@ -104,13 +104,22 @@ export class AuthService {
     return { error };
   }
 
-  async signOut(): Promise<void> {
-    this.session.set(null); // Limpiar de inmediato para que isAuthenticated() sea false antes de navegar
-    await this.supabase.auth.signOut();
+  /**
+   * Cierra sesión en la UI de inmediato y limpia Supabase en segundo plano.
+   * No espera al servidor: `signOut()` global puede bloquearse por red y dejar la app en limbo.
+   */
+  signOut(): void {
+    this.session.set(null);
+    void this.supabase.auth.signOut({ scope: 'local' }).catch(() => {
+      void this.supabase.auth.signOut();
+    });
   }
 
   /** Obtiene el token actual (refresca la sesión si es necesario). Útil para el interceptor. */
   async getAccessToken(): Promise<string | null> {
+    if (!this.session()) {
+      return null;
+    }
     const { data: { session } } = await this.supabase.auth.getSession();
     return session?.access_token ?? null;
   }
