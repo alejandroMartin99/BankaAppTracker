@@ -92,74 +92,78 @@
                         @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria)) {
                           <div class="category-detail ajustes-detail">
                             @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
-                              <div class="tx-row tx-row-nested">
-                                <div class="tx-main">
-                                  <div class="tx-text">
-                                    <div class="tx-line">
-                                      <div class="tx-line-main">
-                                        <span class="tx-desc">{{ tx.descripcion || '—' }}</span>
-                                        @if (tx.cuenta) {
-                                          <span class="tx-cuenta-badge" [ngStyle]="getAccountColorStyle(tx.cuenta)">
-                                            {{ getAccountLabelShort(tx.cuenta) }}
-                                          </span>
-                                        }
-                                        <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                                      </div>
-                                      <span class="tx-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                                    </div>
-                                    <div class="tx-meta">
-                                      <div class="tx-meta-left"></div>
-                                      <div class="tx-meta-right">
-                                        <button
-                                          type="button"
-                                          class="btn-edit-details"
-                                          (click)="openEditModal(tx); $event.stopPropagation()"
-                                          aria-label="Editar detalles del movimiento"
-                                        >
-                                          Editar
-                                        </button>
-                                        <div class="tx-fields-inline">
-                                          <select [(ngModel)]="draftCategoria[tx.id!]">
-                                            <option [ngValue]="''">Sin categoría</option>
-                                            @for (catOpt of allCategories; track catOpt) {
-                                              <option [ngValue]="catOpt">{{ catOpt }}</option>
-                                            }
-                                          </select>
-                                          <select [(ngModel)]="draftSubcategoria[tx.id!]">
-                                            <option [ngValue]="''">Sin subcategoría</option>
-                                            @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
-                                              <option [ngValue]="subOpt">{{ subOpt }}</option>
-                                            }
-                                            <option [ngValue]="addNewSubcategoryValue">➕ Añadir nueva...</option>
-                                          </select>
-                                          @if (draftSubcategoria[tx.id!] === addNewSubcategoryValue) {
-                                            <input
-                                              type="text"
-                                              class="subcategory-custom-input"
-                                              [(ngModel)]="draftSubcategoriaCustom[tx.id!]"
-                                              placeholder="Escribe la subcategoría"
-                                            />
-                                          }
-                                        </div>
-                                        <button
-                                          type="button"
-                                          class="btn-save"
-                                          [disabled]="!hasDraftChanges(tx) || isSaving(tx)"
-                                          (click)="openConfirmSave(tx)"
-                                          aria-label="Guardar cambios de categoría"
-                                        >
-                                          <span class="btn-save-icon">
-                                            {{ isSaving(tx) ? '✔' : '✓' }}
-                                          </span>
-                                        </button>
-                                      </div>
+                              <article class="tx-editor-card">
+                                <div class="tx-editor-top">
+                                  <div class="tx-editor-main">
+                                    <span class="tx-editor-desc">{{ tx.descripcion || '—' }}</span>
+                                    <div class="tx-editor-meta">
+                                      @if (tx.cuenta) {
+                                        <span class="tx-cuenta-badge" [ngStyle]="getAccountColorStyle(tx.cuenta)">
+                                          {{ getAccountLabelShort(tx.cuenta) }}
+                                        </span>
+                                      }
+                                      <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
                                     </div>
                                   </div>
+                                  <span class="tx-editor-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
                                 </div>
-                                @if (lastSavedId === tx.id && lastSaveMessage) {
-                                  <div class="tx-save-line">{{ lastSaveMessage }}</div>
+
+                                <div class="tx-editor-controls">
+                                  <label class="tx-editor-field">
+                                    <span>Categoría</span>
+                                    <select [(ngModel)]="draftCategoria[tx.id!]">
+                                      <option [ngValue]="''">Sin categoría</option>
+                                      @for (catOpt of allCategories; track catOpt) {
+                                        <option [ngValue]="catOpt">{{ catOpt }}</option>
+                                      }
+                                    </select>
+                                  </label>
+
+                                  <label class="tx-editor-field">
+                                    <span>Subcategoría</span>
+                                    <select [(ngModel)]="draftSubcategoria[tx.id!]">
+                                      <option [ngValue]="''">Sin subcategoría</option>
+                                      @for (subOpt of getSubcategoriesFor(draftCategoria[tx.id!] || tx.categoria || ''); track subOpt) {
+                                        <option [ngValue]="subOpt">{{ subOpt }}</option>
+                                      }
+                                      <option [ngValue]="addNewSubcategoryValue">Añadir nueva...</option>
+                                    </select>
+                                  </label>
+                                </div>
+
+                                @if (draftSubcategoria[tx.id!] === addNewSubcategoryValue) {
+                                  <input
+                                    type="text"
+                                    class="tx-editor-custom"
+                                    [(ngModel)]="draftSubcategoriaCustom[tx.id!]"
+                                    placeholder="Escribe la subcategoría"
+                                  />
                                 }
-                              </div>
+
+                                <div class="tx-editor-actions">
+                                  <button
+                                    type="button"
+                                    class="btn-edit-details"
+                                    (click)="openEditModal(tx); $event.stopPropagation()"
+                                    aria-label="Editar detalles del movimiento"
+                                  >
+                                    Editar detalles
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="tx-editor-save"
+                                    [disabled]="!hasDraftChanges(tx) || isSaving(tx)"
+                                    (click)="openConfirmSave(tx)"
+                                    aria-label="Guardar cambios de categoría"
+                                  >
+                                    {{ isSaving(tx) ? 'Guardando...' : 'Guardar cambios' }}
+                                  </button>
+                                </div>
+
+                                @if (lastSavedId === tx.id && lastSaveMessage) {
+                                  <div class="tx-editor-status">{{ lastSaveMessage }}</div>
+                                }
+                              </article>
                             }
                           </div>
                         }
