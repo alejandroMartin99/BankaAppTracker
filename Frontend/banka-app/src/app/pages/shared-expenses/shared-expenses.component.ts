@@ -32,6 +32,22 @@ interface MonthSummary {
   categories: CategorySummary[];
 }
 
+interface SubcategoryInsight {
+  name: string;
+  total: number;
+  mine: number;
+  other: number;
+  joint: number;
+  txCount: number;
+}
+
+interface SubBreakdown {
+  mine: number;
+  other: number;
+  joint: number;
+  total: number;
+}
+
 function makeCatKey(monthKey: string, cat: string): string {
   return `${monthKey}::${cat || 'Sin categoría'}`;
 }
@@ -371,6 +387,100 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     if (total === 0) return 0;
     const idealPorPersona = total / 2;
     return +(mine - idealPorPersona).toFixed(2);
+  }
+
+  private getSubcategoryName(t: Transaction): string {
+    const cat = (t.categoria || '').toString().trim() || 'Sin categoría';
+    const sub = (t.subcategoria || '').toString().trim();
+    const subLabel = sub || 'Sin subcategoría';
+    return `${cat} · ${subLabel}`;
+  }
+
+  getSubLabelOnly(fullLabel: string): string {
+    const i = (fullLabel || '').indexOf(' · ');
+    return i >= 0 ? fullLabel.slice(i + 3) : fullLabel;
+  }
+
+  /** Ranking de subcategorías con desglose por quién paga. */
+  get subcategoryInsights(): SubcategoryInsight[] {
+    const bySub = new Map<string, SubcategoryInsight>();
+    for (const t of this.filteredForSummary) {
+      const sub = this.getSubcategoryName(t);
+      if (!bySub.has(sub)) {
+        bySub.set(sub, { name: sub, total: 0, mine: 0, other: 0, joint: 0, txCount: 0 });
+      }
+      const row = bySub.get(sub)!;
+      const amount = Math.abs(t.importe ?? 0);
+      const isJoint = (t.cuenta || '').toLowerCase() === 'conjunta';
+      row.total += amount;
+      row.txCount += 1;
+      if (isJoint) row.joint += amount;
+      else if (t.is_own_account) row.mine += amount;
+      else row.other += amount;
+    }
+    return Array.from(bySub.values()).sort((a, b) => b.total - a.total);
+  }
+
+  get topSubcategoryInsights(): SubcategoryInsight[] {
+    return this.subcategoryInsights.slice(0, 5);
+  }
+
+  get topSubcategoryNames(): string[] {
+    const globalTop = this.topSubcategoryInsights.map(x => x.name);
+    const otherTop = this.subcategoryInsights
+      .filter(x => x.other > 0)
+      .sort((a, b) => b.other - a.other)
+      .slice(0, 3)
+      .map(x => x.name);
+    return Array.from(new Set([...globalTop, ...otherTop])).slice(0, 7);
+  }
+
+  get topSubcategoryMax(): number {
+    const byName = new Map(this.subcategoryInsights.map(x => [x.name, x.total]));
+    return this.topSubcategoryNames.reduce((m, name) => Math.max(m, byName.get(name) || 0), 0);
+  }
+
+  getMonthSubBreakdown(monthKey: string, subName: string): SubBreakdown {
+    let mine = 0;
+    let other = 0;
+    let joint = 0;
+    for (const t of this.filteredForSummary) {
+      const d = new Date(t.dt_date || '');
+      if (isNaN(d.getTime())) continue;
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (mk !== monthKey) continue;
+      if (this.getSubcategoryName(t) !== subName) continue;
+      const amount = Math.abs(t.importe ?? 0);
+      if ((t.cuenta || '').toLowerCase() === 'conjunta') joint += amount;
+      else if (t.is_own_account) mine += amount;
+      else other += amount;
+    }
+    return { mine, other, joint, total: mine + other + joint };
+  }
+
+  /** Últimos meses para gráfica comparativa (cronológico ascendente). */
+  get chartMonths(): MonthSummary[] {
+    return [...this.monthsSummary].slice(0, 6).reverse();
+  }
+
+  /** Máximo valor para escalar barras de la comparativa mensual. */
+  get chartMaxValue(): number {
+    let max = 0;
+    for (const m of this.chartMonths) {
+      max = Math.max(max, m.totalMine, m.totalOther, m.totalJoint);
+    }
+    return max;
+  }
+
+  getBarWidth(value: number, maxValue: number): string {
+    if (!value || maxValue <= 0) return '0%';
+    return `${(value / maxValue) * 100}%`;
+  }
+
+  getMonthSettlement(m: MonthSummary): number {
+    const total = (m.totalMine || 0) + (m.totalOther || 0);
+    if (total === 0) return 0;
+    return +((m.totalMine || 0) - total / 2).toFixed(2);
   }
 
   getAccountLabelShort(cuenta?: string): string {

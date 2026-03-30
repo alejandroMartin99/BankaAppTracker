@@ -146,96 +146,47 @@
       </section>
     }
 
-    <!-- Gastos por mes, categoría y subcategoría (solo en Compartidos) -->
-    <section class="content-section">
-      <h2 class="section-title">Gastos por mes, categoría y subcategoría</h2>
-      <p class="section-desc">Primer nivel: mes; dentro, categoría y subcategoría (Suministros y Gimnasio).</p>
-
-      <div class="month-list">
-        @for (month of monthsSummary; track month.monthKey) {
-          <div class="month-card" [class.expanded]="isMonthExpanded(month.monthKey)">
-            <button
-              type="button"
-              class="month-header"
-              (click)="toggleMonth(month.monthKey)"
-            >
-              <div class="month-header-main">
-                <span class="month-title">{{ month.label | titlecase }}</span>
-                <span class="month-total">{{ month.total | number:'1.2-2':'es' }} €</span>
+    <section class="chart-section">
+      <h2 class="section-title">Insights por subcategoría</h2>
+      <p class="section-desc">Evolución mensual por subcategoría top con desglose de quién paga.</p>
+      <div class="owner-legend">
+        <span><i class="dot dot-mine"></i>Tú</span>
+        <span><i class="dot dot-other"></i>Otra parte</span>
+        <span><i class="dot dot-joint"></i>Conjunta</span>
+      </div>
+      <div class="bar-chart">
+        @for (m of chartMonths; track m.monthKey) {
+          <div class="month-sub-row">
+            <div class="month-head">
+              <div class="bar-label">{{ m.label | titlecase }}</div>
+              <div class="month-balance">
+                <span>Tú {{ m.totalMine | number:'1.0-0':'es' }}€</span>
+                <span>Otra {{ m.totalOther | number:'1.0-0':'es' }}€</span>
+              @if (getMonthSettlement(m) > 0) {
+                <strong class="positive">+{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
+              } @else if (getMonthSettlement(m) < 0) {
+                <strong class="negative">{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
+              } @else {
+                <strong>0€</strong>
+              }
               </div>
-              <div class="month-header-breakdown">
-                <span>Conjunta: {{ month.totalJoint | number:'1.2-2':'es' }} €</span>
-                <span>Tú: {{ month.totalMine | number:'1.2-2':'es' }} €</span>
-                <span>Otra parte: {{ month.totalOther | number:'1.2-2':'es' }} €</span>
-              </div>
-              <span class="month-chevron">
-                {{ isMonthExpanded(month.monthKey) ? '▼' : '▶' }}
-              </span>
-            </button>
-
-            @if (isMonthExpanded(month.monthKey)) {
-              <div class="month-body">
-                <div class="category-list">
-                  @for (cat of month.categories; track cat.categoria) {
-                    <div class="category-card" [class.expanded]="isCategoryExpanded(month.monthKey, cat.categoria)">
-                      <button
-                        type="button"
-                        class="category-header"
-                        (click)="toggleCategory(month.monthKey, cat.categoria)"
-                      >
-                        <span class="category-name">{{ cat.categoria }}</span>
-                        <span class="category-amount">{{ cat.total | number:'1.2-2':'es' }} €</span>
-                        <span class="category-chevron">
-                          {{ isCategoryExpanded(month.monthKey, cat.categoria) ? '▼' : '▶' }}
-                        </span>
-                      </button>
-                      @if (isCategoryExpanded(month.monthKey, cat.categoria)) {
-                        <div class="category-sublist">
-                          @for (sub of cat.subcategories; track sub.subcategoria) {
-                            <div class="subcategory-block">
-                              <button
-                                type="button"
-                                class="subcategory-header"
-                                (click)="toggleSubcategory(month.monthKey, cat.categoria, sub.subcategoria)"
-                              >
-                                <span class="subcategory-name">{{ sub.subcategoria }}</span>
-                                <span class="subcategory-amount">{{ sub.total | number:'1.2-2':'es' }} €</span>
-                                <span class="category-chevron">
-                                  {{ isSubcategoryExpanded(month.monthKey, cat.categoria, sub.subcategoria) ? '▼' : '▶' }}
-                                </span>
-                              </button>
-                              @if (isSubcategoryExpanded(month.monthKey, cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
-                                <div class="category-detail">
-                                  @for (tx of sub.transactions; track tx.id || tx.transaction_id || $index) {
-                                    <div class="detail-row">
-                                      <span
-                                        class="detail-owner"
-                                        [class.detail-owner-mine]="tx.is_own_account"
-                                        [class.detail-owner-other]="!tx.is_own_account"
-                                      >
-                                        {{ (tx.cuenta || '').toLowerCase() === 'conjunta' ? 'Conjunta' : (tx.is_own_account ? 'Tuyo' : 'Otro') }}
-                                      </span>
-                                      <span class="detail-desc">
-                                        {{ (tx.subcategoria && tx.subcategoria.trim()) ? tx.subcategoria.trim() : (tx.descripcion || '—') }}
-                                      </span>
-                                      @if (tx.cuenta) {
-                                        <span class="detail-account">{{ getAccountLabel(tx.cuenta) }}</span>
-                                      }
-                                      <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
-                                      <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
-                                    </div>
-                                  }
-                                </div>
-                              }
-                            </div>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
+            </div>
+            <div class="month-sub-bars">
+              @for (sub of topSubcategoryNames; track sub) {
+                <div class="sub-line">
+                  <span class="sub-line-name" [title]="getSubLabelOnly(sub)">{{ getSubLabelOnly(sub) }}</span>
+                  <div class="bar-track">
+                    <span class="bar bar-mine"
+                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).mine, topSubcategoryMax)"></span>
+                    <span class="bar bar-other"
+                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).other, topSubcategoryMax)"></span>
+                    <span class="bar bar-joint"
+                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).joint, topSubcategoryMax)"></span>
+                  </div>
+                  <span class="sub-line-val">{{ getMonthSubBreakdown(m.monthKey, sub).total | number:'1.0-0':'es' }}€</span>
                 </div>
-              </div>
-            }
+              }
+            </div>
           </div>
         }
       </div>

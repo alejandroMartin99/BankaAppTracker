@@ -66,11 +66,9 @@
             <span class="balance-header">{{ getAccountLabel(entry[0]) }}</span>
             <span class="balance-label">Gastos</span>
             <span class="balance-label">Ingresos</span>
-            <span class="balance-label">Saldo</span>
             <span class="balance-amount">{{ entry[1] | number:'1.2-2':'es' }} €</span>
             <span class="balance-stat-value balance-gastos">{{ gastosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
             <span class="balance-stat-value balance-ingresos">{{ ingresosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
-            <span class="balance-stat-value">{{ entry[1] | number:'1.2-2':'es' }} €</span>
           </div>
         }
       </div>
