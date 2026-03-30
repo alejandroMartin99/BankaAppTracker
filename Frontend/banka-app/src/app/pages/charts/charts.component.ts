@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction } from '../../models/transaction.model';
+import { PrivacyService } from '../../services/privacy.service';
 
 const MONTHS = 12;
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -98,7 +99,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
   /** Popup "ver más": barras por categoría con filtro de mes */
   categoryChartModalOpen = false;
   categoryChartModalIsExpense = true;
-  /** Mes seleccionado en el popup (monthKey). Por defecto el último. */
+  /** Mes seleccionado en el popup (monthKey). Lo marca el clic en barra mensual. */
   selectedCategoryChartMonthKey = '';
 
   /** Excluir de las métricas gastos &gt; 5000 € (por defecto ACTIVADO) */
@@ -137,7 +138,10 @@ export class ChartsComponent implements OnInit, OnDestroy {
   /** Expuesto para el SVG del drill de subcategorías */
   readonly subLinePadLeft = ChartsComponent.SUB_LINE_VB.padL;
 
-  constructor(private transactionService: TransactionService) {}
+  constructor(
+    private transactionService: TransactionService,
+    public privacy: PrivacyService
+  ) {}
 
   ngOnInit(): void {
     this.loadData();
@@ -390,6 +394,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   formatAmount(value: number): string {
+    if (this.privacy.hideBalances()) return '***';
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value) + ' €';
   }
 
@@ -398,6 +403,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   formatSignedAmount(value: number | undefined): string {
+    if (this.privacy.hideBalances()) return '***';
     const v = value || 0;
     const abs = Math.abs(v);
     const base = this.formatAmount(abs);
@@ -586,6 +592,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   /** Etiquetas eje Y compactas */
   formatSubLineYAxis(value: number): string {
+    if (this.privacy.hideBalances()) return '***';
     const v = Math.max(0, value);
     if (v >= 1000) {
       const k = v / 1000;
@@ -758,10 +765,9 @@ export class ChartsComponent implements OnInit, OnDestroy {
     this.categoryDetailSubLineChart = null;
   }
 
-  openCategoryChartModal(isExpense: boolean): void {
+  openCategoryChartModal(isExpense: boolean, monthKey: string): void {
     this.categoryChartModalIsExpense = isExpense;
-    const months = isExpense ? this.monthlyBars : this.incomeBars;
-    this.selectedCategoryChartMonthKey = months.length > 0 ? months[months.length - 1].monthKey : '';
+    this.selectedCategoryChartMonthKey = monthKey || '';
     this.categoryChartModalOpen = true;
   }
 
@@ -769,10 +775,11 @@ export class ChartsComponent implements OnInit, OnDestroy {
     this.categoryChartModalOpen = false;
   }
 
-  /** Lista de meses para el selector del popup (último primero para que el por defecto sea el más reciente) */
-  getCategoryChartMonths(): { monthKey: string; label: string }[] {
+  /** Mes seleccionado: etiqueta para el título del modal */
+  getSelectedCategoryChartMonthLabel(): string {
     const bars = this.categoryChartModalIsExpense ? this.monthlyBars : this.incomeBars;
-    return bars.map(b => ({ monthKey: b.monthKey, label: b.label }));
+    const hit = bars.find(b => b.monthKey === this.selectedCategoryChartMonthKey);
+    return hit?.label || '';
   }
 
   /** Barras por categoría para el mes seleccionado en el popup */

@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction } from '../../models/transaction.model';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
+import { PrivacyService } from '../../services/privacy.service';
 
 type DatePreset = 'all' | 'month' | '30d' | '3m' | 'year' | 'custom';
 
@@ -103,7 +104,8 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   constructor(
     private transactionService: TransactionService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    public privacy: PrivacyService
   ) {}
 
   ngOnInit() {

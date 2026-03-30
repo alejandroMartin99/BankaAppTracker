@@ -6,6 +6,7 @@ import { TransactionService, UploadResponse } from '../services/transaction.serv
 import { AuthService } from '../services/auth.service';
 import { Account } from '../models/transaction.model';
 import { BackendLoaderService } from '../services/backend-loader.service';
+import { PrivacyService } from '../services/privacy.service';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -66,7 +67,8 @@ export class LayoutComponent {
     public router: Router,
     private transactionService: TransactionService,
     public auth: AuthService,
-    public backendLoader: BackendLoaderService
+    public backendLoader: BackendLoaderService,
+    public privacy: PrivacyService
   ) {}
 
   get avatarDisplayName(): string {

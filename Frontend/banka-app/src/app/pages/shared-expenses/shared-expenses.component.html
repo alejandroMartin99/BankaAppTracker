@@ -93,7 +93,9 @@
       </p>
       <div class="totals-row totals-row--balance">
         <span class="totals-label">Saldo 50/50 (sin Conjunta)</span>
-        @if (settlementAmount > 0) {
+        @if (privacy.hideBalances()) {
+          <span class="totals-value">***</span>
+        } @else if (settlementAmount > 0) {
           <span class="totals-value positive">Te deben {{ settlementAmount | number:'1.2-2':'es' }} €</span>
         } @else if (settlementAmount < 0) {
           <span class="totals-value negative">Debes {{ (-settlementAmount) | number:'1.2-2':'es' }} €</span>
@@ -162,7 +164,9 @@
               <div class="month-balance">
                 <span>Tú {{ m.totalMine | number:'1.0-0':'es' }}€</span>
                 <span>Otra {{ m.totalOther | number:'1.0-0':'es' }}€</span>
-              @if (getMonthSettlement(m) > 0) {
+              @if (privacy.hideBalances()) {
+                <strong>***</strong>
+              } @else if (getMonthSettlement(m) > 0) {
                 <strong class="positive">+{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
               } @else if (getMonthSettlement(m) < 0) {
                 <strong class="negative">{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>

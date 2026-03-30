@@ -141,6 +141,24 @@
   }
 }
 
+.app-privacy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+}
+
 .app-profile-wrapper {
   position: relative;
 }

@@ -40,19 +40,7 @@
     </div>
 
     <!-- Gastos: gráfica (ojo abre popup por categorías) -->
-    <section class="charts-card charts-card--chart charts-card--with-eye">
-      <button
-        type="button"
-        class="charts-chart-eye"
-        (click)="openCategoryChartModal(true)"
-        title="Ver por categorías"
-        aria-label="Ver por categorías"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </button>
+    <section class="charts-card charts-card--chart">
       <h3 class="charts-subtitle">Gastos</h3>
       <div class="charts-chart-wrap">
         @if (averageSpending > 0 && chartScaleRef > 0) {
@@ -68,7 +56,7 @@
         </div>
         <div class="charts-bars-wrap">
           @for (bar of monthlyBars; track bar.monthKey) {
-            <div class="charts-bar-cell">
+            <div class="charts-bar-cell charts-bar-cell--clickable" (click)="openCategoryChartModal(true, bar.monthKey)">
               <div class="charts-bar-outer">
                 <div
                   class="charts-bar"
@@ -128,19 +116,7 @@
     </section>
 
     <!-- Ingresos: gráfica (ojo abre popup por categorías) -->
-    <section class="charts-card charts-card--chart charts-card--income charts-card--with-eye">
-      <button
-        type="button"
-        class="charts-chart-eye"
-        (click)="openCategoryChartModal(false)"
-        title="Ver por categorías"
-        aria-label="Ver por categorías"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </button>
+    <section class="charts-card charts-card--chart charts-card--income">
       <h3 class="charts-subtitle">Ingresos</h3>
       @if (hasAnyIncome()) {
         <div class="charts-chart-wrap charts-chart-wrap--compact">
@@ -157,7 +133,7 @@
           </div>
           <div class="charts-bars-wrap">
             @for (bar of incomeBars; track bar.monthKey) {
-              <div class="charts-bar-cell">
+              <div class="charts-bar-cell charts-bar-cell--clickable" (click)="openCategoryChartModal(false, bar.monthKey)">
                 <div class="charts-bar-outer">
                   <div
                     class="charts-bar charts-bar--income"
@@ -428,19 +404,8 @@
     <div class="charts-modal-overlay" (click)="closeCategoryChartModal()"></div>
     <div class="charts-modal-popover charts-modal-popover--wide" (click)="$event.stopPropagation()">
       <h3 class="charts-modal-title">
-        {{ categoryChartModalIsExpense ? 'Gastos' : 'Ingresos' }} · Por categorías
+        {{ categoryChartModalIsExpense ? 'Gastos' : 'Ingresos' }} · {{ getSelectedCategoryChartMonthLabel() }}
       </h3>
-      <div class="charts-modal-month-filter">
-        <label for="category-chart-month">Mes:</label>
-        <select
-          id="category-chart-month"
-          [(ngModel)]="selectedCategoryChartMonthKey"
-        >
-          @for (m of getCategoryChartMonths(); track m.monthKey) {
-            <option [value]="m.monthKey">{{ m.label }}</option>
-          }
-        </select>
-      </div>
       @let bars = getCategoryChartBarsForMonth();
       @if (bars.length > 0) {
         <div class="charts-modal-bars">

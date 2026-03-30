@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction, Account } from '../../models/transaction.model';
+import { PrivacyService } from '../../services/privacy.service';
 
 type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
 
@@ -71,7 +72,10 @@ export class ResumenComponent implements OnInit, OnDestroy {
     { id: 'custom', label: 'Personalizado' }
   ];
 
-  constructor(private transactionService: TransactionService) {}
+  constructor(
+    private transactionService: TransactionService,
+    public privacy: PrivacyService
+  ) {}
 
   ngOnInit() {
     this.loadAccounts();

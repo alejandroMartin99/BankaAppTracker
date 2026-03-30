@@ -61,15 +61,15 @@
     <section class="totals-section">
       <div class="totals-row">
         <span class="totals-label">Total gastos</span>
-        <span class="totals-value totals-gastos">{{ totalGastos | number:'1.2-2':'es' }} €</span>
+        <span class="totals-value totals-gastos">{{ privacy.hideBalances() ? '***' : (totalGastos | number:'1.2-2':'es') + ' €' }}</span>
       </div>
       <div class="totals-row">
         <span class="totals-label">Total ingresos</span>
-        <span class="totals-value totals-ingresos">{{ totalIngresos | number:'1.2-2':'es' }} €</span>
+        <span class="totals-value totals-ingresos">{{ privacy.hideBalances() ? '***' : (totalIngresos | number:'1.2-2':'es') + ' €' }}</span>
       </div>
       <div class="totals-row totals-row--balance">
         <span class="totals-label">Balance</span>
-        <span class="totals-value">{{ totalBalance | number:'1.2-2':'es' }} €</span>
+        <span class="totals-value">{{ privacy.hideBalances() ? '***' : (totalBalance | number:'1.2-2':'es') + ' €' }}</span>
       </div>
     </section>
 
@@ -96,7 +96,7 @@
             <div class="category-card category-card--income" [class.expanded]="expandedIncomeCategory === cat.categoria">
               <button type="button" class="category-header" (click)="toggleIncomeCategory(cat.categoria)">
                 <span class="category-name">{{ cat.categoria }}</span>
-                <span class="category-amount category-amount--income">+{{ cat.total | number:'1.2-2':'es' }} €</span>
+                <span class="category-amount category-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (cat.total | number:'1.2-2':'es') + ' €' }}</span>
                 <span class="category-chevron">{{ expandedIncomeCategory === cat.categoria ? '▼' : '▶' }}</span>
               </button>
               @if (expandedIncomeCategory === cat.categoria) {
@@ -105,7 +105,7 @@
                     <div class="subcategory-block">
                       <button type="button" class="subcategory-header" (click)="toggleIncomeSubcategory(cat.categoria, sub.subcategoria)">
                         <span class="subcategory-name">{{ sub.subcategoria }}</span>
-                        <span class="subcategory-amount category-amount--income">+{{ sub.total | number:'1.2-2':'es' }} €</span>
+                        <span class="subcategory-amount category-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (sub.total | number:'1.2-2':'es') + ' €' }}</span>
                         <span class="category-chevron">{{ isIncomeSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}</span>
                       </button>
                       @if (isIncomeSubcategoryExpanded(cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
@@ -117,7 +117,7 @@
                                 <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'" [class.detail-account-pluxee]="tx.cuenta === 'Pluxee'">{{ getAccountLabel(tx.cuenta) }}</span>
                               }
                               <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
-                              <span class="detail-amount detail-amount--income">+{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                              <span class="detail-amount detail-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (tx.importe | number:'1.2-2':'es') + ' €' }}</span>
                             </div>
                           }
                         </div>
@@ -140,7 +140,7 @@
           <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
             <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
               <span class="category-name">{{ cat.categoria }}</span>
-              <span class="category-amount">{{ cat.total | number:'1.2-2':'es' }} €</span>
+              <span class="category-amount">{{ privacy.hideBalances() ? '***' : (cat.total | number:'1.2-2':'es') + ' €' }}</span>
               <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
             </button>
             @if (expandedCategory === cat.categoria) {
@@ -149,7 +149,7 @@
                   <div class="subcategory-block">
                     <button type="button" class="subcategory-header" (click)="toggleSubcategory(cat.categoria, sub.subcategoria)">
                       <span class="subcategory-name">{{ sub.subcategoria }}</span>
-                      <span class="subcategory-amount">{{ sub.total | number:'1.2-2':'es' }} €</span>
+                      <span class="subcategory-amount">{{ privacy.hideBalances() ? '***' : (sub.total | number:'1.2-2':'es') + ' €' }}</span>
                       <span class="category-chevron">{{ isSubcategoryExpanded(cat.categoria, sub.subcategoria) ? '▼' : '▶' }}</span>
                     </button>
                     @if (isSubcategoryExpanded(cat.categoria, sub.subcategoria) && sub.transactions.length > 0) {
@@ -161,7 +161,7 @@
                               <span class="detail-account" [class.detail-account-revolut]="tx.cuenta === 'Revolut'" [class.detail-account-personal]="tx.cuenta === 'Personal'" [class.detail-account-conjunta]="tx.cuenta === 'Conjunta'" [class.detail-account-pluxee]="tx.cuenta === 'Pluxee'">{{ getAccountLabel(tx.cuenta) }}</span>
                             }
                             <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
-                            <span class="detail-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                            <span class="detail-amount">{{ privacy.hideBalances() ? '***' : (tx.importe | number:'1.2-2':'es') + ' €' }}</span>
                           </div>
                         }
                       </div>
