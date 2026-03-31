@@ -511,6 +511,79 @@
   margin: 0 0 12px 0;
 }
 
+.chart-totals-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px 0;
+
+  span {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-light);
+    background: var(--color-bg);
+    border-radius: 999px;
+    padding: 4px 8px;
+  }
+}
+
+.month-totals-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0 0 12px 0;
+}
+
+.month-total-chip {
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  background: var(--color-bg);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-sans);
+  overflow: hidden;
+
+  &.active {
+    border-color: var(--color-text);
+    background: var(--color-surface);
+  }
+}
+
+.month-total-chip-header {
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: inherit;
+}
+
+.month-total-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.month-total-chip-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+.month-total-chip-chart {
+  border-top: 1px solid var(--color-border-light);
+  padding: 8px 10px 10px;
+  background: var(--color-surface);
+}
+
 /* Mes > categoría > subcategoría (desplegable) */
 .month-list {
   display: flex;

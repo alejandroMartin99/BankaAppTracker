@@ -150,47 +150,68 @@
 
     <section class="chart-section">
       <h2 class="section-title">Insights por subcategoría</h2>
-      <p class="section-desc">Evolución mensual por subcategoría top con desglose de quién paga.</p>
-      <div class="owner-legend">
-        <span><i class="dot dot-mine"></i>Tú</span>
-        <span><i class="dot dot-other"></i>Otra parte</span>
-        <span><i class="dot dot-joint"></i>Conjunta</span>
-      </div>
-      <div class="bar-chart">
+      <p class="section-desc">Totales por mes. Pulsa uno para abrir su gráfica.</p>
+      <div class="month-totals-list">
         @for (m of chartMonths; track m.monthKey) {
-          <div class="month-sub-row">
-            <div class="month-head">
-              <div class="bar-label">{{ m.label | titlecase }}</div>
-              <div class="month-balance">
+          <div class="month-total-chip" [class.active]="selectedChartMonthKey === m.monthKey">
+            <button
+              type="button"
+              class="month-total-chip-header"
+              (click)="openMonthChart(m.monthKey)"
+            >
+              <span class="month-total-chip-label">{{ m.label | titlecase }}</span>
+              <span class="month-total-chip-values">
                 <span>Tú {{ m.totalMine | number:'1.0-0':'es' }}€</span>
                 <span>Otra {{ m.totalOther | number:'1.0-0':'es' }}€</span>
-              @if (privacy.hideBalances()) {
-                <strong>***</strong>
-              } @else if (getMonthSettlement(m) > 0) {
-                <strong class="positive">+{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
-              } @else if (getMonthSettlement(m) < 0) {
-                <strong class="negative">{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
-              } @else {
-                <strong>0€</strong>
-              }
-              </div>
-            </div>
-            <div class="month-sub-bars">
-              @for (sub of topSubcategoryNames; track sub) {
-                <div class="sub-line">
-                  <span class="sub-line-name" [title]="getSubLabelOnly(sub)">{{ getSubLabelOnly(sub) }}</span>
-                  <div class="bar-track">
-                    <span class="bar bar-mine"
-                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).mine, topSubcategoryMax)"></span>
-                    <span class="bar bar-other"
-                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).other, topSubcategoryMax)"></span>
-                    <span class="bar bar-joint"
-                          [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).joint, topSubcategoryMax)"></span>
-                  </div>
-                  <span class="sub-line-val">{{ getMonthSubBreakdown(m.monthKey, sub).total | number:'1.0-0':'es' }}€</span>
+                <span>Conjunta {{ m.totalJoint | number:'1.0-0':'es' }}€</span>
+              </span>
+            </button>
+
+            @if (selectedChartMonthKey === m.monthKey) {
+              <div class="month-total-chip-chart">
+                <div class="owner-legend">
+                  <span><i class="dot dot-mine"></i>Tú</span>
+                  <span><i class="dot dot-other"></i>Otra parte</span>
+                  <span><i class="dot dot-joint"></i>Conjunta</span>
                 </div>
-              }
-            </div>
+                <div class="bar-chart">
+                  <div class="month-sub-row">
+                    <div class="month-head">
+                      <div class="bar-label">{{ m.label | titlecase }}</div>
+                      <div class="month-balance">
+                        <span>Tú {{ m.totalMine | number:'1.0-0':'es' }}€</span>
+                        <span>Otra {{ m.totalOther | number:'1.0-0':'es' }}€</span>
+                        @if (privacy.hideBalances()) {
+                          <strong>***</strong>
+                        } @else if (getMonthSettlement(m) > 0) {
+                          <strong class="positive">+{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
+                        } @else if (getMonthSettlement(m) < 0) {
+                          <strong class="negative">{{ getMonthSettlement(m) | number:'1.0-0':'es' }}€</strong>
+                        } @else {
+                          <strong>0€</strong>
+                        }
+                      </div>
+                    </div>
+                    <div class="month-sub-bars">
+                      @for (sub of topSubcategoryNames; track sub) {
+                        <div class="sub-line">
+                          <span class="sub-line-name" [title]="getSubLabelOnly(sub)">{{ getSubLabelOnly(sub) }}</span>
+                          <div class="bar-track">
+                            <span class="bar bar-mine"
+                                  [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).mine, getMonthSubcategoryMax(m.monthKey))"></span>
+                            <span class="bar bar-other"
+                                  [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).other, getMonthSubcategoryMax(m.monthKey))"></span>
+                            <span class="bar bar-joint"
+                                  [style.width]="getBarWidth(getMonthSubBreakdown(m.monthKey, sub).joint, getMonthSubcategoryMax(m.monthKey))"></span>
+                          </div>
+                          <span class="sub-line-val">{{ getMonthSubBreakdown(m.monthKey, sub).total | number:'1.0-0':'es' }}€</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
           </div>
         }
       </div>

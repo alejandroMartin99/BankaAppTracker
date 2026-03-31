@@ -67,8 +67,8 @@
             <span class="balance-label">Gastos</span>
             <span class="balance-label">Ingresos</span>
             <span class="balance-amount">{{ privacy.hideBalances() ? '***' : (entry[1] | number:'1.2-2':'es') + ' €' }}</span>
-            <span class="balance-stat-value balance-gastos">{{ gastosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
-            <span class="balance-stat-value balance-ingresos">{{ ingresosByAccount(entry[0]) | number:'1.2-2':'es' }} €</span>
+            <span class="balance-stat-value balance-gastos">{{ privacy.hideBalances() ? '***' : (gastosByAccount(entry[0]) | number:'1.2-2':'es') + ' €' }}</span>
+            <span class="balance-stat-value balance-ingresos">{{ privacy.hideBalances() ? '***' : (ingresosByAccount(entry[0]) | number:'1.2-2':'es') + ' €' }}</span>
           </div>
         }
       </div>

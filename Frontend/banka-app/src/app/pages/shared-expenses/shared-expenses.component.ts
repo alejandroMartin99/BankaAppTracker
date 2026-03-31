@@ -90,6 +90,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   expandedMonthKey: string | null = null;
   expandedCategoryKey: string | null = null;
   expandedSubcategoryKey: string | null = null;
+  selectedChartMonthKey: string | null = null;
   private destroy$ = new Subject<void>();
 
   readonly presets: { id: DatePreset; label: string }[] = [
@@ -437,9 +438,13 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     return Array.from(new Set([...globalTop, ...otherTop])).slice(0, 7);
   }
 
-  get topSubcategoryMax(): number {
-    const byName = new Map(this.subcategoryInsights.map(x => [x.name, x.total]));
-    return this.topSubcategoryNames.reduce((m, name) => Math.max(m, byName.get(name) || 0), 0);
+  getMonthSubcategoryMax(monthKey: string): number {
+    let max = 0;
+    for (const sub of this.topSubcategoryNames) {
+      const b = this.getMonthSubBreakdown(monthKey, sub);
+      max = Math.max(max, b.total || 0);
+    }
+    return max;
   }
 
   getMonthSubBreakdown(monthKey: string, subName: string): SubBreakdown {
@@ -483,6 +488,10 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     const total = (m.totalMine || 0) + (m.totalOther || 0);
     if (total === 0) return 0;
     return +((m.totalMine || 0) - total / 2).toFixed(2);
+  }
+
+  openMonthChart(monthKey: string): void {
+    this.selectedChartMonthKey = this.selectedChartMonthKey === monthKey ? null : monthKey;
   }
 
   getAccountLabelShort(cuenta?: string): string {
