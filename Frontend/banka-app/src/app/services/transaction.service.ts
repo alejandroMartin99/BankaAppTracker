@@ -16,6 +16,24 @@ export interface SharedTransactionsResponse extends TransactionResponse {
   shared_balances_enabled?: boolean;
 }
 
+export interface MortgageSettings {
+  principal: number;
+  annual_rate: number;
+  term_years: number;
+}
+
+export interface MortgageReceiptState {
+  transaction_id: number;
+  confirmed: boolean;
+  included_in_calculation: boolean;
+}
+
+export interface MortgageConfigResponse {
+  success: boolean;
+  settings: MortgageSettings;
+  receipts: MortgageReceiptState[];
+}
+
 export interface UploadResponse {
   success: boolean;
   filename?: string;
@@ -36,6 +54,7 @@ export class TransactionService {
   private transactionsUrl = `${this.apiUrl}/GET/transactions`;
   private sharedTransactionsUrl = `${this.apiUrl}/GET/shared-transactions`;
   private categoryCatalogUrl = `${this.apiUrl}/GET/category-catalog`;
+  private mortgageUrl = `${this.apiUrl}/GET/mortgage`;
   private balancesUrl = `${this.apiUrl}/GET/balances`;
    private accountsUrl = `${this.apiUrl}/GET/accounts`;
   private uploadUrl = `${this.apiUrl}/upload/Transactions`;
@@ -136,6 +155,24 @@ export class TransactionService {
     return this.http.patch<{ success: boolean; shared_balances_enabled: boolean }>(
       `${this.apiUrl}/GET/shared-consent`,
       { enabled }
+    );
+  }
+
+  getMortgageConfig(): Observable<MortgageConfigResponse> {
+    return this.http.get<MortgageConfigResponse>(this.mortgageUrl);
+  }
+
+  updateMortgageSettings(payload: MortgageSettings): Observable<{ success: boolean; settings: MortgageSettings }> {
+    return this.http.patch<{ success: boolean; settings: MortgageSettings }>(
+      `${this.mortgageUrl}/settings`,
+      payload
+    );
+  }
+
+  updateMortgageReceipt(payload: MortgageReceiptState): Observable<{ success: boolean }> {
+    return this.http.patch<{ success: boolean }>(
+      `${this.mortgageUrl}/receipts`,
+      payload
     );
   }
 

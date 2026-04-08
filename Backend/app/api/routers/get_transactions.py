@@ -34,6 +34,16 @@ class TransactionDetailsUpdate(BaseModel):
 class SharedConsentUpdate(BaseModel):
     enabled: bool
 
+class MortgageSettingsUpdate(BaseModel):
+    principal: float
+    annual_rate: float
+    term_years: int
+
+class MortgageReceiptUpdate(BaseModel):
+    transaction_id: int
+    confirmed: bool
+    included_in_calculation: bool
+
 
 def _fetch_for_balances(account_ids: list[str]) -> list:
     """Saldos = valor 'saldo' de la última transacción de cada cuenta.
@@ -111,6 +121,60 @@ def _set_shared_balances_enabled(user_id: str, enabled: bool) -> None:
         {"user_id": user_id, "shared_balances_enabled": bool(enabled)},
         on_conflict="user_id",
     ).execute()
+
+
+def _get_mortgage_settings(user_id: str) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        return {"principal": 0, "annual_rate": 0, "term_years": 30}
+    try:
+        r = (
+            supabase_service.supabase
+            .table("user_mortgage_settings")
+            .select("principal, annual_rate, term_years")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if r.data and len(r.data) > 0:
+            row = r.data[0]
+            return {
+                "principal": float(row.get("principal") or 0),
+                "annual_rate": float(row.get("annual_rate") or 0),
+                "term_years": int(row.get("term_years") or 30),
+            }
+    except Exception:
+        pass
+    return {"principal": 0, "annual_rate": 0, "term_years": 30}
+
+
+def _set_mortgage_settings(user_id: str, principal: float, annual_rate: float, term_years: int) -> None:
+    if not supabase_service.is_connected():
+        return
+    supabase_service.supabase.table("user_mortgage_settings").upsert(
+        {
+            "user_id": user_id,
+            "principal": float(principal or 0),
+            "annual_rate": float(annual_rate or 0),
+            "term_years": int(term_years or 30),
+        },
+        on_conflict="user_id",
+    ).execute()
+
+
+def _get_mortgage_receipts(user_id: str) -> List[Dict[str, Any]]:
+    if not supabase_service.is_connected():
+        return []
+    try:
+        r = (
+            supabase_service.supabase
+            .table("user_mortgage_receipts")
+            .select("transaction_id, confirmed, included_in_calculation")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return list(r.data or [])
+    except Exception:
+        return []
 
 
 @router.get(
@@ -274,6 +338,91 @@ async def update_shared_consent(
         return {"success": True, "shared_balances_enabled": bool(payload.enabled)}
     except Exception as e:
         raise internal_server_error(e, "update_shared_consent")
+
+
+@router.get(
+    "/mortgage",
+    summary="Obtener configuración de hipoteca y estados de recibos",
+    response_model=Dict[str, Any],
+)
+async def get_mortgage_config(user: dict = Depends(get_current_user)) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+    try:
+        uid = user.get("sub", "")
+        return {
+            "success": True,
+            "settings": _get_mortgage_settings(uid),
+            "receipts": _get_mortgage_receipts(uid),
+        }
+    except Exception as e:
+        raise internal_server_error(e, "get_mortgage_config")
+
+
+@router.patch(
+    "/mortgage/settings",
+    summary="Guardar configuración de hipoteca",
+    response_model=Dict[str, Any],
+)
+async def update_mortgage_settings(
+    payload: MortgageSettingsUpdate,
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+    try:
+        uid = user.get("sub", "")
+        _set_mortgage_settings(uid, payload.principal, payload.annual_rate, payload.term_years)
+        return {"success": True, "settings": _get_mortgage_settings(uid)}
+    except Exception as e:
+        raise internal_server_error(e, "update_mortgage_settings")
+
+
+@router.patch(
+    "/mortgage/receipts",
+    summary="Guardar estado de un recibo de hipoteca",
+    response_model=Dict[str, Any],
+)
+async def update_mortgage_receipt(
+    payload: MortgageReceiptUpdate,
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+    uid = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(uid)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+    try:
+        # Validar propiedad del movimiento
+        r = (
+            supabase_service.supabase
+            .table("transactions")
+            .select("id, account_id")
+            .eq("id", payload.transaction_id)
+            .limit(1)
+            .execute()
+        )
+        rows = r.data or []
+        if not rows:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+        if rows[0].get("account_id") not in account_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso para este movimiento")
+
+        supabase_service.supabase.table("user_mortgage_receipts").upsert(
+            {
+                "user_id": uid,
+                "transaction_id": int(payload.transaction_id),
+                "confirmed": bool(payload.confirmed),
+                "included_in_calculation": bool(payload.included_in_calculation),
+            },
+            on_conflict="user_id,transaction_id",
+        ).execute()
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_server_error(e, "update_mortgage_receipt")
 
 
 @router.get(

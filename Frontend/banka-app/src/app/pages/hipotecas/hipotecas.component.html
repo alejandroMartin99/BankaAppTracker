@@ -1,0 +1,308 @@
+<div class="hipotecas-page">
+  @if (showMainSummaryBlock) {
+    <section class="calculator-section">
+      <h2 class="section-title">Hipoteca</h2>
+      <p class="section-desc">Resumen de amortización basado en tus recibos confirmados.</p>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span>Cuotas por pagar</span>
+          <strong>{{ remainingInstallments }}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Capital pendiente</span>
+          <strong>{{ privacy.hideBalances() ? '***' : (remainingPrincipal | number:'1.2-2':'es') + ' €' }}</strong>
+        </div>
+        <div class="kpi-card">
+          <span>Intereses restantes</span>
+          <strong>{{ privacy.hideBalances() ? '***' : (totalInterestRemaining | number:'1.2-2':'es') + ' €' }}</strong>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button type="button" class="btn-dark outline" (click)="openDetectedReceiptsModal()">Recibos detectados</button>
+        <button type="button" class="btn-dark" (click)="openEditConditions()">Editar condiciones</button>
+      </div>
+    </section>
+
+    <section class="receipts-section">
+      <h2 class="section-title">Cuadro de amortización</h2>
+      <div class="chart-mode-row">
+        <button type="button" class="btn-dark" [class.outline]="chartMode !== 'curve'" (click)="chartMode = 'curve'">
+          Curva principal
+        </button>
+        <button type="button" class="btn-dark" [class.outline]="chartMode !== 'bars'" (click)="chartMode = 'bars'">
+          Cuadro de amortización
+        </button>
+      </div>
+      <div class="amort-legend">
+        @if (chartMode === 'curve') {
+          <span><i class="dot dot-principal"></i>Capital pendiente</span>
+          <span><i class="dot dot-interest"></i>Interés restante</span>
+        } @else {
+          <span><i class="dot dot-principal"></i>Capital</span>
+          <span><i class="dot dot-interest"></i>Interés</span>
+        }
+        <span><i class="dot dot-paid"></i>Pagada</span>
+      </div>
+      @if (chartMode === 'curve') {
+        <div class="line-chart-wrap">
+          <div class="y-axis">
+            @for (t of yAxisMoneyTicks; track $index) {
+              <span>{{ privacy.hideBalances() ? '***' : (t | number:'1.0-0':'es') }}</span>
+            }
+          </div>
+          <div class="amort-line-chart">
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="Curvas de capital pendiente e interés restante">
+              @if (paidBoundaryX !== null) {
+                <line
+                  [attr.x1]="paidBoundaryX"
+                  y1="0"
+                  [attr.x2]="paidBoundaryX"
+                  y2="40"
+                  class="paid-boundary-line"
+                ></line>
+              }
+              @for (yv of yAxisMoneyTicks; track $index) {
+                <line x1="0" [attr.y1]="getYFromValue(yv)" x2="100" [attr.y2]="getYFromValue(yv)" class="money-grid-line"></line>
+              }
+              @for (tk of yearTickPoints; track $index) {
+                <line [attr.x1]="tk.x" y1="0" [attr.x2]="tk.x" y2="40" class="year-grid-line"></line>
+              }
+              <polyline
+                class="line line-principal"
+                [attr.points]="toPolyline(lineChartCapitalPendingPoints)"
+              ></polyline>
+              <polyline
+                class="line line-interest"
+                [attr.points]="toPolyline(lineChartInterestRemainingPoints)"
+              ></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="x-axis years">
+          @for (tk of yearTickPoints; track $index) {
+            <span [style.left.%]="tk.x">{{ tk.label }}</span>
+          }
+        </div>
+      } @else {
+        <div class="amortization-chart">
+          @for (row of lineChartRows; track row.index) {
+            <div class="amort-bar-row" [class.paid]="row.paid">
+              <div class="amort-bar-head">
+                <strong>Cuota {{ row.index }} · {{ row.dueDate | date:'MMM yyyy':'':'es' }}</strong>
+              </div>
+              <div class="amort-bar-split">
+                <span class="amort-head-split amort-head-split--left">
+                  @if (privacy.hideBalances()) {
+                    Capital *** (***%)
+                  } @else {
+                    Capital {{ row.principal | number:'1.2-2':'es' }} € ({{ getAmortizationPercent(row.principal, row.payment) | number:'1.0-1':'es' }}%)
+                  }
+                </span>
+                <span class="amort-head-split amort-head-split--right">
+                  @if (privacy.hideBalances()) {
+                    Interés *** (***%)
+                  } @else {
+                    Interés {{ row.interest | number:'1.2-2':'es' }} € ({{ getAmortizationPercent(row.interest, row.payment) | number:'1.0-1':'es' }}%)
+                  }
+                </span>
+              </div>
+              <div class="amort-track">
+                <span class="amort-seg amort-seg-principal" [style.width]="getAmortizationSegmentWidth(row.principal, row.payment)"></span>
+                <span class="amort-seg amort-seg-interest" [style.width]="getAmortizationSegmentWidth(row.interest, row.payment)"></span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  } @else {
+  <section class="calculator-section">
+    <h2 class="section-title">Hipoteca</h2>
+    <p class="section-desc">Define capital, interés y plazo para estimar tu cuota mensual.</p>
+
+    <div class="form-grid">
+      <label>
+        <span>Capital pendiente (€)</span>
+        <input type="number" min="0" step="1000" [(ngModel)]="principal" />
+      </label>
+      <label>
+        <span>Interés anual (%)</span>
+        <input type="number" min="0" step="0.01" [(ngModel)]="annualRate" />
+      </label>
+      <label>
+        <span>Plazo (años)</span>
+        <input type="number" min="1" step="1" [(ngModel)]="termYears" />
+      </label>
+    </div>
+
+    <div class="result-card">
+      <span class="result-label">Cuota estimada mensual</span>
+      <strong class="result-value">{{ privacy.hideBalances() ? '***' : (monthlyInstallment | number:'1.2-2':'es') + ' €' }}</strong>
+    </div>
+    <div class="actions-row">
+      <button type="button" class="btn-dark" (click)="saveSettings()" [disabled]="savingSettings">
+        {{ savingSettings ? 'Guardando...' : 'Guardar parámetros' }}
+      </button>
+    </div>
+    @if (settingsSaveMessage) {
+      <p class="save-ok">{{ settingsSaveMessage }}</p>
+    }
+    @if (settingsSaveError) {
+      <p class="save-error">{{ settingsSaveError }}</p>
+    }
+    <div class="in-block-divider"></div>
+
+    <h2 class="section-title">Recibos detectados</h2>
+    <p class="section-desc">
+      Movimientos con subcategoría <strong>Hipoteca</strong>. Marca los que confirmes como recibo bancario real.
+    </p>
+
+    @if (loading) {
+      <p class="state-text">Cargando movimientos...</p>
+    } @else if (error) {
+      <p class="state-text error">{{ error }}</p>
+    } @else if (detectedMortgageTxs.length === 0) {
+      <p class="state-text">No se han detectado movimientos con subcategoría Hipoteca.</p>
+    } @else {
+      <div class="summary-row">
+        <span>Detectados: {{ detectedMortgageTxs.length }}</span>
+        <span>Incluidos: {{ includedMortgageTxs.length }}</span>
+        <span>Confirmados: {{ confirmedCount }}</span>
+      </div>
+
+      <div class="receipt-list">
+        @for (tx of pendingReviewTxs; track tx.id || tx.transaction_id || $index) {
+          <div class="receipt-row">
+            <div class="receipt-main">
+              <div class="receipt-line1">
+                <span class="receipt-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                <span class="receipt-amount">{{ privacy.hideBalances() ? '***' : (getAbsAmount(tx) | number:'1.2-2':'es') + ' €' }}</span>
+              </div>
+              <div class="receipt-line2">{{ tx.descripcion || 'Recibo hipoteca' }}</div>
+              <div class="receipt-line3">
+                @if (privacy.hideBalances()) {
+                  <span>Comparación vs cuota: ***</span>
+                } @else {
+                  <span
+                    [class.positive]="getAmountDeltaVsExpected(tx) >= 0"
+                    [class.negative]="getAmountDeltaVsExpected(tx) < 0"
+                  >
+                    Diferencia vs cuota: {{ getAmountDeltaVsExpected(tx) >= 0 ? '+' : '' }}{{ getAmountDeltaVsExpected(tx) | number:'1.2-2':'es' }} €
+                  </span>
+                }
+              </div>
+            </div>
+            <div class="receipt-actions">
+              <button
+                type="button"
+                class="btn-dark"
+                [class.active]="isConfirmed(tx)"
+                [disabled]="savingReceiptIds[tx.id || 0]"
+                (click)="setConfirmed(tx, !isConfirmed(tx))"
+              >
+                {{ isConfirmed(tx) ? 'Confirmado' : 'Confirmar' }}
+              </button>
+              <button
+                type="button"
+                class="btn-dark"
+                [class.outline]="isIncluded(tx)"
+                [disabled]="savingReceiptIds[tx.id || 0]"
+                (click)="setIncluded(tx, !isIncluded(tx))"
+              >
+                {{ isIncluded(tx) ? 'Excluir' : 'Incluir' }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (archivedTxs.length > 0) {
+        <div class="archived-block">
+          <div class="archived-title">Confirmados o excluidos ({{ archivedTxs.length }})</div>
+          <div class="archived-list">
+            @for (tx of archivedTxs; track tx.id || tx.transaction_id || $index) {
+              <div class="archived-row">
+                <span>{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                <span>{{ tx.descripcion || 'Recibo hipoteca' }}</span>
+                <strong>{{ isIncluded(tx) ? 'Confirmado' : 'Excluido' }}</strong>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
+  </section>
+  }
+
+  @if (showDetectedReceiptsModal) {
+    <div class="receipts-modal-overlay" (click)="closeDetectedReceiptsModal()"></div>
+    <section class="receipts-modal" (click)="$event.stopPropagation()">
+      <h3 class="section-title">Recibos detectados</h3>
+      <p class="section-desc">Revisa y ajusta confirmación/inclusión sin salir del panel principal.</p>
+
+      @if (loading) {
+        <p class="state-text">Cargando movimientos...</p>
+      } @else if (error) {
+        <p class="state-text error">{{ error }}</p>
+      } @else if (detectedMortgageTxs.length === 0) {
+        <p class="state-text">No se han detectado movimientos con subcategoría Hipoteca.</p>
+      } @else {
+        <div class="summary-row">
+          <span>Detectados: {{ detectedMortgageTxs.length }}</span>
+          <span>Incluidos: {{ includedMortgageTxs.length }}</span>
+          <span>Confirmados: {{ confirmedCount }}</span>
+        </div>
+
+        <div class="receipt-list modal-list">
+          @for (tx of pendingReviewTxs; track tx.id || tx.transaction_id || $index) {
+            <div class="receipt-row">
+              <div class="receipt-main">
+                <div class="receipt-line1">
+                  <span class="receipt-date">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                  <span class="receipt-amount">{{ privacy.hideBalances() ? '***' : (getAbsAmount(tx) | number:'1.2-2':'es') + ' €' }}</span>
+                </div>
+                <div class="receipt-line2">{{ tx.descripcion || 'Recibo hipoteca' }}</div>
+              </div>
+              <div class="receipt-actions">
+                <button type="button" class="btn-dark" [class.active]="isConfirmed(tx)" [disabled]="savingReceiptIds[tx.id || 0]" (click)="setConfirmed(tx, !isConfirmed(tx))">
+                  {{ isConfirmed(tx) ? 'Confirmado' : 'Confirmar' }}
+                </button>
+                <button type="button" class="btn-dark" [class.outline]="isIncluded(tx)" [disabled]="savingReceiptIds[tx.id || 0]" (click)="setIncluded(tx, !isIncluded(tx))">
+                  {{ isIncluded(tx) ? 'Excluir' : 'Incluir' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (archivedTxs.length > 0) {
+          <div class="archived-block">
+            <div class="archived-title">Confirmados o excluidos ({{ archivedTxs.length }})</div>
+            <div class="archived-list">
+              @for (tx of archivedTxs; track tx.id || tx.transaction_id || $index) {
+                <div class="archived-row">
+                  <span>{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                  <span>{{ privacy.hideBalances() ? '***' : (getAbsAmount(tx) | number:'1.2-2':'es') + ' €' }}</span>
+                  <strong [class.status-ok]="isIncluded(tx)" [class.status-bad]="!isIncluded(tx)">{{ getArchivedStatusLabel(tx) }}</strong>
+                  <button
+                    type="button"
+                    class="btn-dark outline archived-edit-btn"
+                    [disabled]="savingReceiptIds[tx.id || 0]"
+                    (click)="editArchivedState(tx)"
+                  >
+                    Editar estado
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+      <div class="actions-row">
+        <button type="button" class="btn-dark" (click)="closeDetectedReceiptsModal()">Cerrar</button>
+      </div>
+    </section>
+  }
+</div>

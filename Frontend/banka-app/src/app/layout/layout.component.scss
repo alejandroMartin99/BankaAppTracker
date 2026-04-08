@@ -706,6 +706,13 @@
   }
 }
 
+.nav-item-btn {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .nav-icon {
   opacity: 0.7;
   display: flex;
@@ -719,4 +726,43 @@
 
 .nav-label {
   letter-spacing: -0.01em;
+}
+
+.more-ops-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 109;
+  background: transparent;
+}
+
+.more-ops-menu {
+  position: fixed;
+  right: 10px;
+  bottom: calc(var(--nav-height) + var(--safe-area-bottom) + 10px);
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 170px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
+.more-ops-menu button {
+  border: 0;
+  background: #f8fafc;
+  color: #111827;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.more-ops-menu button:hover {
+  background: #eef2f7;
 }

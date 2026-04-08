@@ -15,7 +15,9 @@ export const routes: Routes = [
       { path: 'resumen', loadComponent: () => import('./pages/resumen/resumen.component').then(m => m.ResumenComponent) },
       { path: 'charts', loadComponent: () => import('./pages/charts').then(m => m.ChartsComponent) },
       { path: 'gastos-compartidos', loadComponent: () => import('./pages/shared-expenses/shared-expenses.component').then(m => m.SharedExpensesComponent) },
-      { path: 'ajustes', loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent) }
+      { path: 'ajustes', loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent) },
+      { path: 'inversion', loadComponent: () => import('./pages/inversion/inversion.component').then(m => m.InversionComponent) },
+      { path: 'hipotecas', loadComponent: () => import('./pages/hipotecas/hipotecas.component').then(m => m.HipotecasComponent) }
     ]
   },
   { path: '**', redirectTo: 'gastos' }

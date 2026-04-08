@@ -24,8 +24,9 @@ export class LayoutComponent {
     { path: '/charts', label: 'Charts', icon: 'chart' },
     { path: '/gastos', label: 'Gastos', icon: 'receipt', center: true },
     { path: '/gastos-compartidos', label: 'Compartidos', icon: 'people' },
-    { path: '/ajustes', label: 'Ajustes', icon: 'settings' }
+    { path: '/ajustes', label: 'Más', icon: 'settings', moreOps: true }
   ];
+  moreOpsOpen = false;
 
   uploadStatus: UploadStatus = 'idle';
   uploadMessage = '';
@@ -148,6 +149,24 @@ export class LayoutComponent {
 
   closeProfileMenu(): void {
     this.profileMenuOpen = false;
+  }
+
+  toggleMoreOpsMenu(): void {
+    this.moreOpsOpen = !this.moreOpsOpen;
+  }
+
+  closeMoreOpsMenu(): void {
+    this.moreOpsOpen = false;
+  }
+
+  goToMoreOperation(path: string): void {
+    this.moreOpsOpen = false;
+    void this.router.navigateByUrl(path);
+  }
+
+  isMoreOperationsActive(): boolean {
+    const url = this.router.url || '';
+    return url.startsWith('/ajustes') || url.startsWith('/inversion') || url.startsWith('/hipotecas');
   }
 
   goToProfile(): void {
