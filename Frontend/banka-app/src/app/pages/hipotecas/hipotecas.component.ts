@@ -198,6 +198,59 @@ export class HipotecasComponent implements OnInit {
       .reduce((sum, r) => sum + r.interest, 0);
   }
 
+  get totalPaidPrincipal(): number {
+    return this.amortizationSchedule
+      .filter((r) => r.paid)
+      .reduce((sum, r) => sum + r.principal, 0);
+  }
+
+  get totalPaidInterest(): number {
+    return this.amortizationSchedule
+      .filter((r) => r.paid)
+      .reduce((sum, r) => sum + r.interest, 0);
+  }
+
+  get totalPaidAmount(): number {
+    return this.totalPaidPrincipal + this.totalPaidInterest;
+  }
+
+  get paidPrincipalPct(): number {
+    const total = this.totalPaidAmount;
+    if (total <= 0) return 0;
+    return (this.totalPaidPrincipal / total) * 100;
+  }
+
+  get paidInterestPct(): number {
+    const total = this.totalPaidAmount;
+    if (total <= 0) return 0;
+    return (this.totalPaidInterest / total) * 100;
+  }
+
+  get totalMortgageCapital(): number {
+    return Math.max(0, this.principal || 0);
+  }
+
+  get totalMortgageInterest(): number {
+    const total = this.amortizationSchedule.reduce((sum, r) => sum + r.interest, 0);
+    return Math.max(0, total);
+  }
+
+  get totalMortgageAmount(): number {
+    return this.totalMortgageCapital + this.totalMortgageInterest;
+  }
+
+  get totalMortgageCapitalPct(): number {
+    const total = this.totalMortgageAmount;
+    if (total <= 0) return 0;
+    return (this.totalMortgageCapital / total) * 100;
+  }
+
+  get totalMortgageInterestPct(): number {
+    const total = this.totalMortgageAmount;
+    if (total <= 0) return 0;
+    return (this.totalMortgageInterest / total) * 100;
+  }
+
   get lineChartRows(): MortgageInstallmentRow[] {
     return this.amortizationSchedule;
   }

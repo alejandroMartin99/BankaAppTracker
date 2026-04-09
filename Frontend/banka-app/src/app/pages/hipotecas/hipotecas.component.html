@@ -19,6 +19,20 @@
         </div>
       </div>
 
+      <div class="mortgage-total-metric">
+        @if (privacy.hideBalances()) {
+          <span>Total hipoteca: ***</span>
+          <span>Capital: *** (***%) · Intereses: *** (***%)</span>
+        } @else {
+          <span>Total hipoteca: {{ totalMortgageAmount | number:'1.2-2':'es' }} €</span>
+          <span>
+            Capital: {{ totalMortgageCapital | number:'1.2-2':'es' }} € ({{ totalMortgageCapitalPct | number:'1.0-1':'es' }}%)
+            ·
+            Intereses: {{ totalMortgageInterest | number:'1.2-2':'es' }} € ({{ totalMortgageInterestPct | number:'1.0-1':'es' }}%)
+          </span>
+        }
+      </div>
+
       <div class="actions-row">
         <button type="button" class="btn-dark outline" (click)="openDetectedReceiptsModal()">Recibos detectados</button>
         <button type="button" class="btn-dark" (click)="openEditConditions()">Editar condiciones</button>
@@ -218,20 +232,6 @@
         }
       </div>
 
-      @if (archivedTxs.length > 0) {
-        <div class="archived-block">
-          <div class="archived-title">Confirmados o excluidos ({{ archivedTxs.length }})</div>
-          <div class="archived-list">
-            @for (tx of archivedTxs; track tx.id || tx.transaction_id || $index) {
-              <div class="archived-row">
-                <span>{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
-                <span>{{ tx.descripcion || 'Recibo hipoteca' }}</span>
-                <strong>{{ isIncluded(tx) ? 'Confirmado' : 'Excluido' }}</strong>
-              </div>
-            }
-          </div>
-        </div>
-      }
     }
   </section>
   }
