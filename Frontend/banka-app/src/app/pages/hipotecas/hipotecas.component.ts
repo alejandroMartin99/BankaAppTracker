@@ -22,6 +22,19 @@ interface LinePoint {
   paid: boolean;
 }
 
+interface SimulationPoint {
+  x: number;
+  y: number;
+}
+
+interface SimulationScenario {
+  remainingCurve: number[];
+  interestPaidCurve: number[];
+  paidAccumulatedCurve: number[];
+  totalInterest: number;
+  totalPaid: number;
+}
+
 @Component({
   selector: 'app-hipotecas',
   standalone: true,
@@ -45,7 +58,14 @@ export class HipotecasComponent implements OnInit {
   editingConditions = false;
   chartMode: 'curve' | 'bars' = 'curve';
   showDetectedReceiptsModal = false;
+  showAmortizationHelpModal = false;
+  extraAnnualQuotaUnits = 1;
+  simulationChartMode: 'capital' | 'interest' = 'capital';
+  investmentAnnualReturn = 6;
   mortgageConfigResolved = false;
+  private simulationScenarioCache: Record<string, SimulationScenario> = {};
+  private investmentFundCurveCache: { key: string; value: number[] } | null = null;
+  private investmentFundNetCurveCache: { key: string; value: number[] } | null = null;
 
   constructor(
     private transactionService: TransactionService,
@@ -118,7 +138,6 @@ export class HipotecasComponent implements OnInit {
   }
 
   get showMainSummaryBlock(): boolean {
-    if (!this.mortgageConfigResolved) return true;
     return this.hasMortgageConfirmed && !this.editingConditions;
   }
 
@@ -251,6 +270,388 @@ export class HipotecasComponent implements OnInit {
     return (this.totalMortgageInterest / total) * 100;
   }
 
+  get simulationMonthlyExtra(): number {
+    const units = Math.max(0, +this.extraAnnualQuotaUnits || 0);
+    const monthlyQuota = this.monthlyInstallment;
+    if (monthlyQuota <= 0) return 0;
+    return (monthlyQuota * units) / 12;
+  }
+
+  get baseRemainingCurve(): number[] {
+    return this.baseScenario.remainingCurve;
+  }
+
+  get extraRemainingCurve(): number[] {
+    return this.extraScenario.remainingCurve;
+  }
+
+  get baseInterestPaidCurve(): number[] {
+    return this.baseScenario.interestPaidCurve;
+  }
+
+  get extraInterestPaidCurve(): number[] {
+    return this.extraScenario.interestPaidCurve;
+  }
+
+  get simulationMaxMonths(): number {
+    return Math.max(this.baseRemainingCurve.length, this.extraRemainingCurve.length, 1);
+  }
+
+  get simulationMaxY(): number {
+    const maxBase = this.baseRemainingCurve.reduce((m, v) => Math.max(m, v), 0);
+    const maxExtra = this.extraRemainingCurve.reduce((m, v) => Math.max(m, v), 0);
+    const max = Math.max(maxBase, maxExtra);
+    return max > 0 ? max : 1;
+  }
+
+  get simulationBasePoints(): SimulationPoint[] {
+    return this.buildSimulationPoints(this.baseRemainingCurve);
+  }
+
+  get simulationExtraPoints(): SimulationPoint[] {
+    return this.buildSimulationPoints(this.extraRemainingCurve);
+  }
+
+  get simulationInterestMaxY(): number {
+    const maxBase = this.baseInterestPaidCurve.reduce((m, v) => Math.max(m, v), 0);
+    const maxExtra = this.extraInterestPaidCurve.reduce((m, v) => Math.max(m, v), 0);
+    const max = Math.max(maxBase, maxExtra);
+    return max > 0 ? max : 1;
+  }
+
+  get simulationInterestBasePoints(): SimulationPoint[] {
+    return this.buildSimulationPoints(this.baseInterestPaidCurve, this.simulationInterestMaxY);
+  }
+
+  get simulationInterestExtraPoints(): SimulationPoint[] {
+    return this.buildSimulationPoints(this.extraInterestPaidCurve, this.simulationInterestMaxY);
+  }
+
+  get simulationBasePayoffMonths(): number {
+    return this.baseRemainingCurve.length > 0 ? this.baseRemainingCurve.length - 1 : 0;
+  }
+
+  get simulationExtraPayoffMonths(): number {
+    return this.extraRemainingCurve.length > 0 ? this.extraRemainingCurve.length - 1 : 0;
+  }
+
+  get simulationSavedMonths(): number {
+    return Math.max(0, this.simulationBasePayoffMonths - this.simulationExtraPayoffMonths);
+  }
+
+  get simulationBaseTotalInterest(): number {
+    return this.baseScenario.totalInterest;
+  }
+
+  get simulationExtraTotalInterest(): number {
+    return this.extraScenario.totalInterest;
+  }
+
+  get simulationSavedInterest(): number {
+    return Math.max(0, this.simulationBaseTotalInterest - this.simulationExtraTotalInterest);
+  }
+
+  get simulationBaseTotalPaid(): number {
+    return this.baseScenario.totalPaid;
+  }
+
+  get simulationExtraTotalPaid(): number {
+    return this.extraScenario.totalPaid;
+  }
+
+  get simulationSavedTotalPaid(): number {
+    return Math.max(0, this.simulationBaseTotalPaid - this.simulationExtraTotalPaid);
+  }
+
+  get simulationSavedInterestPct(): number {
+    if (this.simulationBaseTotalInterest <= 0) return 0;
+    return (this.simulationSavedInterest / this.simulationBaseTotalInterest) * 100;
+  }
+
+  get simulationSavedTotalPaidPct(): number {
+    if (this.simulationBaseTotalPaid <= 0) return 0;
+    return (this.simulationSavedTotalPaid / this.simulationBaseTotalPaid) * 100;
+  }
+
+  get simulationExtraVsBasePct(): number {
+    if (this.simulationBaseTotalPaid <= 0) return 0;
+    return ((this.simulationExtraTotalPaid - this.simulationBaseTotalPaid) / this.simulationBaseTotalPaid) * 100;
+  }
+
+  get simulationBaseInterestPctOfPaid(): number {
+    if (this.simulationBaseTotalPaid <= 0) return 0;
+    return (this.simulationBaseTotalInterest / this.simulationBaseTotalPaid) * 100;
+  }
+
+  get simulationExtraInterestVsBasePct(): number {
+    if (this.simulationBaseTotalInterest <= 0) return 0;
+    return ((this.simulationExtraTotalInterest - this.simulationBaseTotalInterest) / this.simulationBaseTotalInterest) * 100;
+  }
+
+  get simulationYAxisTicks(): number[] {
+    return this.buildMoneyTicks(this.simulationMaxY);
+  }
+
+  get simulationInterestYAxisTicks(): number[] {
+    return this.buildMoneyTicks(this.simulationInterestMaxY);
+  }
+
+  get investmentMonthlyReturn(): number {
+    return Math.max(0, (+this.investmentAnnualReturn || 0) / 100 / 12);
+  }
+
+  get investmentFundCurve(): number[] {
+    const cacheKey = [
+      this.simulationBasePayoffMonths,
+      this.simulationMonthlyExtra.toFixed(6),
+      this.investmentMonthlyReturn.toFixed(8),
+    ].join('|');
+    if (this.investmentFundCurveCache?.key === cacheKey) return this.investmentFundCurveCache.value;
+
+    const months = Math.max(1, this.simulationBasePayoffMonths);
+    const contribution = Math.max(0, this.simulationMonthlyExtra);
+    const monthlyReturn = this.investmentMonthlyReturn;
+    let fund = 0;
+    const out: number[] = [0];
+    for (let i = 1; i <= months; i++) {
+      fund = (fund * (1 + monthlyReturn)) + contribution;
+      out.push(fund);
+    }
+    this.investmentFundCurveCache = { key: cacheKey, value: out };
+    return out;
+  }
+
+  get investmentFundNetCurve(): number[] {
+    const cacheKey = [
+      this.simulationMonthlyExtra.toFixed(6),
+      this.investmentMonthlyReturn.toFixed(8),
+      this.baseRemainingCurve.length,
+      this.baseRemainingCurve[0] || 0,
+      this.baseRemainingCurve[this.baseRemainingCurve.length - 1] || 0,
+    ].join('|');
+    if (this.investmentFundNetCurveCache?.key === cacheKey) return this.investmentFundNetCurveCache.value;
+
+    const grossCurve = this.investmentFundCurve;
+    const contribution = Math.max(0, this.simulationMonthlyExtra);
+    const out: number[] = [];
+    for (let i = 0; i < grossCurve.length; i++) {
+      const gross = Math.max(0, grossCurve[i] || 0);
+      const contributed = contribution * Math.max(0, i);
+      const gain = Math.max(0, gross - contributed);
+      const gainRatio = gross > 0 ? Math.max(0, Math.min(1, gain / gross)) : 0;
+      out.push(this.getNetFromWithdrawal(gross, gainRatio));
+    }
+    this.investmentFundNetCurveCache = { key: cacheKey, value: out };
+    return out;
+  }
+
+  get investmentBreakEvenMonth(): number | null {
+    const remaining = this.baseRemainingCurve;
+    const fund = this.investmentFundNetCurve;
+    const n = Math.min(remaining.length, fund.length);
+    for (let i = 0; i < n; i++) {
+      if (fund[i] >= remaining[i]) return i;
+    }
+    return null;
+  }
+
+  get simulationFundMonths(): number {
+    const m = this.investmentBreakEvenMonth;
+    return m === null ? this.simulationBasePayoffMonths : m;
+  }
+
+  get fundCancelMonth(): number {
+    return this.simulationFundMonths;
+  }
+
+  get fundPaidInstallmentsToCancel(): number {
+    return this.getCurveValueAtMonth(this.baseScenario.paidAccumulatedCurve, this.fundCancelMonth);
+  }
+
+  get fundInterestPaidToCancel(): number {
+    return this.getCurveValueAtMonth(this.baseScenario.interestPaidCurve, this.fundCancelMonth);
+  }
+
+  get fundPrincipalPaidByInstallments(): number {
+    return Math.max(0, this.fundPaidInstallmentsToCancel - this.fundInterestPaidToCancel);
+  }
+
+  get fundInstallmentsByQuota(): number {
+    return Math.max(0, this.fundCancelMonth) * Math.max(0, this.monthlyInstallment);
+  }
+
+  get fundCancellationAmount(): number {
+    return this.getCurveValueAtMonth(this.baseRemainingCurve, this.fundCancelMonth);
+  }
+
+  get fundContributionTotal(): number {
+    return Math.max(0, this.simulationMonthlyExtra) * Math.max(0, this.fundCancelMonth);
+  }
+
+  get fundGrossFinal(): number {
+    return this.getCurveValueAtMonth(this.investmentFundCurve, this.fundCancelMonth);
+  }
+
+  get fundNetFinal(): number {
+    return this.getCurveValueAtMonth(this.investmentFundNetCurve, this.fundCancelMonth);
+  }
+
+  get fundGrossGenerated(): number {
+    return Math.max(0, this.fundGrossFinal - this.fundContributionTotal);
+  }
+
+  get fundNetGenerated(): number {
+    return Math.max(0, this.fundNetFinal - this.fundContributionTotal);
+  }
+
+  get totalPaidFundPlusMortgage(): number {
+    // En Sim 2 se pagan cuotas base hasta cancelar + cancelación final con fondo.
+    return this.fundPaidInstallmentsToCancel + this.fundCancellationAmount;
+  }
+
+  get totalRealPaidFundScenario(): number {
+    // Dinero realmente puesto por el usuario en Sim 2:
+    // cuotas pagadas hasta cancelar + capital aportado al fondo (sin contar rendimientos).
+    return this.fundPaidInstallmentsToCancel + this.fundContributionTotal;
+  }
+
+  get totalInterestFundScenario(): number {
+    // Interés pagado hasta el momento de cancelación.
+    return this.fundInterestPaidToCancel;
+  }
+
+  get totalPaidFundVsBasePct(): number {
+    if (this.simulationBaseTotalPaid <= 0) return 0;
+    return ((this.totalPaidFundPlusMortgage - this.simulationBaseTotalPaid) / this.simulationBaseTotalPaid) * 100;
+  }
+
+  get totalPaidFundVsSim1Pct(): number {
+    if (this.simulationExtraTotalPaid <= 0) return 0;
+    return ((this.totalPaidFundPlusMortgage - this.simulationExtraTotalPaid) / this.simulationExtraTotalPaid) * 100;
+  }
+
+  get totalRealPaidFundVsBasePct(): number {
+    if (this.simulationBaseTotalPaid <= 0) return 0;
+    return ((this.totalRealPaidFundScenario - this.simulationBaseTotalPaid) / this.simulationBaseTotalPaid) * 100;
+  }
+
+  get totalRealPaidFundVsSim1Pct(): number {
+    if (this.simulationExtraTotalPaid <= 0) return 0;
+    return ((this.totalRealPaidFundScenario - this.simulationExtraTotalPaid) / this.simulationExtraTotalPaid) * 100;
+  }
+
+  get totalRealPaidFundDiffVsBase(): number {
+    return this.totalRealPaidFundScenario - this.simulationBaseTotalPaid;
+  }
+
+  get totalRealPaidFundDiffVsSim1(): number {
+    return this.totalRealPaidFundScenario - this.simulationExtraTotalPaid;
+  }
+
+  get totalInterestFundVsBasePct(): number {
+    if (this.simulationBaseTotalInterest <= 0) return 0;
+    return ((this.totalInterestFundScenario - this.simulationBaseTotalInterest) / this.simulationBaseTotalInterest) * 100;
+  }
+
+  get totalInterestFundVsSim1Pct(): number {
+    if (this.simulationExtraTotalInterest <= 0) return 0;
+    return ((this.totalInterestFundScenario - this.simulationExtraTotalInterest) / this.simulationExtraTotalInterest) * 100;
+  }
+
+  get investmentBreakEvenYearLabel(): string {
+    const m = this.investmentBreakEvenMonth;
+    if (m === null) return 'No alcanzado en el plazo actual';
+    const y = Math.floor(m / 12);
+    const rem = m % 12;
+    return `${y}a ${rem}m`;
+  }
+
+  get investmentBreakEvenFund(): number {
+    const m = this.investmentBreakEvenMonth;
+    if (m === null) return 0;
+    return this.investmentFundNetCurve[m] || 0;
+  }
+
+  get investmentBreakEvenCapital(): number {
+    const m = this.investmentBreakEvenMonth;
+    if (m === null) return 0;
+    return this.baseRemainingCurve[m] || 0;
+  }
+
+  get investmentMaxY(): number {
+    const maxRemaining = this.baseRemainingCurve.reduce((m, v) => Math.max(m, v), 0);
+    const maxFund = this.investmentFundCurve.reduce((m, v) => Math.max(m, v), 0);
+    const maxFundNet = this.investmentFundNetCurve.reduce((m, v) => Math.max(m, v), 0);
+    const max = Math.max(maxRemaining, maxFund, maxFundNet);
+    return max > 0 ? max : 1;
+  }
+
+  get investmentYAxisTicks(): number[] {
+    return this.buildMoneyTicks(this.investmentMaxY);
+  }
+
+  get investmentBasePoints(): SimulationPoint[] {
+    const totalMonths = Math.max(1, this.baseRemainingCurve.length - 1);
+    return this.buildSimulationPoints(this.baseRemainingCurve, this.investmentMaxY, totalMonths);
+  }
+
+  get investmentFundPoints(): SimulationPoint[] {
+    const totalMonths = Math.max(1, this.baseRemainingCurve.length - 1);
+    const cut = this.investmentBreakEvenMonth;
+    const curve = cut === null ? this.investmentFundCurve : this.investmentFundCurve.slice(0, cut + 1);
+    return this.buildSimulationPoints(curve, this.investmentMaxY, totalMonths);
+  }
+
+  get investmentFundNetPoints(): SimulationPoint[] {
+    const totalMonths = Math.max(1, this.baseRemainingCurve.length - 1);
+    const cut = this.investmentBreakEvenMonth;
+    const curve = cut === null ? this.investmentFundNetCurve : this.investmentFundNetCurve.slice(0, cut + 1);
+    return this.buildSimulationPoints(curve, this.investmentMaxY, totalMonths);
+  }
+
+  get investmentEstimatedTaxPct(): number {
+    const grossFund = Math.max(0, this.fundGrossFinal);
+    if (grossFund <= 0) return 0;
+    const contribution = Math.max(0, this.fundContributionTotal);
+    const gain = Math.max(0, grossFund - contribution);
+    const gainRatio = grossFund > 0 ? Math.max(0, Math.min(1, gain / grossFund)) : 0;
+    const tax = this.getTaxForWithdrawal(grossFund, gainRatio);
+    return (tax / grossFund) * 100;
+  }
+
+  get investmentEstimatedTaxTotal(): number {
+    const grossFund = Math.max(0, this.fundGrossFinal);
+    if (grossFund <= 0) return 0;
+    const contribution = Math.max(0, this.fundContributionTotal);
+    const gain = Math.max(0, grossFund - contribution);
+    const gainRatio = grossFund > 0 ? Math.max(0, Math.min(1, gain / grossFund)) : 0;
+    return this.getTaxForWithdrawal(grossFund, gainRatio);
+  }
+
+  get investmentBasePaidAtBreakEven(): number {
+    const m = this.investmentBreakEvenMonth;
+    if (m === null) return this.simulationBaseTotalPaid;
+    return this.getCurveValueAtMonth(this.baseScenario.paidAccumulatedCurve, m);
+  }
+
+  get investmentSim1PaidAtBreakEven(): number {
+    const m = this.investmentBreakEvenMonth;
+    if (m === null) return this.simulationExtraTotalPaid;
+    return this.getCurveValueAtMonth(this.extraScenario.paidAccumulatedCurve, m);
+  }
+
+  get investmentSim1VsBaseAtBreakEvenPct(): number {
+    const base = this.investmentBasePaidAtBreakEven;
+    if (base <= 0) return 0;
+    return ((this.investmentSim1PaidAtBreakEven - base) / base) * 100;
+  }
+
+  getInvestmentYFromValue(value: number): number {
+    const max = this.investmentYAxisTicks[0] || 1;
+    const h = 40;
+    return h - ((Math.max(0, value) / max) * h);
+  }
+
   get lineChartRows(): MortgageInstallmentRow[] {
     return this.amortizationSchedule;
   }
@@ -322,7 +723,23 @@ export class HipotecasComponent implements OnInit {
     return h - ((Math.max(0, value) / max) * h);
   }
 
+  getSimulationYFromValue(value: number): number {
+    const max = this.simulationYAxisTicks[0] || 1;
+    const h = 40;
+    return h - ((Math.max(0, value) / max) * h);
+  }
+
+  getSimulationInterestYFromValue(value: number): number {
+    const max = this.simulationInterestYAxisTicks[0] || 1;
+    const h = 40;
+    return h - ((Math.max(0, value) / max) * h);
+  }
+
   toPolyline(points: LinePoint[]): string {
+    return points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  }
+
+  toSimulationPolyline(points: SimulationPoint[]): string {
     return points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
   }
 
@@ -361,6 +778,151 @@ export class HipotecasComponent implements OnInit {
       y: h - ((v / maxY) * h),
       paid: !!rows[i]?.paid,
     }));
+  }
+
+  private get baseScenario(): SimulationScenario {
+    return this.getSimulationScenarioCached(0);
+  }
+
+  private get extraScenario(): SimulationScenario {
+    return this.getSimulationScenarioCached(this.simulationMonthlyExtra);
+  }
+
+  private simulateScenario(extraMonthly: number): SimulationScenario {
+    const payment = this.monthlyInstallment;
+    const r = this.monthlyRate;
+    const remaining0 = this.remainingPrincipal;
+    const maxMonths = Math.max(1, this.remainingInstallments + 360); // margen de seguridad
+    if (payment <= 0 || remaining0 <= 0) {
+      return { remainingCurve: [0], interestPaidCurve: [0], paidAccumulatedCurve: [0], totalInterest: 0, totalPaid: 0 };
+    }
+
+    let remaining = remaining0;
+    let cumulativeInterest = 0;
+    let totalPaid = 0;
+    const remainingOut: number[] = [remaining0];
+    const interestPaidOut: number[] = [0];
+    const paidAccumulatedOut: number[] = [0];
+    for (let i = 0; i < maxMonths; i++) {
+      const interest = r > 0 ? remaining * r : 0;
+      const principalPart = Math.max(0, payment + Math.max(0, extraMonthly) - interest);
+      if (principalPart <= 0) {
+        // amortización imposible: evitar bucle infinito
+        break;
+      }
+      const paidThisMonth = Math.min(remaining + interest, payment + Math.max(0, extraMonthly));
+      remaining = Math.max(0, remaining - principalPart);
+      cumulativeInterest += interest;
+      totalPaid += paidThisMonth;
+      remainingOut.push(remaining);
+      interestPaidOut.push(cumulativeInterest);
+      paidAccumulatedOut.push(totalPaid);
+      if (remaining <= 0.005) {
+        remainingOut[remainingOut.length - 1] = 0;
+        break;
+      }
+    }
+    return {
+      remainingCurve: remainingOut,
+      interestPaidCurve: interestPaidOut,
+      paidAccumulatedCurve: paidAccumulatedOut,
+      totalInterest: cumulativeInterest,
+      totalPaid,
+    };
+  }
+
+  private getCurveValueAtMonth(curve: number[], month: number): number {
+    if (!curve.length) return 0;
+    const idx = Math.max(0, Math.min(month, curve.length - 1));
+    return curve[idx] || 0;
+  }
+
+  private getSimulationScenarioCached(extraMonthly: number): SimulationScenario {
+    const key = [
+      Math.max(0, this.remainingPrincipal).toFixed(6),
+      Math.max(0, this.monthlyInstallment).toFixed(6),
+      Math.max(0, this.monthlyRate).toFixed(8),
+      Math.max(1, this.remainingInstallments),
+      Math.max(0, extraMonthly).toFixed(6),
+    ].join('|');
+    const cached = this.simulationScenarioCache[key];
+    if (cached) return cached;
+    const scenario = this.simulateScenario(extraMonthly);
+    this.simulationScenarioCache = { [key]: scenario };
+    return scenario;
+  }
+
+  private getTaxForWithdrawal(grossWithdrawal: number, gainRatio: number): number {
+    const gross = Math.max(0, grossWithdrawal);
+    const taxableGain = gross * Math.max(0, Math.min(1, gainRatio));
+    return this.calculateSpanishSavingsTax(taxableGain);
+  }
+
+  private getNetFromWithdrawal(grossWithdrawal: number, gainRatio: number): number {
+    const gross = Math.max(0, grossWithdrawal);
+    const tax = this.getTaxForWithdrawal(gross, gainRatio);
+    return Math.max(0, gross - tax);
+  }
+
+  private getRequiredGrossForTargetNet(targetNet: number, gainRatio: number, grossCap: number): number | null {
+    const target = Math.max(0, targetNet);
+    const cap = Math.max(0, grossCap);
+    if (target <= 0) return 0;
+    const netAtCap = this.getNetFromWithdrawal(cap, gainRatio);
+    if (netAtCap + 0.005 < target) return null;
+    let lo = 0;
+    let hi = cap;
+    for (let i = 0; i < 36; i++) {
+      const mid = (lo + hi) / 2;
+      const netMid = this.getNetFromWithdrawal(mid, gainRatio);
+      if (netMid >= target) hi = mid;
+      else lo = mid;
+    }
+    return hi;
+  }
+
+  private calculateSpanishSavingsTax(taxableBase: number): number {
+    // Tramos de ahorro en Espana (ganancias patrimoniales en reembolso de fondos).
+    let remaining = Math.max(0, taxableBase);
+    let tax = 0;
+    const brackets: Array<{ cap: number; rate: number }> = [
+      { cap: 6000, rate: 0.19 },
+      { cap: 50000, rate: 0.21 },   // hasta 50.000 acumulado
+      { cap: 200000, rate: 0.23 },  // hasta 200.000 acumulado
+      { cap: 300000, rate: 0.27 },  // hasta 300.000 acumulado
+      { cap: Infinity, rate: 0.28 },
+    ];
+    let prevCap = 0;
+    for (const b of brackets) {
+      if (remaining <= 0) break;
+      const sliceCap = b.cap === Infinity ? remaining : Math.max(0, b.cap - prevCap);
+      const taxedSlice = Math.min(remaining, sliceCap);
+      tax += taxedSlice * b.rate;
+      remaining -= taxedSlice;
+      prevCap = b.cap;
+    }
+    return tax;
+  }
+
+  private buildSimulationPoints(values: number[], maxYInput?: number, totalMonthsInput?: number): SimulationPoint[] {
+    const n = values.length;
+    const w = 100;
+    const h = 40;
+    const maxY = maxYInput && maxYInput > 0 ? maxYInput : this.simulationMaxY;
+    const totalMonths = Math.max(1, totalMonthsInput ?? (this.simulationMaxMonths - 1));
+    if (!n) return [];
+    return values.map((v, i) => ({
+      // Eje X común para todos los escenarios (base vs extra)
+      x: (i / totalMonths) * w,
+      y: h - ((Math.max(0, v) / maxY) * h),
+    }));
+  }
+
+  private buildMoneyTicks(maxValue: number): number[] {
+    const safe = maxValue > 0 ? maxValue : 1;
+    const step = Math.max(1000, Math.ceil(safe / 4 / 1000) * 1000);
+    const top = step * 4;
+    return [top, top - step, top - step * 2, top - step * 3, 0];
   }
 
   getAmortizationSegmentWidth(value: number, total: number): string {
@@ -421,6 +983,14 @@ export class HipotecasComponent implements OnInit {
 
   closeDetectedReceiptsModal(): void {
     this.showDetectedReceiptsModal = false;
+  }
+
+  openAmortizationHelpModal(): void {
+    this.showAmortizationHelpModal = true;
+  }
+
+  closeAmortizationHelpModal(): void {
+    this.showAmortizationHelpModal = false;
   }
 
   getArchivedStatusLabel(tx: Transaction): 'Confirmado' | 'Excluido' {

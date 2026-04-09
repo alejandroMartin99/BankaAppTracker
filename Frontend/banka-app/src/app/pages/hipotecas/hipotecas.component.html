@@ -1,5 +1,13 @@
 <div class="hipotecas-page">
-  @if (showMainSummaryBlock) {
+  @if (!mortgageConfigResolved) {
+    <section class="calculator-section">
+      <h2 class="section-title">Hipoteca</h2>
+      <div class="mini-loader">
+        <span class="mini-loader-spinner" aria-hidden="true"></span>
+        <p class="state-text">Cargando configuración de hipoteca...</p>
+      </div>
+    </section>
+  } @else if (showMainSummaryBlock) {
     <section class="calculator-section">
       <h2 class="section-title">Hipoteca</h2>
       <p class="section-desc">Resumen de amortización basado en tus recibos confirmados.</p>
@@ -130,6 +138,243 @@
           }
         </div>
       }
+    </section>
+
+    <section class="receipts-section">
+      <h2 class="section-title">Simulaciones</h2>
+      <h3 class="section-title">Simulación 1 · Aportar a capital</h3>
+      <p class="section-desc">
+        Las cuotas ya pagadas se mantienen fijas. La simulación aplica aportaciones extra desde hoy.
+      </p>
+      <div class="sim-controls">
+        <label>
+          <span>Aportaciones extra anuales (en cuotas)</span>
+          <input type="number" min="0" step="1" placeholder="Ejemplo: 2" [(ngModel)]="extraAnnualQuotaUnits" />
+        </label>
+        <div class="sim-hint">
+          @if (privacy.hideBalances()) {
+            Extra mensual equivalente: ***
+          } @else {
+            Extra mensual equivalente: {{ simulationMonthlyExtra | number:'1.2-2':'es' }} € (cuota × {{ extraAnnualQuotaUnits || 0 }} / 12)
+          }
+        </div>
+      </div>
+      <div class="sim-disclaimer">
+        <span class="sim-disclaimer-text">
+          <strong>Importante:</strong> esta simulación aplica amortización a <strong>capital</strong> (reduce principal e intereses), no a plazo/cuota.
+          Es la estrategia habitual para maximizar ahorro de intereses.
+        </span>
+        <button type="button" class="sim-disclaimer-plus" (click)="openAmortizationHelpModal()" aria-label="Ver diferencia amortizar capital vs plazo">+</button>
+      </div>
+
+      <div class="chart-mode-row">
+        <button type="button" class="btn-dark" [class.outline]="simulationChartMode !== 'capital'" (click)="simulationChartMode = 'capital'">
+          Capital pendiente
+        </button>
+        <button type="button" class="btn-dark" [class.outline]="simulationChartMode !== 'interest'" (click)="simulationChartMode = 'interest'">
+          Interés acumulado
+        </button>
+      </div>
+
+      <div class="amort-legend">
+        @if (simulationChartMode === 'capital') {
+          <span><i class="dot dot-principal"></i>Capital pendiente base</span>
+          <span><i class="dot dot-extra"></i>Capital pendiente con extra</span>
+        } @else {
+          <span><i class="dot dot-principal"></i>Interés acumulado base</span>
+          <span><i class="dot dot-extra"></i>Interés acumulado con extra</span>
+        }
+      </div>
+
+      <div class="line-chart-wrap">
+        <div class="y-axis">
+          @if (simulationChartMode === 'capital') {
+            @for (t of simulationYAxisTicks; track $index) {
+              <span>{{ privacy.hideBalances() ? '***' : (t | number:'1.0-0':'es') }}</span>
+            }
+          } @else {
+            @for (t of simulationInterestYAxisTicks; track $index) {
+              <span>{{ privacy.hideBalances() ? '***' : (t | number:'1.0-0':'es') }}</span>
+            }
+          }
+        </div>
+        <div class="amort-line-chart">
+          @if (simulationChartMode === 'capital') {
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="Simulación de capital pendiente con aportaciones extra">
+              @for (yv of simulationYAxisTicks; track $index) {
+                <line x1="0" [attr.y1]="getSimulationYFromValue(yv)" x2="100" [attr.y2]="getSimulationYFromValue(yv)" class="money-grid-line"></line>
+              }
+              <polyline class="line line-principal" [attr.points]="toSimulationPolyline(simulationBasePoints)"></polyline>
+              <polyline class="line line-extra" [attr.points]="toSimulationPolyline(simulationExtraPoints)"></polyline>
+            </svg>
+          } @else {
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="Simulación de interés acumulado con aportaciones extra">
+              @for (yv of simulationInterestYAxisTicks; track $index) {
+                <line x1="0" [attr.y1]="getSimulationInterestYFromValue(yv)" x2="100" [attr.y2]="getSimulationInterestYFromValue(yv)" class="money-grid-line"></line>
+              }
+              <polyline class="line line-principal" [attr.points]="toSimulationPolyline(simulationInterestBasePoints)"></polyline>
+              <polyline class="line line-extra" [attr.points]="toSimulationPolyline(simulationInterestExtraPoints)"></polyline>
+            </svg>
+          }
+        </div>
+      </div>
+
+      <div class="sim-metrics">
+        <span>Base: {{ simulationBasePayoffMonths }} meses</span>
+        <span>Con extra: {{ simulationExtraPayoffMonths }} meses</span>
+        <span class="positive">Ahorro: {{ simulationSavedMonths }} meses</span>
+      </div>
+      <div class="sim-paid-grid">
+        @if (privacy.hideBalances()) {
+          <div class="sim-paid-row">
+            <span>Intereses con extra</span>
+            <strong>***</strong>
+            <em>***%</em>
+          </div>
+        } @else {
+          <div class="sim-paid-row">
+            <span>Intereses con extra</span>
+            <strong [class.positive]="simulationExtraInterestVsBasePct <= 0" [class.negative]="simulationExtraInterestVsBasePct > 0">
+              {{ simulationExtraTotalInterest | number:'1.2-2':'es' }} €
+            </strong>
+            <em [class.positive]="simulationExtraInterestVsBasePct <= 0" [class.negative]="simulationExtraInterestVsBasePct > 0">
+              {{ simulationExtraInterestVsBasePct > 0 ? '+' : '' }}{{ simulationExtraInterestVsBasePct | number:'1.0-1':'es' }}%
+            </em>
+          </div>
+          <div class="sim-paid-row">
+            <span>Pagado con extra</span>
+            <strong [class.positive]="simulationExtraVsBasePct <= 0" [class.negative]="simulationExtraVsBasePct > 0">
+              {{ simulationExtraTotalPaid | number:'1.2-2':'es' }} €
+            </strong>
+            <em [class.positive]="simulationExtraVsBasePct <= 0" [class.negative]="simulationExtraVsBasePct > 0">
+              {{ simulationExtraVsBasePct > 0 ? '+' : '' }}{{ simulationExtraVsBasePct | number:'1.0-1':'es' }}%
+            </em>
+          </div>
+        }
+      </div>
+
+      <div class="in-block-divider"></div>
+      <h3 class="section-title">Simulación 2 · Aportar a fondo de inversión</h3>
+      <p class="section-desc">
+        En vez de amortizar capital, el extra mensual se invierte en fondo.
+      </p>
+      <div class="sim-controls">
+        <label>
+          <span>Rentabilidad media anual del fondo (%)</span>
+          <input type="number" min="0" step="0.1" placeholder="Ejemplo: 6" [(ngModel)]="investmentAnnualReturn" />
+        </label>
+        <div class="sim-hint">
+          @if (privacy.hideBalances()) {
+            Aportación al fondo: *** / mes
+          } @else {
+            Aportación al fondo: {{ simulationMonthlyExtra | number:'1.2-2':'es' }} € / mes
+          }
+        </div>
+      </div>
+      <div class="amort-legend">
+        <span><i class="dot dot-principal"></i>Capital pendiente base</span>
+        <span><i class="dot dot-extra"></i><strong>Bruto fondo</strong></span>
+        <span><i class="dot dot-tax"></i><strong>Neto tras impuestos</strong></span>
+      </div>
+      <div class="line-chart-wrap">
+        <div class="y-axis">
+          @for (t of investmentYAxisTicks; track $index) {
+            <span>{{ privacy.hideBalances() ? '***' : (t | number:'1.0-0':'es') }}</span>
+          }
+        </div>
+        <div class="amort-line-chart">
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="Comparativa fondo de inversión vs capital pendiente">
+            @for (yv of investmentYAxisTicks; track $index) {
+              <line x1="0" [attr.y1]="getInvestmentYFromValue(yv)" x2="100" [attr.y2]="getInvestmentYFromValue(yv)" class="money-grid-line"></line>
+            }
+            <polyline class="line line-principal" [attr.points]="toSimulationPolyline(investmentBasePoints)"></polyline>
+            <polyline class="line line-extra" [attr.points]="toSimulationPolyline(investmentFundPoints)"></polyline>
+            <polyline class="line line-tax" [attr.points]="toSimulationPolyline(investmentFundNetPoints)"></polyline>
+          </svg>
+        </div>
+      </div>
+      <div class="sim-paid-grid sim2-paid-grid">
+        @if (privacy.hideBalances()) {
+          <div class="sim-paid-row sim2-row">
+            <span>Base / Con extra / Con fondo</span>
+            <strong>***</strong>
+            <em>***</em>
+          </div>
+        } @else {
+          <div class="sim-paid-row sim2-row sim2-row--months">
+            <span>Base / Con extra / Con fondo</span>
+            <strong>Base: {{ simulationBasePayoffMonths }} meses · Con extra: {{ simulationExtraPayoffMonths }} meses</strong>
+            <em>Con fondo: {{ simulationFundMonths }} meses</em>
+          </div>
+          <div class="sim-paid-row sim2-row">
+            <div class="sim2-breakdown">
+              <div class="sim2-breakdown-row">
+                <span>Capital aportado a fondo</span>
+                <span class="sim2-value">{{ fundContributionTotal | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Valor final bruto</span>
+                <span class="sim2-value">{{ fundGrossFinal | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Impuestos estimados (retirada necesaria)</span>
+                <span class="sim2-value">
+                  {{ investmentEstimatedTaxTotal | number:'1.2-2':'es' }} € ({{ investmentEstimatedTaxPct | number:'1.2-2':'es' }}%)
+                </span>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Valor final neto</span>
+                <span class="sim2-value">{{ fundNetFinal | number:'1.2-2':'es' }} €</span>
+              </div>
+            </div>
+          </div>
+          <div class="sim-paid-row sim2-row">
+            <div class="sim2-head-row">
+              <span>Total pagado a banco (Sim 2)</span>
+              <strong [class.positive]="totalPaidFundVsBasePct <= 0" [class.negative]="totalPaidFundVsBasePct > 0">
+                {{ totalPaidFundPlusMortgage | number:'1.2-2':'es' }} €
+              </strong>
+            </div>
+            <div class="sim2-breakdown">
+              <div class="sim2-breakdown-row">
+                <span>Capital (cuotas = meses × cuota)</span>
+                <span class="sim2-value">{{ fundInstallmentsByQuota | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Cancelación con fondo</span>
+                <span class="sim2-value">{{ fundCancellationAmount | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-divider" aria-hidden="true">---------------------------------------</div>
+              <div class="sim2-breakdown-row sim2-total-real">
+                <span>Total pagado Real</span>
+                <b>{{ totalRealPaidFundScenario | number:'1.2-2':'es' }} €</b>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Capital (cuotas = meses × cuota)</span>
+                <span class="sim2-value">{{ fundInstallmentsByQuota | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-breakdown-row">
+                <span>Capital aportado a fondo</span>
+                <span class="sim2-value">{{ fundContributionTotal | number:'1.2-2':'es' }} €</span>
+              </div>
+              <div class="sim2-breakdown-row" [class.positive]="totalRealPaidFundDiffVsBase <= 0" [class.negative]="totalRealPaidFundDiffVsBase > 0">
+                <span>Diferencia vs Base (total y %)</span>
+                <b>
+                  {{ totalRealPaidFundDiffVsBase > 0 ? '+' : '' }}{{ totalRealPaidFundDiffVsBase | number:'1.2-2':'es' }} €
+                  ({{ totalRealPaidFundVsBasePct > 0 ? '+' : '' }}{{ totalRealPaidFundVsBasePct | number:'1.0-1':'es' }}%)
+                </b>
+              </div>
+              <div class="sim2-breakdown-row" [class.positive]="totalRealPaidFundDiffVsSim1 <= 0" [class.negative]="totalRealPaidFundDiffVsSim1 > 0">
+                <span>Diferencia vs Sim 1 (total y %)</span>
+                <b>
+                  {{ totalRealPaidFundDiffVsSim1 > 0 ? '+' : '' }}{{ totalRealPaidFundDiffVsSim1 | number:'1.2-2':'es' }} €
+                  ({{ totalRealPaidFundVsSim1Pct > 0 ? '+' : '' }}{{ totalRealPaidFundVsSim1Pct | number:'1.0-1':'es' }}%)
+                </b>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
     </section>
   } @else {
   <section class="calculator-section">
@@ -302,6 +547,72 @@
       }
       <div class="actions-row">
         <button type="button" class="btn-dark" (click)="closeDetectedReceiptsModal()">Cerrar</button>
+      </div>
+    </section>
+  }
+
+  @if (showAmortizationHelpModal) {
+    <div class="receipts-modal-overlay" (click)="closeAmortizationHelpModal()"></div>
+    <section class="receipts-modal amort-help-modal" (click)="$event.stopPropagation()">
+      <h3 class="section-title">Comparativa simple: cuota vs capital</h3>
+      <p class="section-desc">
+        Con la misma aportación extra anual, puedes usarla para bajar cuota o para bajar capital.
+      </p>
+      <div class="help-example-totals">
+        <div class="help-example-title">Ejemplo con tu hipoteca</div>
+        @if (privacy.hideBalances()) {
+          <div class="help-example-row">
+            <span>Si la usas para bajar cuota</span>
+            <strong>pagarías aprox. X € menos/mes</strong>
+          </div>
+          <div class="help-example-row">
+            <span>Si la usas para bajar capital</span>
+            <strong>la deuda cae antes y pagas menos intereses</strong>
+          </div>
+        } @else {
+          <div class="help-example-row">
+            <span>Si la usas para bajar cuota</span>
+            <strong>pagarías aprox. {{ simulationMonthlyExtra | number:'1.2-2':'es' }} € menos/mes</strong>
+          </div>
+          <div class="help-example-row">
+            <span>Si la usas para bajar capital</span>
+            <strong [class.positive]="simulationExtraInterestVsBasePct <= 0" [class.negative]="simulationExtraInterestVsBasePct > 0">
+              ahorras {{ simulationSavedInterest | number:'1.2-2':'es' }} € en intereses
+            </strong>
+          </div>
+        }
+      </div>
+      <div class="help-chart-wrap" aria-hidden="true">
+        <div class="help-chart-yaxis">
+          <span>300.000</span>
+          <span>225.000</span>
+          <span>150.000</span>
+          <span>75.000</span>
+          <span>0</span>
+        </div>
+        <svg class="help-chart" viewBox="0 0 100 50" preserveAspectRatio="none">
+          <line x1="0" y1="50" x2="100" y2="50" class="help-grid-line"></line>
+          <line x1="0" y1="37.5" x2="100" y2="37.5" class="help-grid-line"></line>
+          <line x1="0" y1="25" x2="100" y2="25" class="help-grid-line"></line>
+          <line x1="0" y1="12.5" x2="100" y2="12.5" class="help-grid-line"></line>
+          <line x1="0" y1="0" x2="100" y2="0" class="help-grid-line"></line>
+          <polyline points="0,0 20,10 40,20 60,30 80,40 100,50" class="help-line help-line-plazo"></polyline>
+          <polyline points="0,0 20,14 40,28 60,40 80,47 100,50" class="help-line help-line-capital"></polyline>
+        </svg>
+        <div class="help-chart-xaxis">
+          <span>Inicio</span>
+          <span>Meses</span>
+        </div>
+        <div class="help-chart-legend">
+          <span><i class="legend-dot legend-plazo"></i> Capital pendiente base</span>
+          <span><i class="legend-dot legend-capital"></i> Capital pendiente con extra</span>
+        </div>
+      </div>
+      <p class="section-desc">
+        Conclusión rápida: bajar cuota da alivio mensual; bajar capital suele darte más ahorro total.
+      </p>
+      <div class="actions-row">
+        <button type="button" class="btn-dark" (click)="closeAmortizationHelpModal()">Perfecto</button>
       </div>
     </section>
   }
