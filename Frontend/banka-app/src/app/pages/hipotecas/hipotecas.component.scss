@@ -21,6 +21,10 @@
   margin: 0 0 8px 0;
 }
 
+.sim-main-title {
+  font-size: 11px;
+}
+
 .section-desc {
   margin: 0 0 10px 0;
   font-size: 11px;
@@ -678,6 +682,9 @@
     font-style: normal;
     font-weight: 600;
     color: var(--color-text-muted);
+
+    &.positive { color: #16a34a; }
+    &.negative { color: #b91c1c; }
   }
 }
 

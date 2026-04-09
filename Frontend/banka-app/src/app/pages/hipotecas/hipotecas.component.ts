@@ -378,6 +378,10 @@ export class HipotecasComponent implements OnInit {
     return ((this.simulationExtraTotalPaid - this.simulationBaseTotalPaid) / this.simulationBaseTotalPaid) * 100;
   }
 
+  get simulationExtraDiffVsBase(): number {
+    return this.simulationExtraTotalPaid - this.simulationBaseTotalPaid;
+  }
+
   get simulationBaseInterestPctOfPaid(): number {
     if (this.simulationBaseTotalPaid <= 0) return 0;
     return (this.simulationBaseTotalInterest / this.simulationBaseTotalPaid) * 100;
@@ -458,6 +462,10 @@ export class HipotecasComponent implements OnInit {
   get simulationFundMonths(): number {
     const m = this.investmentBreakEvenMonth;
     return m === null ? this.simulationBasePayoffMonths : m;
+  }
+
+  get simulationFundSavedMonths(): number {
+    return Math.max(0, this.simulationBasePayoffMonths - this.simulationFundMonths);
   }
 
   get fundCancelMonth(): number {

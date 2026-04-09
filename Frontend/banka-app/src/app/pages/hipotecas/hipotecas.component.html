@@ -141,7 +141,14 @@
     </section>
 
     <section class="receipts-section">
-      <h2 class="section-title">Simulaciones</h2>
+      <h2 class="section-title sim-main-title">Simulaciones</h2>
+      <div class="sim-disclaimer">
+        <span class="sim-disclaimer-text">
+          <strong>Importante:</strong> esta simulación aplica amortización a <strong>capital</strong> (reduce principal e intereses), no a plazo/cuota.
+          Es la estrategia habitual para maximizar ahorro de intereses.
+        </span>
+        <button type="button" class="sim-disclaimer-plus" (click)="openAmortizationHelpModal()" aria-label="Ver diferencia amortizar capital vs plazo">+</button>
+      </div>
       <h3 class="section-title">Simulación 1 · Aportar a capital</h3>
       <p class="section-desc">
         Las cuotas ya pagadas se mantienen fijas. La simulación aplica aportaciones extra desde hoy.
@@ -159,14 +166,6 @@
           }
         </div>
       </div>
-      <div class="sim-disclaimer">
-        <span class="sim-disclaimer-text">
-          <strong>Importante:</strong> esta simulación aplica amortización a <strong>capital</strong> (reduce principal e intereses), no a plazo/cuota.
-          Es la estrategia habitual para maximizar ahorro de intereses.
-        </span>
-        <button type="button" class="sim-disclaimer-plus" (click)="openAmortizationHelpModal()" aria-label="Ver diferencia amortizar capital vs plazo">+</button>
-      </div>
-
       <div class="chart-mode-row">
         <button type="button" class="btn-dark" [class.outline]="simulationChartMode !== 'capital'" (click)="simulationChartMode = 'capital'">
           Capital pendiente
@@ -242,9 +241,18 @@
             </em>
           </div>
           <div class="sim-paid-row">
-            <span>Pagado con extra</span>
+            <span>Total pagado Real (Sim 1)</span>
             <strong [class.positive]="simulationExtraVsBasePct <= 0" [class.negative]="simulationExtraVsBasePct > 0">
               {{ simulationExtraTotalPaid | number:'1.2-2':'es' }} €
+            </strong>
+            <em [class.positive]="simulationExtraVsBasePct <= 0" [class.negative]="simulationExtraVsBasePct > 0">
+              {{ simulationExtraVsBasePct > 0 ? '+' : '' }}{{ simulationExtraVsBasePct | number:'1.0-1':'es' }}%
+            </em>
+          </div>
+          <div class="sim-paid-row">
+            <span>Diferencia vs base</span>
+            <strong [class.positive]="simulationExtraDiffVsBase <= 0" [class.negative]="simulationExtraDiffVsBase > 0">
+              {{ simulationExtraDiffVsBase > 0 ? '+' : '' }}{{ simulationExtraDiffVsBase | number:'1.2-2':'es' }} €
             </strong>
             <em [class.positive]="simulationExtraVsBasePct <= 0" [class.negative]="simulationExtraVsBasePct > 0">
               {{ simulationExtraVsBasePct > 0 ? '+' : '' }}{{ simulationExtraVsBasePct | number:'1.0-1':'es' }}%
@@ -256,7 +264,8 @@
       <div class="in-block-divider"></div>
       <h3 class="section-title">Simulación 2 · Aportar a fondo de inversión</h3>
       <p class="section-desc">
-        En vez de amortizar capital, el extra mensual se invierte en fondo.
+        En vez de amortizar capital, el extra mensual se invierte en un fondo para buscar rentabilidad compuesta.
+        Cuando el fondo alcance el nivel objetivo, se utilizará de golpe para cancelar la hipoteca.
       </p>
       <div class="sim-controls">
         <label>
@@ -302,9 +311,12 @@
           </div>
         } @else {
           <div class="sim-paid-row sim2-row sim2-row--months">
-            <span>Base / Con extra / Con fondo</span>
-            <strong>Base: {{ simulationBasePayoffMonths }} meses · Con extra: {{ simulationExtraPayoffMonths }} meses</strong>
-            <em>Con fondo: {{ simulationFundMonths }} meses</em>
+            <span>
+              Base: {{ simulationBasePayoffMonths }} meses ·
+              Con extra: {{ simulationExtraPayoffMonths }} meses ·
+              Con fondo: {{ simulationFundMonths }} meses ·
+            </span>
+            <em class="positive">Ahorro: {{ simulationFundSavedMonths }} meses</em>
           </div>
           <div class="sim-paid-row sim2-row">
             <div class="sim2-breakdown">
@@ -330,7 +342,7 @@
           </div>
           <div class="sim-paid-row sim2-row">
             <div class="sim2-head-row">
-              <span>Total pagado a banco (Sim 2)</span>
+              <span>Total pagado Real (Sim 2)</span>
               <strong [class.positive]="totalPaidFundVsBasePct <= 0" [class.negative]="totalPaidFundVsBasePct > 0">
                 {{ totalPaidFundPlusMortgage | number:'1.2-2':'es' }} €
               </strong>
@@ -558,6 +570,10 @@
       <p class="section-desc">
         Con la misma aportación extra anual, puedes usarla para bajar cuota o para bajar capital.
       </p>
+      <p class="section-desc">
+        <strong>Clave:</strong> bajar cuota normalmente no reduce de forma relevante el coste total de la hipoteca; te da
+        sobre todo alivio mensual. Si tu objetivo es ahorrar intereses de verdad, suele convenir amortizar capital.
+      </p>
       <div class="help-example-totals">
         <div class="help-example-title">Ejemplo con tu hipoteca</div>
         @if (privacy.hideBalances()) {
@@ -609,7 +625,7 @@
         </div>
       </div>
       <p class="section-desc">
-        Conclusión rápida: bajar cuota da alivio mensual; bajar capital suele darte más ahorro total.
+        Conclusión rápida: bajar cuota = alivio mensual. Bajar capital = ahorro real de intereses.
       </p>
       <div class="actions-row">
         <button type="button" class="btn-dark" (click)="closeAmortizationHelpModal()">Perfecto</button>
