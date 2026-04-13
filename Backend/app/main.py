@@ -16,6 +16,7 @@ from starlette.responses import Response
 from app.core.config import settings
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
+from app.api.routers.investment import router as investment_router
 from app.api.services.supabase.supabase_service import supabase_service
 
 KEEP_ALIVE_TASK: asyncio.Task | None = None
@@ -101,6 +102,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Include routers
 app.include_router(upload_router)
 app.include_router(get_router)
+app.include_router(investment_router)
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():

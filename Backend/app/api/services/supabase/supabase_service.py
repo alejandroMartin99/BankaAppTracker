@@ -4,6 +4,7 @@ Supabase Service - Conexión y operaciones sobre cuentas y transacciones.
 
 import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Set
 from supabase import create_client, Client
 from app.core.config import settings
@@ -331,6 +332,114 @@ class SupabaseService:
             "inserted": len(new_ones),
             "duplicates": list(existing),
         }
+
+    # --- Inversión: ISIN por usuario ---
+
+    def list_user_investment_funds(self, user_id: str) -> List[Dict[str, Any]]:
+        """Filas ordenadas: sort_order, luego creación."""
+        if not self.supabase:
+            return []
+        uid = _uuid_str(user_id)
+        try:
+            r = (
+                self.supabase.table("user_investment_funds")
+                .select("isin, sort_order, created_at")
+                .eq("user_id", uid)
+                .order("sort_order", desc=False)
+                .execute()
+            )
+            return list(r.data or [])
+        except Exception as e:
+            print(f"[Supabase] list_user_investment_funds: {e}")
+            return []
+
+    def count_user_investment_funds(self, user_id: str) -> int:
+        if not self.supabase:
+            return 0
+        uid = _uuid_str(user_id)
+        try:
+            r = (
+                self.supabase.table("user_investment_funds")
+                .select("*", count="exact")
+                .eq("user_id", uid)
+                .execute()
+            )
+            return int(r.count or 0)
+        except Exception:
+            return 0
+
+    def add_user_investment_fund(self, user_id: str, isin: str) -> None:
+        if not self.supabase:
+            raise RuntimeError("Supabase no inicializado")
+        uid = _uuid_str(user_id)
+        isin_u = isin.strip().upper()
+        rows = self.list_user_investment_funds(user_id)
+        if any((r.get("isin") or "").upper() == isin_u for r in rows):
+            raise ValueError("ISIN ya está en tu lista")
+        max_ord = max((int(r.get("sort_order") or 0) for r in rows), default=-1)
+        self.supabase.table("user_investment_funds").insert(
+            {"user_id": uid, "isin": isin_u, "sort_order": max_ord + 1}
+        ).execute()
+
+    def remove_user_investment_fund(self, user_id: str, isin: str) -> bool:
+        """True si se borró al menos una fila."""
+        if not self.supabase:
+            return False
+        uid = _uuid_str(user_id)
+        isin_u = isin.strip().upper()
+        try:
+            r = (
+                self.supabase.table("user_investment_funds")
+                .delete()
+                .eq("user_id", uid)
+                .eq("isin", isin_u)
+                .execute()
+            )
+            data = r.data or []
+            return len(data) > 0
+        except Exception as e:
+            print(f"[Supabase] remove_user_investment_fund: {e}")
+            return False
+
+    # --- Caché global ficha fondo (solo backend / service role) ---
+
+    def get_investment_fund_detail_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        if not self.supabase:
+            return None
+        try:
+            r = (
+                self.supabase.table("investment_fund_detail_cache")
+                .select("payload, updated_at, yahoo_symbol")
+                .eq("cache_key", cache_key.strip())
+                .limit(1)
+                .execute()
+            )
+            rows = r.data or []
+            if not rows:
+                return None
+            return dict(rows[0])
+        except Exception as e:
+            print(f"[Supabase] get_investment_fund_detail_cache: {e}")
+            return None
+
+    def upsert_investment_fund_detail_cache(
+        self, cache_key: str, yahoo_symbol: str, payload: Dict[str, Any]
+    ) -> None:
+        if not self.supabase:
+            return
+        row = {
+            "cache_key": cache_key.strip(),
+            "yahoo_symbol": (yahoo_symbol or "").strip(),
+            "payload": payload,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            self.supabase.table("investment_fund_detail_cache").upsert(
+                row,
+                on_conflict="cache_key",
+            ).execute()
+        except Exception as e:
+            print(f"[Supabase] upsert_investment_fund_detail_cache: {e}")
 
 
 supabase_service = SupabaseService()

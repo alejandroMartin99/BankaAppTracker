@@ -1,0 +1,543 @@
+<div class="inversion-page">
+  @if (showLoader) {
+    <div class="loader-overlay" @loaderOverlay>
+      <div class="loader-card">
+        <div class="loader-spinner">
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+          <span class="loader-dot"></span>
+        </div>
+        <p class="loader-text">Cargando benchmarks...</p>
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  }
+
+  <section class="filter-section">
+    <h2 class="section-title">Comparativa (rentabilidad vs inicio del periodo)</h2>
+    <p class="hint">
+      Datos vía yfinance. La ventana temporal y los filtros del gráfico están en el bloque siguiente. Requiere sesión.
+    </p>
+  </section>
+
+  @if (error) {
+    <div class="error-card">
+      <p>{{ error }}</p>
+      <button type="button" class="btn-retry" (click)="load()">Reintentar</button>
+    </div>
+  }
+
+  @if (!loading && !error && hasBenchmarkSeries) {
+    <div class="chart-block">
+      <div class="chart-head chart-head--above">
+        <h3 class="chart-title">Evolución % acumulado</h3>
+        @if (chartDateRangeShort) {
+          <span class="chart-meta chart-meta--range">{{ chartDateRangeShort }}</span>
+        }
+      </div>
+
+      <div class="chart-toolbar chart-toolbar--above">
+        <div class="chart-toolbar-triggers">
+          <label class="chart-toolbar-field chart-toolbar-field--select chart-toolbar-period">
+            <span class="visually-hidden">Ventana temporal del gráfico</span>
+            <select
+              class="chart-toolbar-select"
+              [ngModel]="period"
+              (ngModelChange)="setPeriod($event)"
+              [disabled]="loading"
+              [attr.title]="'Rango de fechas mostrado'"
+            >
+              @for (p of periodPresets; track p.id) {
+                <option [value]="p.id">{{ p.label }}</option>
+              }
+            </select>
+          </label>
+
+          @if (chartCategoriesInData.length > 0) {
+            <details class="chart-dd" name="inv-chart-toolbar">
+              <summary class="chart-dd-summary">Tipo</summary>
+              <div class="chart-dd-body chart-dd-body--tipo">
+                @for (c of chartCategoriesInData; track c.key) {
+                  <button type="button" class="chart-dd-tipo-item" (click)="toggleCategoryVisibility(c.key)">
+                    <span
+                      class="chart-dd-tick"
+                      [class.chart-dd-tick--on]="categoryChipState(c.key) === 'all'"
+                      [class.chart-dd-tick--partial]="categoryChipState(c.key) === 'partial'"
+                      [class.chart-dd-tick--off]="categoryChipState(c.key) === 'none'"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="chart-dd-tipo-label">{{ c.label }}</span>
+                  </button>
+                }
+                @if (hiddenSeriesKeys.length > 0) {
+                  <button type="button" class="chart-dd-footer-btn" (click)="showAllChartSeries()">Mostrar todas las series</button>
+                }
+              </div>
+            </details>
+          }
+
+          <details class="chart-dd chart-dd--fondos" name="inv-chart-toolbar">
+            <summary class="chart-dd-summary">Fondos</summary>
+            <div class="chart-dd-body chart-dd-body--scroll chart-dd-body--fondos">
+              @for (e of chartLegendEntries; track e.seriesKey) {
+                <label class="chart-dd-check">
+                  <input
+                    type="checkbox"
+                    [checked]="e.visible"
+                    (change)="setSeriesVisible(e.seriesKey, $any($event.target).checked)"
+                  />
+                  <span class="chart-dd-swatch" [style.background]="e.color"></span>
+                  <span class="chart-dd-check-text">{{ e.name }}</span>
+                </label>
+              }
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <section class="chart-section">
+        @if (hasVisibleChartSeries) {
+        <div
+          class="chart-svg-wrap chart-svg-wrap--interactive"
+          (mousemove)="onChartMouseMove($event)"
+          (mouseleave)="onChartMouseLeave()"
+          (mousedown)="onChartMouseDown($event)"
+          (touchstart)="onChartTouchStart($event)"
+          (touchmove)="onChartTouchMove($event)"
+          (touchend)="onChartTouchEnd()"
+          (touchcancel)="onChartTouchEnd()"
+        >
+          <svg
+            #chartSvg
+            class="chart-svg"
+            [attr.viewBox]="chartViewBox"
+            preserveAspectRatio="xMidYMid meet"
+            aria-label="Gráfico comparativo de rentabilidad"
+          >
+            <defs>
+              <filter id="invChartTipBg" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.75 0"
+                  result="wash"
+                />
+                <feMerge result="frosted">
+                  <feMergeNode in="wash" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+                <feDropShadow
+                  in="frosted"
+                  dx="0"
+                  dy="0.35"
+                  stdDeviation="1.25"
+                  flood-color="#0f172a"
+                  flood-opacity="0.15"
+                />
+              </filter>
+            </defs>
+            @for (ln of yGridLines; track ln.pct) {
+              <line
+                class="chart-grid-line"
+                [attr.x1]="chartPadL"
+                [attr.x2]="100 - chartPadR"
+                [attr.y1]="ln.y"
+                [attr.y2]="ln.y"
+              />
+              <text
+                class="chart-y-label"
+                [attr.x]="chartPadL - 0.75"
+                [attr.y]="ln.y"
+                text-anchor="end"
+                dominant-baseline="middle"
+              >
+                {{ ln.label }}
+              </text>
+            }
+            @for (s of chartSeries; track s.seriesKey) {
+              <path [attr.d]="s.path" [attr.stroke]="s.color" fill="none" stroke-width="0.9" vector-effect="non-scaling-stroke" />
+            }
+            @if (chartPlot) {
+              @for (tk of chartPlot.xTicks; track tk.i) {
+                <line
+                  class="chart-x-tick"
+                  [attr.x1]="tk.x"
+                  [attr.x2]="tk.x"
+                  [attr.y1]="chartPlot.plotBottom"
+                  [attr.y2]="chartPlot.plotBottom + 1.15 * chartSvgYScale"
+                  vector-effect="non-scaling-stroke"
+                />
+                <text
+                  class="chart-x-label"
+                  [attr.x]="tk.x"
+                  [attr.y]="chartPlot.plotBottom + 3.55 * chartSvgYScale"
+                  text-anchor="middle"
+                  dominant-baseline="hanging"
+                >
+                  {{ tk.label }}
+                </text>
+              }
+            }
+            @if (chartPlot && crosshairIndex != null) {
+              <line
+                class="chart-crosshair"
+                [attr.x1]="crosshairX"
+                [attr.x2]="crosshairX"
+                [attr.y1]="chartPlot.plotTop"
+                [attr.y2]="chartPlot.plotBottom"
+              />
+              @for (tip of crosshairTips; track tip.seriesKey) {
+                <g class="chart-tip-group">
+                  <rect
+                    class="chart-tip-box"
+                    [attr.x]="tip.boxX"
+                    [attr.y]="tip.boxY"
+                    [attr.width]="tip.boxW"
+                    [attr.height]="tip.boxH"
+                    rx="0.95"
+                    ry="0.95"
+                    filter="url(#invChartTipBg)"
+                  />
+                  <circle
+                    class="chart-tip-dot"
+                    [attr.cx]="crosshairX"
+                    [attr.cy]="tip.pointY"
+                    r="0.45"
+                    [attr.fill]="tip.color"
+                    stroke="#fff"
+                    stroke-width="0.2"
+                    vector-effect="non-scaling-stroke"
+                  />
+                  <text
+                    class="chart-tip-label"
+                    [attr.transform]="'translate(' + tip.boxX + ',' + tip.boxY + ')'"
+                    [attr.x]="tip.tipTextX"
+                    [attr.y]="tip.boxH * 0.5"
+                    [attr.text-anchor]="tip.tipTextAnchor"
+                    dominant-baseline="middle"
+                  >
+                    <tspan [attr.fill]="tip.color" font-weight="700">{{ tip.pctLabel }}</tspan>
+                    <tspan class="chart-tip-label-muted" dx="0.35" font-weight="500">·</tspan>
+                    <tspan class="chart-tip-label-muted" dx="0.35" font-weight="500">{{ tip.shortName }}</tspan>
+                  </text>
+                </g>
+              }
+              <text
+                class="chart-xhair-date"
+                [attr.x]="crosshairX"
+                [attr.y]="chartPlot.plotBottom + 6.35 * chartSvgYScale"
+                text-anchor="middle"
+                dominant-baseline="middle"
+              >
+                {{ crosshairDateLabel }}
+              </text>
+            }
+          </svg>
+        </div>
+      } @else {
+        <div class="chart-empty">Todas las series están ocultas. Abre «Fondos» o «Tipo» y reactívalas.</div>
+      }
+      </section>
+    </div>
+  }
+
+  @if (!loading && !error && detailGroups.length > 0) {
+    <section class="table-section">
+      <h3 class="section-title" style="padding: 10px 14px 0">Detalle</h3>
+      <div class="table-wrap table-wrap--detalle-help">
+        <table class="bench-table bench-table--detalle">
+          <colgroup>
+            <col class="detalle-col-name" />
+            <col class="detalle-col-metric" />
+            <col class="detalle-col-metric" />
+            <col class="detalle-col-metric" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th title="Pulsa el nombre del fondo para ver la ficha ampliada">Fondo</th>
+              <th
+                class="th-stat th-stat--compact th-stat--with-help"
+                title="Máx. caída: peor retroceso respecto al máximo acumulado en el periodo"
+              >
+                <div class="th-metric-head">
+                  <span>Caída</span>
+                  <details name="detalle-metric-ayuda" class="detalle-th-help">
+                    <summary class="detalle-th-help__btn" aria-label="Información: máx. caída">i</summary>
+                    <div class="detalle-th-help__panel">
+                      Peor retroceso respecto al máximo acumulado en el periodo seleccionado (misma serie que el
+                      gráfico).
+                    </div>
+                  </details>
+                </div>
+              </th>
+              <th
+                class="th-stat th-stat--compact th-stat--with-help"
+                title="Volatilidad anualizada aproximada (serie del periodo)"
+              >
+                <div class="th-metric-head">
+                  <span>Vol.</span>
+                  <details name="detalle-metric-ayuda" class="detalle-th-help">
+                    <summary class="detalle-th-help__btn" aria-label="Información: volatilidad">i</summary>
+                    <div class="detalle-th-help__panel">
+                      Volatilidad anualizada aproximada, calculada con los retornos entre puntos de la serie del periodo.
+                    </div>
+                  </details>
+                </div>
+              </th>
+              <th
+                class="th-pct th-stat--compact th-stat--with-help"
+                title="Rentabilidad total del periodo"
+              >
+                <div class="th-metric-head">
+                  <span>Rent.</span>
+                  <details name="detalle-metric-ayuda" class="detalle-th-help">
+                    <summary class="detalle-th-help__btn" aria-label="Información: rentabilidad">i</summary>
+                    <div class="detalle-th-help__panel">
+                      Rentabilidad total del periodo seleccionado (frente al inicio de la ventana temporal).
+                    </div>
+                  </details>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          @for (grp of detailGroups; track grp.key) {
+            <tbody>
+              <tr class="detail-group-row">
+                <td colspan="4" class="detail-group-label">{{ grp.label }}</td>
+              </tr>
+              @for (row of grp.rows; track seriesKeyFor(row)) {
+                <tr>
+                  <td class="cell-name">
+                    <button
+                      type="button"
+                      class="cell-name-trigger"
+                      (click)="openFundDetail(row, grp.key)"
+                      title="Ver ficha ampliada (composición, datos Yahoo)"
+                      [attr.aria-label]="'Ficha ampliada: ' + row.name"
+                    >
+                      <span class="cell-name-inner">{{ row.name }}</span>
+                    </button>
+                  </td>
+                  <td class="cell-stat">
+                    @if (detailMaxDrawdownPct(row) != null) {
+                      <span class="pct pct--neg">{{ detailMaxDrawdownPct(row)! | number : '1.2-2' }}%</span>
+                    } @else {
+                      <span class="pct pct--na">—</span>
+                    }
+                  </td>
+                  <td class="cell-stat">
+                    @if (detailAnnualizedVolatilityPct(row) != null) {
+                      <span class="pct">{{ detailAnnualizedVolatilityPct(row)! | number : '1.2-2' }}%</span>
+                    } @else {
+                      <span class="pct pct--na">—</span>
+                    }
+                  </td>
+                  <td class="cell-pct">
+                    @if (row.total_return_pct != null) {
+                      <span
+                        class="pct"
+                        [class.pct--pos]="row.total_return_pct > 0"
+                        [class.pct--neg]="row.total_return_pct < 0"
+                      >
+                        {{ row.total_return_pct > 0 ? '+' : '' }}{{ row.total_return_pct | number : '1.2-2' }}%
+                      </span>
+                    } @else {
+                      <span class="pct pct--na">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          }
+        </table>
+      </div>
+    </section>
+  }
+
+  @if (fundDetailOpen) {
+    <div class="fund-detail-layer" aria-live="polite">
+      <div class="fund-detail-backdrop" (click)="closeFundDetail()"></div>
+      <div
+        class="fund-detail-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fund-detail-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="fund-detail-header">
+          <h3 id="fund-detail-title" class="fund-detail-heading">{{ fundDetailTitle }}</h3>
+          <button type="button" class="fund-detail-close" (click)="closeFundDetail()" aria-label="Cerrar">×</button>
+        </header>
+        <div class="fund-detail-body">
+          @if (fundDetailLoading) {
+            <p class="fund-detail-status">Cargando ficha…</p>
+          }
+          @if (fundDetailError) {
+            <p class="fund-detail-err">{{ fundDetailError }}</p>
+          }
+          @if (!fundDetailLoading && fundDetailResponse; as r) {
+            @if (r.detail; as d) {
+            <div class="fund-detail-meta">
+              @if (r.yahoo_symbol) {
+                <span class="fund-meta-chip">Yahoo: {{ r.yahoo_symbol }}</span>
+              }
+              @if (r.cached) {
+                <span class="fund-meta-chip fund-meta-chip--cache">Desde caché</span>
+              }
+              @if (r.updated_at) {
+                <span class="fund-meta-chip">Actualizado: {{ r.updated_at | slice : 0 : 19 }}</span>
+              }
+            </div>
+            @if (d.composition_error) {
+              <p class="fund-detail-warn">Composición: {{ d.composition_error }}</p>
+            }
+            @if (fundDetailEssentialInfoRows(); as essentials) {
+              @if (essentials.length > 0) {
+                <h4 class="fund-detail-sub">Datos clave</h4>
+                <table class="fund-kv-table">
+                  @for (row of essentials; track row.key) {
+                    <tr>
+                      <th>{{ row.label }}</th>
+                      <td>{{ formatFundInfoValue(row.key, row.value) }}</td>
+                    </tr>
+                  }
+                </table>
+              }
+            }
+            @if (fundDetailShortDescription(); as shortDesc) {
+              <h4 class="fund-detail-sub">Resumen</h4>
+              <p class="fund-detail-desc">{{ shortDesc }}</p>
+            }
+            @if (fundDetailCompositionSection(); as compSec) {
+              @if (compSec.hasContent) {
+                <h4 class="fund-detail-sub">Composición</h4>
+                @if (compSec.sectorBars.length > 0) {
+                  <p class="fund-detail-inline-title">Sectores</p>
+                  <div
+                    class="fund-sector-bars"
+                    role="img"
+                    [attr.aria-label]="'Peso por sector, ' + compSec.sectorBars.length + ' filas'"
+                  >
+                    @for (s of compSec.sectorBars; track s.key) {
+                      <div class="fund-sector-bar-row">
+                        <span class="fund-sector-bar-label" [title]="s.key">{{ s.label }}</span>
+                        <div class="fund-sector-bar-track" aria-hidden="true">
+                          <div class="fund-sector-bar-fill" [style.width.%]="s.barFill"></div>
+                        </div>
+                        <span class="fund-sector-bar-pct">{{ s.pctLabel }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+                @if (compSec.bondRows.length > 0) {
+                  <p class="fund-detail-inline-title">Rating de bonos</p>
+                  <table class="fund-kv-table fund-kv-table--compact">
+                    @for (r of compSec.bondRows; track r.key) {
+                      <tr>
+                        <th>{{ r.key }}</th>
+                        <td>{{ formatFundWeightValue(r.value) }}</td>
+                      </tr>
+                    }
+                  </table>
+                }
+              }
+            }
+            @if (fundDetailTopHoldingsNamePercent(); as tops) {
+              @if (tops.length > 0) {
+                <h4 class="fund-detail-sub fund-detail-sub--tight">Principales posiciones</h4>
+                <table class="fund-data-table fund-data-table--holdings">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th class="th-num">% cartera</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (h of tops; track $index) {
+                      <tr>
+                        <td>{{ h.name }}</td>
+                        <td class="td-num">
+                          {{ formatFundTableCell('Holding Percent', h.pctValue) }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            }
+            }
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (!loading && !error && !hasBenchmarkSeries && loadAttempted) {
+    <div class="empty-state">No hay datos para mostrar. Revisa la consola del backend o reintenta más tarde.</div>
+  }
+
+  @if (errors.length > 0) {
+    <div class="errors-block">
+      <p class="errors-title">ISIN sin datos</p>
+      <ul class="errors-list">
+        @for (e of errors; track e.isin) {
+          <li><strong>{{ e.isin }}</strong> — {{ e.detail }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (cryptoErrors.length > 0) {
+    <div class="errors-block">
+      <p class="errors-title">Cripto sin datos</p>
+      <ul class="errors-list">
+        @for (e of cryptoErrors; track e.symbol) {
+          <li><strong>{{ e.symbol }}</strong> — {{ e.detail }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (!error) {
+    <section class="watchlist-section">
+      <h2 class="section-title">Mis fondos (ISIN)</h2>
+      @if (usingDefaultWatchlist) {
+        <p class="hint">
+          No tienes fondos guardados: se muestra la selección por defecto de la app. Añade ISIN para guardar tu lista en la base de datos.
+        </p>
+      } @else {
+        <p class="hint">Lista personal: {{ watchlistRows.length }} / {{ maxFunds }} ISIN.</p>
+      }
+      <div class="watchlist-chips">
+        @for (w of watchlistRows; track w.isin) {
+          <span class="watchlist-chip">
+            {{ w.isin }}
+            <button type="button" class="chip-remove" (click)="removeFund(w.isin)" aria-label="Quitar ISIN">×</button>
+          </span>
+        }
+      </div>
+      <div class="watchlist-add">
+        <input
+          type="text"
+          class="isin-input"
+          [(ngModel)]="newIsin"
+          maxlength="12"
+          placeholder="Ej. IE00BYX5P602"
+          (keydown.enter)="submitNewFund()"
+        />
+        <button
+          type="button"
+          class="btn-add-isin"
+          [disabled]="watchlistRows.length >= maxFunds"
+          (click)="submitNewFund()"
+        >
+          Añadir ISIN
+        </button>
+      </div>
+      @if (fundError) {
+        <p class="fund-error">{{ fundError }}</p>
+      }
+    </section>
+  }
+</div>
