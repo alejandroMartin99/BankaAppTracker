@@ -217,6 +217,10 @@ export class InversionComponent implements OnInit {
   /** Modal ficha ampliada (API + caché servidor). */
   fundDetailOpen = false;
   fundDetailTitle = '';
+  /** ISIN con el que se abrió la ficha (fondos); no es el ticker Yahoo. */
+  fundDetailIsin: string | null = null;
+  /** Par Yahoo con el que se abrió la ficha (cripto). */
+  fundDetailCryptoSymbol: string | null = null;
   fundDetailLoading = false;
   fundDetailError: string | null = null;
   fundDetailResponse: FundDetailResponse | null = null;
@@ -1051,6 +1055,8 @@ export class InversionComponent implements OnInit {
     if (!isin && !sym) return;
     this.fundDetailOpen = true;
     this.fundDetailTitle = row.name || isin || sym || '';
+    this.fundDetailIsin = isin ?? null;
+    this.fundDetailCryptoSymbol = sym ?? null;
     this.fundDetailLoading = true;
     this.fundDetailError = null;
     this.fundDetailResponse = null;
@@ -1071,9 +1077,11 @@ export class InversionComponent implements OnInit {
 
   closeFundDetail(): void {
     this.fundDetailOpen = false;
+    this.fundDetailIsin = null;
+    this.fundDetailCryptoSymbol = null;
   }
 
-  /** Cierra «Tipo» / «Fondos» al pulsar fuera del desplegable. */
+  /** Cierra «Tipo» / «Fondos» y la ayuda «i» del detalle al pulsar fuera. */
   @HostListener('document:click', ['$event'])
   onDocumentClickCloseChartFilters(ev: MouseEvent): void {
     const t = ev.target;
@@ -1082,8 +1090,12 @@ export class InversionComponent implements OnInit {
       if (n instanceof HTMLDetailsElement && n.classList.contains('chart-dd')) {
         return;
       }
+      if (n instanceof HTMLDetailsElement && n.classList.contains('detalle-info-help')) {
+        return;
+      }
     }
     this.closeOpenChartDdDetails();
+    this.closeOpenDetalleInfoHelp();
   }
 
   private closeOpenChartDdDetails(): void {
@@ -1091,6 +1103,13 @@ export class InversionComponent implements OnInit {
     nodes.forEach((node: Element) => {
       (node as HTMLDetailsElement).open = false;
     });
+  }
+
+  private closeOpenDetalleInfoHelp(): void {
+    const node = this.hostRef.nativeElement.querySelector('details.detalle-info-help[open]');
+    if (node instanceof HTMLDetailsElement) {
+      node.open = false;
+    }
   }
 
   @HostListener('document:keydown.escape')

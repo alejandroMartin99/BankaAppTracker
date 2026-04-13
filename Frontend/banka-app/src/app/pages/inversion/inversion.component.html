@@ -244,7 +244,20 @@
 
   @if (!loading && !error && detailGroups.length > 0) {
     <section class="table-section">
-      <h3 class="section-title" style="padding: 10px 14px 0">Detalle</h3>
+      <div class="detalle-section-head">
+        <h3 class="section-title section-title--detalle">Detalle</h3>
+        <details class="detalle-info-help">
+          <summary class="detalle-info-help__summary" aria-label="Ayuda: columnas del detalle">i</summary>
+          <div class="detalle-info-help__panel">
+            <p><strong>Caída</strong> — Peor retroceso respecto al máximo acumulado en el periodo (misma serie que el gráfico).</p>
+            <p>
+              <strong>Vol.</strong> — Volatilidad anualizada aproximada, a partir de los retornos entre puntos consecutivos de esa serie.
+            </p>
+            <p><strong>Rent.</strong> — Rentabilidad total del periodo respecto al inicio de la ventana temporal.</p>
+            <p><strong>Fondo</strong> — Pulsa el nombre para abrir la ficha ampliada (composición y datos Yahoo).</p>
+          </div>
+        </details>
+      </div>
       <div class="table-wrap table-wrap--detalle-help">
         <table class="bench-table bench-table--detalle">
           <colgroup>
@@ -256,49 +269,9 @@
           <thead>
             <tr>
               <th title="Pulsa el nombre del fondo para ver la ficha ampliada">Fondo</th>
-              <th
-                class="th-stat th-stat--compact th-stat--with-help"
-                title="Máx. caída: peor retroceso respecto al máximo acumulado en el periodo"
-              >
-                <div class="th-metric-head">
-                  <span>Caída</span>
-                  <details name="detalle-metric-ayuda" class="detalle-th-help">
-                    <summary class="detalle-th-help__btn" aria-label="Información: máx. caída">i</summary>
-                    <div class="detalle-th-help__panel">
-                      Peor retroceso respecto al máximo acumulado en el periodo seleccionado (misma serie que el
-                      gráfico).
-                    </div>
-                  </details>
-                </div>
-              </th>
-              <th
-                class="th-stat th-stat--compact th-stat--with-help"
-                title="Volatilidad anualizada aproximada (serie del periodo)"
-              >
-                <div class="th-metric-head">
-                  <span>Vol.</span>
-                  <details name="detalle-metric-ayuda" class="detalle-th-help">
-                    <summary class="detalle-th-help__btn" aria-label="Información: volatilidad">i</summary>
-                    <div class="detalle-th-help__panel">
-                      Volatilidad anualizada aproximada, calculada con los retornos entre puntos de la serie del periodo.
-                    </div>
-                  </details>
-                </div>
-              </th>
-              <th
-                class="th-pct th-stat--compact th-stat--with-help"
-                title="Rentabilidad total del periodo"
-              >
-                <div class="th-metric-head">
-                  <span>Rent.</span>
-                  <details name="detalle-metric-ayuda" class="detalle-th-help">
-                    <summary class="detalle-th-help__btn" aria-label="Información: rentabilidad">i</summary>
-                    <div class="detalle-th-help__panel">
-                      Rentabilidad total del periodo seleccionado (frente al inicio de la ventana temporal).
-                    </div>
-                  </details>
-                </div>
-              </th>
+              <th class="th-stat th-stat--compact" title="Máx. caída desde el máximo acumulado en el periodo">Caída</th>
+              <th class="th-stat th-stat--compact" title="Volatilidad anualizada aproximada (serie del periodo)">Vol.</th>
+              <th class="th-pct th-stat--compact" title="Rentabilidad total del periodo">Rent.</th>
             </tr>
           </thead>
           @for (grp of detailGroups; track grp.key) {
@@ -379,8 +352,10 @@
           @if (!fundDetailLoading && fundDetailResponse; as r) {
             @if (r.detail; as d) {
             <div class="fund-detail-meta">
-              @if (r.yahoo_symbol) {
-                <span class="fund-meta-chip">Yahoo: {{ r.yahoo_symbol }}</span>
+              @if (fundDetailIsin) {
+                <span class="fund-meta-chip">ISIN: {{ fundDetailIsin }}</span>
+              } @else if (fundDetailCryptoSymbol || r.yahoo_symbol) {
+                <span class="fund-meta-chip">Par: {{ fundDetailCryptoSymbol || r.yahoo_symbol }}</span>
               }
               @if (r.cached) {
                 <span class="fund-meta-chip fund-meta-chip--cache">Desde caché</span>
