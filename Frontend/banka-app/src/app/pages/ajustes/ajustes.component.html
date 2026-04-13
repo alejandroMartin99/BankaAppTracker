@@ -16,7 +16,7 @@
   <header class="page-header">
     <h1 class="page-title">Ajustes</h1>
     <p class="page-subtitle">
-      Editor de categoría y subcategoría para tus movimientos.
+      Editor de categorías arriba; más abajo, por cuenta, con filtros propios y acciones en bloque.
     </p>
   </header>
 
@@ -32,7 +32,7 @@
       <h2 class="card-title">Editor general de categorías</h2>
       <p class="card-subtitle">
         Las categorías "Otro" / "Otros" aparecen primero para revisarlas antes. Busca por descripción,
-        categoría o subcategoría y ajusta la clasificación de cualquier movimiento.
+        cuenta, categoría o subcategoría y ajusta la clasificación de cualquier movimiento.
       </p>
 
       <p
@@ -55,7 +55,7 @@
           <input
             type="text"
             [(ngModel)]="searchText"
-            placeholder="Ej. Ibercaja, gimnasio, luz..."
+            placeholder="Ej. cuenta Ibercaja, gimnasio, luz..."
           />
         </label>
       </div>
@@ -178,6 +178,181 @@
       }
     </section>
 
+    <section class="card card-editor">
+      <h2 class="card-title">Movimientos por cuenta</h2>
+      <p class="card-subtitle">
+        Pulsa <strong>Meses</strong> para elegir meses en un panel flotante (marca un año para todos sus meses con
+        datos). Despliega una cuenta y usa acciones en bloque.
+      </p>
+
+      <div class="account-month-compact-row">
+        <button type="button" class="account-month-filter-trigger" (click)="openAccountMonthFilterPopover()">
+          Meses
+          @if (hasAccountMonthFilter) {
+            <span class="account-month-filter-count-pill">{{ selectedAccountMonthKeys.length }}</span>
+          }
+        </button>
+        @if (hasAccountMonthFilter) {
+          <span class="account-month-compact-summary">
+            {{ selectedAccountMonthKeys.length === 1 ? '1 mes' : selectedAccountMonthKeys.length + ' meses' }}
+          </span>
+          <button type="button" class="account-filters-clear" (click)="clearAccountSectionFilters()">Limpiar</button>
+        }
+      </div>
+
+      @if (bulkBarError) {
+        <p class="bulk-bar-msg bulk-bar-msg--error" role="alert">{{ bulkBarError }}</p>
+      }
+      @if (bulkResultMessage) {
+        <p class="bulk-bar-msg bulk-bar-msg--ok" role="status">{{ bulkResultMessage }}</p>
+      }
+
+      @if (bulkSelectedCount > 0) {
+        <div class="account-bulk-count-strip" role="status">
+          <span class="account-bulk-count-strip-n">{{ bulkSelectedCount }} marcados</span>
+          <button type="button" class="account-bulk-count-strip-clear" (click)="clearBulkSelection()" [disabled]="bulkBusy">
+            Quitar
+          </button>
+        </div>
+      }
+
+      @if (groupedByAccount.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">🏦</span>
+          <p>
+            @if (hasAccountMonthFilter) {
+              No hay movimientos en los meses seleccionados.
+            } @else {
+              No hay movimientos cargados.
+            }
+          </p>
+        </div>
+      } @else {
+        <section class="categories-section ajustes-editor-section">
+          <div class="category-list">
+            @for (acc of groupedByAccount; track acc.cuenta) {
+              <div class="category-card" [class.expanded]="isAccountExpanded(acc.cuenta)">
+                <div class="account-card-header-row">
+                  <button type="button" class="category-header account-header-expand-btn" (click)="toggleAccount(acc.cuenta)">
+                    @if (acc.cuenta !== 'Sin cuenta') {
+                      <span class="tx-cuenta-badge account-header-badge" [ngStyle]="getAccountColorStyle(acc.cuenta)">
+                        {{ acc.cuenta }}
+                      </span>
+                    } @else {
+                      <span class="category-name">{{ acc.cuenta }}</span>
+                    }
+                    <span class="account-header-meta">{{ acc.transactions.length }} mov.</span>
+                    <span class="category-chevron">{{ isAccountExpanded(acc.cuenta) ? '▼' : '▶' }}</span>
+                  </button>
+                  @if (selectedCountForAccount(acc.cuenta) > 0) {
+                    <button
+                      type="button"
+                      class="account-header-trash"
+                      (click)="deleteBulkForAccount(acc.cuenta, $event)"
+                      [disabled]="bulkBusy"
+                      [attr.title]="'Eliminar ' + selectedCountForAccount(acc.cuenta) + ' en esta cuenta'"
+                      [attr.aria-label]="'Eliminar movimientos seleccionados en ' + acc.cuenta"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                  }
+                </div>
+                @if (isAccountExpanded(acc.cuenta)) {
+                  <div class="category-detail ajustes-detail account-detail-block">
+                    <div class="account-detail-actions">
+                      <button type="button" class="btn-linkish" (click)="selectAllInAccount(acc.cuenta)" [disabled]="bulkBusy">
+                        Marcar todos en esta cuenta
+                      </button>
+                      <button type="button" class="btn-linkish" (click)="deselectAllInAccount(acc.cuenta)" [disabled]="bulkBusy">
+                        Desmarcar todos aquí
+                      </button>
+                    </div>
+                    @if (selectedCountForAccount(acc.cuenta) > 0) {
+                      <div class="account-bulk-inline-cat">
+                        <span class="account-bulk-inline-label">Categoría en bloque (esta cuenta)</span>
+                        <div class="account-bulk-inline-fields">
+                          <select [(ngModel)]="bulkBatchCategoria" [disabled]="bulkBusy">
+                            <option [ngValue]="''">Sin categoría</option>
+                            @for (catOpt of allCategories; track catOpt) {
+                              <option [ngValue]="catOpt">{{ catOpt }}</option>
+                            }
+                          </select>
+                          <select [(ngModel)]="bulkBatchSubcategoria" [disabled]="bulkBusy">
+                            <option [ngValue]="''">Sin subcategoría</option>
+                            @for (subOpt of getSubcategoriesFor(bulkBatchCategoria); track subOpt) {
+                              <option [ngValue]="subOpt">{{ subOpt }}</option>
+                            }
+                            <option [ngValue]="addNewSubcategoryValue">Añadir nueva...</option>
+                          </select>
+                          @if (bulkBatchSubcategoria === addNewSubcategoryValue) {
+                            <input
+                              type="text"
+                              [(ngModel)]="bulkBatchSubcategoriaCustom"
+                              placeholder="Nueva subcategoría"
+                              [disabled]="bulkBusy"
+                            />
+                          }
+                          <button type="button" class="btn-dark account-bulk-inline-apply" (click)="applyBulkCategoryForAccount(acc.cuenta)" [disabled]="bulkBusy">
+                            Aplicar
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    @for (tx of acc.transactions; track tx.id || tx.transaction_id || $index) {
+                      <article class="tx-account-bulk-row">
+                        @if (tx.id != null) {
+                          <label class="tx-account-bulk-check" [attr.aria-label]="'Seleccionar movimiento ' + (tx.descripcion || '')">
+                            <input
+                              type="checkbox"
+                              [checked]="isAccountTxSelected(tx)"
+                              (change)="toggleAccountTxSelect(tx)"
+                            />
+                          </label>
+                        } @else {
+                          <span class="tx-account-bulk-check-spacer" aria-hidden="true"></span>
+                        }
+                        <div class="tx-account-bulk-main">
+                          <div class="tx-account-bulk-top">
+                            <span class="tx-editor-desc">{{ tx.descripcion || '—' }}</span>
+                            <span class="tx-editor-amount">{{ tx.importe | number:'1.2-2':'es' }} €</span>
+                          </div>
+                          <div class="tx-editor-meta">
+                            <span class="tx-date-inline">{{ tx.dt_date | date:'dd MMM yyyy':'':'es' }}</span>
+                            @if (tx.categoria || tx.subcategoria) {
+                              <span class="tx-account-bulk-cat">
+                                {{ tx.categoria || '—' }}
+                                @if (tx.subcategoria) {
+                                  <span class="tx-account-bulk-sub"> · {{ tx.subcategoria }}</span>
+                                }
+                              </span>
+                            }
+                          </div>
+                          <div class="tx-account-bulk-row-actions">
+                            <button
+                              type="button"
+                              class="btn-edit-details"
+                              (click)="openEditModal(tx); $event.stopPropagation()"
+                            >
+                              Editar detalles
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </section>
+
     <!-- Editor de nombres de cuenta (movido al pop up de usuario) -->
   }
 </div>
@@ -225,6 +400,68 @@
           {{ savingEdit ? 'Guardando...' : 'Guardar' }}
         </button>
       </div>
+    </div>
+  </div>
+}
+
+@if (accountMonthFilterPopoverOpen) {
+  <div class="calendar-overlay" (click)="closeAccountMonthFilterPopover()"></div>
+  <div class="calendar-popover account-month-filter-popover" (click)="$event.stopPropagation()">
+    <h3 class="calendar-title">Filtrar por meses</h3>
+    <p class="account-month-pop-hint">
+      Sin meses marcados se muestran todos. Marcar un año marca todos sus meses que existan en tus datos.
+    </p>
+    @if (accountMonthYearTree.length === 0) {
+      <p class="account-month-pop-empty">No hay fechas de movimientos para filtrar.</p>
+    } @else {
+      <div class="account-month-tree account-month-tree--popover" role="group" aria-label="Filtrar por meses">
+        @for (yNode of accountMonthYearTree; track yNode.year) {
+          <div class="account-month-year-block">
+            <div class="account-month-year-row">
+              <button
+                type="button"
+                class="account-year-chevron"
+                (click)="toggleAccountFilterYearExpand(yNode.year)"
+                [attr.aria-expanded]="isAccountFilterYearExpanded(yNode.year)"
+                [attr.aria-label]="isAccountFilterYearExpanded(yNode.year) ? 'Colapsar ' + yNode.year : 'Expandir ' + yNode.year"
+              >
+                {{ isAccountFilterYearExpanded(yNode.year) ? '▼' : '▶' }}
+              </button>
+              <label class="account-year-check">
+                <input
+                  type="checkbox"
+                  [checked]="isFilterYearFullySelected(yNode.year)"
+                  [indeterminate]="isFilterYearPartiallySelected(yNode.year)"
+                  (click)="onFilterYearCheckboxClick($event, yNode.year)"
+                />
+                <span class="account-year-label">{{ yNode.year }}</span>
+              </label>
+            </div>
+            @if (isAccountFilterYearExpanded(yNode.year)) {
+              <div class="account-month-children">
+                @for (mo of yNode.months; track mo.ym) {
+                  <label class="account-month-row">
+                    <input
+                      type="checkbox"
+                      [checked]="isAccountMonthFilterSelected(mo.ym)"
+                      (click)="onFilterMonthCheckboxClick($event, mo.ym)"
+                    />
+                    <span class="account-month-label">{{ mo.label }}</span>
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+    @if (hasAccountMonthFilter) {
+      <div class="account-month-pop-actions">
+        <button type="button" class="account-filters-clear" (click)="clearAccountSectionFilters()">Limpiar meses</button>
+      </div>
+    }
+    <div class="calendar-actions">
+      <button type="button" class="btn-apply" (click)="closeAccountMonthFilterPopover()">Cerrar</button>
     </div>
   </div>
 }

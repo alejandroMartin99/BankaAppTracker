@@ -101,30 +101,34 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
     duplicated_mask = df_transactions["transaction_id"].duplicated(keep=False)
 
     if duplicated_mask.any():
+        n_dup = int(duplicated_mask.sum())
+        err_msg = (
+            f"Se han detectado {n_dup} transacciones duplicadas en el archivo. "
+            "Revisa el criterio del hash."
+        )
         duplicated_rows = df_transactions.loc[duplicated_mask].sort_values(
             "transaction_id"
         )
+        cols_show = [
+            "transaction_id",
+            "DT_DATE",
+            "Importe",
+            "Descripción",
+            "Cuenta",
+            "Referencia",
+        ]
+        dup_view = duplicated_rows[cols_show]
 
-        # Logging claro para debug
-        print("⚠️ Se han detectado transaction_id duplicados en el fichero:")
-        print(
-            duplicated_rows[
-                [
-                    "transaction_id",
-                    "DT_DATE",
-                    "Importe",
-                    "Descripción",
-                    "Cuenta",
-                    "Referencia",
-                ]
-            ]
-        )
+        print("=" * 72)
+        print("ERROR IMPORTACIÓN — transacciones duplicadas (mismo transaction_id)")
+        print(err_msg)
+        print("-" * 72)
+        print(dup_view.to_string(index=True))
+        print("-" * 72)
+        print("(Filas anteriores: mismo hash = mismo date_part|desc|ref|importe|saldo|cuenta)")
+        print("=" * 72)
 
-        # Opción A (recomendada): abortar
-        raise ValueError(
-            f"Se han detectado {duplicated_mask.sum()} transacciones duplicadas "
-            "en el archivo. Revisa el criterio del hash."
-        )
+        raise ValueError(err_msg)
 
     # Rename for consistency
     df_transactions = df_transactions.rename(columns={

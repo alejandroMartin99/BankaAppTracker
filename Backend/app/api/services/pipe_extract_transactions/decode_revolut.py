@@ -8,6 +8,18 @@ warnings.filterwarnings("ignore", message="Workbook contains no default style*")
 
 ACCOUNT_IDENTIFIER_REVOLUT = "revolut"
 
+_OUT_COLS = [
+    "DT_DATE",
+    "Importe",
+    "Saldo",
+    "Cuenta",
+    "Descripción",
+    "Categoria",
+    "Subcategoria",
+    "BizumMensaje",
+    "Referencia",
+]
+
 
 def main_decode_revolut(df: pd.DataFrame, account_name: str | None = None) -> tuple[pd.DataFrame, str, str]:
     """Decodifica extractos de Revolut y normaliza la tabla de transacciones.
@@ -16,41 +28,30 @@ def main_decode_revolut(df: pd.DataFrame, account_name: str | None = None) -> tu
     """
     display_name = account_name or get_revolut_default_name()
     df["Cuenta"] = display_name
-    df['Referencia'] = 'NONE'
-    
-    # 2. Normalizar descripción
+    df["Referencia"] = "NONE"
+
     df["Descripción"] = df["Descripción"].fillna("").astype(str).str.strip()
-    
-    # 3. Aplicar análisis semántico usando la función compartida
+
+    df = df.rename(columns={"Fecha de finalización": "DT_DATE"})
+    ok = df["DT_DATE"].notna() & df["DT_DATE"].astype(str).str.strip().ne("")
+    df = df.loc[ok].copy()
+    if len(df) == 0:
+        return pd.DataFrame(columns=_OUT_COLS), ACCOUNT_IDENTIFIER_REVOLUT, display_name
+
+    # El análisis debe ir DESPUÉS de filtrar filas: si no, analysis_df tiene más filas que df y el
+    # concat alinea por posición y rellena DT_DATE/Importe con NaN en las colas.
     analysis_df = pd.DataFrame(
         df["Descripción"].apply(lambda x: analyze_description(x, CATEGORY_RULES)).tolist()
     )
-    
-    # 4. Renombrar columnas
-    df = df.rename(columns={'Fecha de inicio': 'DT_DATE'})
-    
-    # 5. Concatenar DataFrames
-    df = pd.concat([df.reset_index(drop=True), analysis_df], axis=1)
-    
-    # 6. Normalizar Saldo
-    df['Saldo'] = df['Saldo'].fillna(0.0)
-    
-    # 7. Seleccionar y ordenar columnas
-    df = df[[
-        'DT_DATE',
-        'Importe',
-        'Saldo',
-        'Cuenta',
-        'Descripción',
-        'Categoria',
-        'Subcategoria',
-        'BizumMensaje',
-        'Referencia'
-    ]].sort_values('DT_DATE')
 
-    # 8. Si varias transacciones comparten la misma fecha/hora exacta, desempate: +1s al 2º, +2s al 3º...
-    df['DT_DATE'] = pd.to_datetime(df['DT_DATE'])
-    rank_same_ts = df.groupby('DT_DATE').cumcount()
-    df['DT_DATE'] = (df['DT_DATE'] + pd.to_timedelta(rank_same_ts, unit='s')).dt.strftime('%Y-%m-%d %H:%M:%S')
+    df = pd.concat([df.reset_index(drop=True), analysis_df.reset_index(drop=True)], axis=1)
+
+    df["Saldo"] = df["Saldo"].fillna(0.0)
+
+    df = df[_OUT_COLS].sort_values("DT_DATE")
+
+    df["DT_DATE"] = pd.to_datetime(df["DT_DATE"])
+    rank_same_ts = df.groupby("DT_DATE").cumcount()
+    df["DT_DATE"] = (df["DT_DATE"] + pd.to_timedelta(rank_same_ts, unit="s")).dt.strftime("%Y-%m-%d %H:%M:%S")
 
     return df, ACCOUNT_IDENTIFIER_REVOLUT, display_name

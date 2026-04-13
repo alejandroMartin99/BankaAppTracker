@@ -45,6 +45,21 @@ class MortgageReceiptUpdate(BaseModel):
     included_in_calculation: bool
 
 
+class BatchTransactionIds(BaseModel):
+    ids: List[int]
+
+
+class BatchCategoryUpdate(BaseModel):
+    ids: List[int]
+    categoria: Optional[str] = None
+    subcategoria: Optional[str] = None
+
+
+def _chunked(lst: list, size: int):
+    for i in range(0, len(lst), size):
+        yield lst[i : i + size]
+
+
 def _fetch_for_balances(account_ids: list[str]) -> list:
     """Saldos = valor 'saldo' de la última transacción de cada cuenta.
     dt_date incluye hh:mm:ss (Ibercaja: ficticias, Revolut: reales) para orden correcto."""
@@ -616,6 +631,130 @@ async def update_account_display_name(
         raise
     except Exception as e:
         raise internal_server_error(e, "update_account_display_name")
+
+
+@router.post(
+    "/transactions/batch-delete",
+    summary="Eliminar varias transacciones propias",
+    response_model=Dict[str, Any],
+)
+async def delete_transactions_batch(
+    body: BatchTransactionIds = Body(...),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Elimina en bloque por id; solo filas cuyo account_id pertenece al usuario."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    raw_ids = [i for i in (body.ids or []) if isinstance(i, int) and i > 0]
+    seen: set[int] = set()
+    ids = []
+    for i in raw_ids:
+        if i not in seen:
+            seen.add(i)
+            ids.append(i)
+    if not ids:
+        return {"success": True, "deleted": 0, "deleted_ids": []}
+    if len(ids) > 5000:
+        raise HTTPException(status_code=400, detail="Máximo 5000 ids por petición")
+
+    try:
+        account_set = set(account_ids)
+        allowed_ids: list[int] = []
+        q_chunk = 200
+        for part in _chunked(ids, q_chunk):
+            r = (
+                supabase_service.supabase.table("transactions")
+                .select("id, account_id")
+                .in_("id", part)
+                .execute()
+            )
+            for row in r.data or []:
+                if row.get("account_id") in account_set:
+                    allowed_ids.append(row["id"])
+        if not allowed_ids:
+            return {"success": True, "deleted": 0, "deleted_ids": []}
+
+        del_chunk = 200
+        for chunk in _chunked(allowed_ids, del_chunk):
+            supabase_service.supabase.table("transactions").delete().in_("id", chunk).execute()
+
+        return {"success": True, "deleted": len(allowed_ids), "deleted_ids": allowed_ids}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_server_error(e, "delete_transactions_batch")
+
+
+@router.post(
+    "/transactions/batch-category",
+    summary="Actualizar categoría/subcategoría en bloque",
+    response_model=Dict[str, Any],
+)
+async def update_transactions_category_batch(
+    body: BatchCategoryUpdate = Body(...),
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Aplica la misma categoría y subcategoría a varias filas propias."""
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+
+    user_id = user.get("sub", "")
+    account_ids = supabase_service.get_user_account_ids(user_id)
+    if not account_ids:
+        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
+
+    raw_ids = [i for i in (body.ids or []) if isinstance(i, int) and i > 0]
+    seen: set[int] = set()
+    ids = []
+    for i in raw_ids:
+        if i not in seen:
+            seen.add(i)
+            ids.append(i)
+    if not ids:
+        return {"success": True, "updated": 0, "updated_ids": []}
+    if len(ids) > 5000:
+        raise HTTPException(status_code=400, detail="Máximo 5000 ids por petición")
+
+    update_data: Dict[str, Any] = {}
+    if body.categoria is not None:
+        update_data["categoria"] = body.categoria.strip() or None
+    if body.subcategoria is not None:
+        update_data["subcategoria"] = body.subcategoria.strip() or None
+    if not update_data:
+        return {"success": True, "updated": 0, "updated_ids": []}
+
+    try:
+        account_set = set(account_ids)
+        allowed_ids: list[int] = []
+        q_chunk = 200
+        for part in _chunked(ids, q_chunk):
+            r = (
+                supabase_service.supabase.table("transactions")
+                .select("id, account_id")
+                .in_("id", part)
+                .execute()
+            )
+            for row in r.data or []:
+                if row.get("account_id") in account_set:
+                    allowed_ids.append(row["id"])
+        if not allowed_ids:
+            return {"success": True, "updated": 0, "updated_ids": []}
+
+        up_chunk = 200
+        for chunk in _chunked(allowed_ids, up_chunk):
+            supabase_service.supabase.table("transactions").update(update_data).in_("id", chunk).execute()
+
+        return {"success": True, "updated": len(allowed_ids), "updated_ids": allowed_ids}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_server_error(e, "update_transactions_category_batch")
 
 
 @router.delete(

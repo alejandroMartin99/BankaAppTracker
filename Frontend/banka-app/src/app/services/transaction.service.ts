@@ -204,6 +204,26 @@ export class TransactionService {
     return this.http.delete<{ success: boolean; deleted: number }>(`${this.transactionsUrl}/${id}`);
   }
 
+  /** Elimina varias transacciones en una sola petición (backend en lotes). */
+  deleteTransactionsBatch(ids: number[]): Observable<{ success: boolean; deleted: number; deleted_ids: number[] }> {
+    return this.http.post<{ success: boolean; deleted: number; deleted_ids: number[] }>(
+      `${this.transactionsUrl}/batch-delete`,
+      { ids }
+    );
+  }
+
+  /** Aplica la misma categoría/subcategoría a varias filas en una sola petición. */
+  updateTransactionsCategoryBatch(
+    ids: number[],
+    categoria: string | null,
+    subcategoria: string | null
+  ): Observable<{ success: boolean; updated: number; updated_ids: number[] }> {
+    return this.http.post<{ success: boolean; updated: number; updated_ids: number[] }>(
+      `${this.transactionsUrl}/batch-category`,
+      { ids, categoria, subcategoria }
+    );
+  }
+
   /**
    * Actualiza el nombre visible de una cuenta.
    */

@@ -1,0 +1,71 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: uvicorn",
+      "type": "shell",
+      "command": ".\\venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+      "options": {
+        "cwd": "${workspaceFolder}/Backend",
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "python",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Uvicorn running on"
+        }
+      },
+      "presentation": {
+        "label": "Backend",
+        "group": "banka",
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Frontend: ng serve",
+      "type": "shell",
+      "command": "ng serve -o",
+      "options": {
+        "cwd": "${workspaceFolder}/Frontend/banka-app",
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": { "regexp": "(.*?)" },
+          "endsPattern": { "regexp": "bundle generation complete" }
+        }
+      },
+      "presentation": {
+        "label": "Frontend",
+        "group": "banka",
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "🚀 BankaAppTracker: Start All",
+      "dependsOn": ["Backend: uvicorn", "Frontend: ng serve"],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

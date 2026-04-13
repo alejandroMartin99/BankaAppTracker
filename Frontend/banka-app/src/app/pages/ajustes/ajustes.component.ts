@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Transaction, Account } from '../../models/transaction.model';
+import { firstValueFrom } from 'rxjs';
+import { Transaction } from '../../models/transaction.model';
 import { getAccountColorForName } from '../../utils/account-colors';
 import { TransactionService } from '../../services/transaction.service';
 import { AuthService } from '../../services/auth.service';
@@ -16,6 +17,21 @@ interface EditSubcategoryGroup {
 interface EditCategoryGroup {
   categoria: string;
   subcategories: EditSubcategoryGroup[];
+}
+
+interface EditAccountGroup {
+  cuenta: string;
+  transactions: Transaction[];
+}
+
+interface AccountFilterMonthNode {
+  ym: string;
+  label: string;
+}
+
+interface AccountFilterYearNode {
+  year: string;
+  months: AccountFilterMonthNode[];
 }
 
 function makeSubKey(cat: string, sub: string): string {
@@ -83,6 +99,24 @@ export class AjustesComponent implements OnInit {
 
   expandedCategory: string | null = null;
   expandedSubKey: string | null = null;
+
+  /** Meses seleccionados (`YYYY-MM`). Vacío = no filtrar por mes. */
+  selectedAccountMonths: Record<string, true> = {};
+  /** Año del filtro desplegado en el árbol (`false` = colapsado). Por defecto todos abiertos. */
+  expandedAccountFilterYears: Record<string, boolean> = {};
+  /** Popover del filtro por meses (no empuja el contenido de la página). */
+  accountMonthFilterPopoverOpen = false;
+
+  /** Editor por cuenta: una cuenta desplegada a la vez */
+  expandedAccount: string | null = null;
+  /** Selección de ids para acciones en bloque (solo vista por cuenta) */
+  selectedTxIds: Record<number, true> = {};
+  bulkBatchCategoria = '';
+  bulkBatchSubcategoria = '';
+  bulkBatchSubcategoriaCustom = '';
+  bulkBusy = false;
+  bulkBarError: string | null = null;
+  bulkResultMessage: string | null = null;
   confirmModalOpen = false;
   pendingTx: Transaction | null = null;
   pendingCategoria = '';
@@ -234,6 +268,7 @@ export class AjustesComponent implements OnInit {
           }
         }
         this.reconcileDraftSubcategories();
+        this.pruneAccountMonthFilterToLoadedData();
         this.loading = false;
         this.showLoader = false;
       },
@@ -266,10 +301,385 @@ export class AjustesComponent implements OnInit {
       list = list.filter(t =>
         (t.descripcion || '').toLowerCase().includes(q) ||
         (t.categoria || '').toLowerCase().includes(q) ||
-        (t.subcategoria || '').toLowerCase().includes(q)
+        (t.subcategoria || '').toLowerCase().includes(q) ||
+        (t.cuenta || '').toLowerCase().includes(q)
       );
     }
     return list.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''));
+  }
+
+  get bulkSelectedIds(): number[] {
+    return Object.keys(this.selectedTxIds)
+      .map((k) => +k)
+      .filter((id) => this.selectedTxIds[id] === true && Number.isFinite(id));
+  }
+
+  get bulkSelectedCount(): number {
+    return this.bulkSelectedIds.length;
+  }
+
+  private distinctYearMonthsFromTransactions(): string[] {
+    const set = new Set<string>();
+    for (const t of this.transactions) {
+      const raw = (t.dt_date || '').toString().trim();
+      if (raw.length >= 7) {
+        const ym = raw.slice(0, 7);
+        if (/^\d{4}-\d{2}$/.test(ym)) set.add(ym);
+      }
+    }
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }
+
+  /** Árbol año → meses (solo meses que existen en los datos). Años de más reciente a más antiguo. */
+  get accountMonthYearTree(): AccountFilterYearNode[] {
+    const yms = this.distinctYearMonthsFromTransactions();
+    const byYear = new Map<string, string[]>();
+    for (const ym of yms) {
+      const y = ym.slice(0, 4);
+      if (!byYear.has(y)) byYear.set(y, []);
+      byYear.get(y)!.push(ym);
+    }
+    const years = Array.from(byYear.keys()).sort((a, b) => b.localeCompare(a));
+    return years.map((year) => ({
+      year,
+      months: (byYear.get(year) || [])
+        .sort((a, b) => b.localeCompare(a))
+        .map((ym) => ({ ym, label: this.formatMonthOnlyLabel(ym) }))
+    }));
+  }
+
+  private formatMonthOnlyLabel(ym: string): string {
+    const parts = ym.split('-');
+    const y = +parts[0];
+    const m = +parts[1];
+    if (!y || !m || m < 1 || m > 12) return ym;
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    const s = d.toLocaleDateString('es-ES', { month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  private pruneAccountMonthFilterToLoadedData(): void {
+    const valid = new Set(this.distinctYearMonthsFromTransactions());
+    const next: Record<string, true> = {};
+    for (const k of Object.keys(this.selectedAccountMonths)) {
+      if (valid.has(k)) next[k] = true;
+    }
+    this.selectedAccountMonths = next;
+  }
+
+  get selectedAccountMonthKeys(): string[] {
+    return Object.keys(this.selectedAccountMonths).filter((k) => this.selectedAccountMonths[k] === true);
+  }
+
+  get hasAccountMonthFilter(): boolean {
+    return this.selectedAccountMonthKeys.length > 0;
+  }
+
+  isAccountMonthFilterSelected(ym: string): boolean {
+    return this.selectedAccountMonths[ym] === true;
+  }
+
+  filterYearMonthKeys(year: string): string[] {
+    const node = this.accountMonthYearTree.find((n) => n.year === year);
+    return node ? node.months.map((m) => m.ym) : [];
+  }
+
+  isFilterYearFullySelected(year: string): boolean {
+    const months = this.filterYearMonthKeys(year);
+    if (months.length === 0) return false;
+    return months.every((ym) => this.selectedAccountMonths[ym] === true);
+  }
+
+  isFilterYearPartiallySelected(year: string): boolean {
+    const months = this.filterYearMonthKeys(year);
+    const n = months.filter((ym) => this.selectedAccountMonths[ym] === true).length;
+    return n > 0 && n < months.length;
+  }
+
+  isAccountFilterYearExpanded(year: string): boolean {
+    return this.expandedAccountFilterYears[year] !== false;
+  }
+
+  toggleAccountFilterYearExpand(year: string): void {
+    const open = this.isAccountFilterYearExpanded(year);
+    this.expandedAccountFilterYears = { ...this.expandedAccountFilterYears, [year]: !open };
+  }
+
+  onFilterYearCheckboxClick(ev: MouseEvent, year: string): void {
+    ev.preventDefault();
+    this.toggleFilterYear(year);
+  }
+
+  onFilterMonthCheckboxClick(ev: MouseEvent, ym: string): void {
+    ev.preventDefault();
+    this.toggleFilterMonth(ym);
+  }
+
+  toggleFilterMonth(ym: string): void {
+    const next: Record<string, true> = { ...this.selectedAccountMonths };
+    if (next[ym]) delete next[ym];
+    else next[ym] = true;
+    this.selectedAccountMonths = next;
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+  }
+
+  toggleFilterYear(year: string): void {
+    const months = this.filterYearMonthKeys(year);
+    if (months.length === 0) return;
+    const next: Record<string, true> = { ...this.selectedAccountMonths };
+    const allOn = this.isFilterYearFullySelected(year);
+    if (allOn) {
+      for (const ym of months) delete next[ym];
+    } else {
+      for (const ym of months) next[ym] = true;
+    }
+    this.selectedAccountMonths = next;
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+  }
+
+  /**
+   * Movimientos visibles en «Por cuenta»: filtros propios de la sección sobre todas las transacciones cargadas.
+   */
+  get filteredForAccountSection(): Transaction[] {
+    let list = [...this.transactions];
+
+    if (this.hasAccountMonthFilter) {
+      const allowed = new Set(this.selectedAccountMonthKeys);
+      list = list.filter((t) => {
+        const raw = (t.dt_date || '').toString().trim();
+        return raw.length >= 7 && allowed.has(raw.slice(0, 7));
+      });
+    }
+
+    return list.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''));
+  }
+
+  clearAccountSectionFilters(): void {
+    this.selectedAccountMonths = {};
+  }
+
+  openAccountMonthFilterPopover(): void {
+    this.accountMonthFilterPopoverOpen = true;
+  }
+
+  closeAccountMonthFilterPopover(): void {
+    this.accountMonthFilterPopoverOpen = false;
+  }
+
+  /**
+   * Movimientos agrupados por cuenta (texto `cuenta`); usa los filtros de la sección «Por cuenta».
+   */
+  get groupedByAccount(): EditAccountGroup[] {
+    const byAcc = new Map<string, Transaction[]>();
+    for (const t of this.filteredForAccountSection) {
+      const acc = (t.cuenta || '').toString().trim() || 'Sin cuenta';
+      if (!byAcc.has(acc)) byAcc.set(acc, []);
+      byAcc.get(acc)!.push(t);
+    }
+    const groups: EditAccountGroup[] = Array.from(byAcc.entries()).map(([cuenta, transactions]) => ({
+      cuenta,
+      transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
+    }));
+    groups.sort((a, b) => {
+      const aSin = a.cuenta === 'Sin cuenta';
+      const bSin = b.cuenta === 'Sin cuenta';
+      if (aSin !== bSin) return aSin ? 1 : -1;
+      return a.cuenta.localeCompare(b.cuenta, 'es', { sensitivity: 'base' });
+    });
+    return groups;
+  }
+
+  toggleAccount(cuenta: string): void {
+    this.expandedAccount = this.expandedAccount === cuenta ? null : cuenta;
+  }
+
+  isAccountExpanded(cuenta: string): boolean {
+    return this.expandedAccount === cuenta;
+  }
+
+  toggleAccountTxSelect(t: Transaction): void {
+    const id = t.id;
+    if (id == null) return;
+    const next: Record<number, true> = { ...this.selectedTxIds };
+    if (next[id]) {
+      delete next[id];
+    } else {
+      next[id] = true;
+    }
+    this.selectedTxIds = next;
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+  }
+
+  isAccountTxSelected(t: Transaction): boolean {
+    const id = t.id;
+    if (id == null) return false;
+    return this.selectedTxIds[id] === true;
+  }
+
+  selectAllInAccount(cuenta: string): void {
+    const g = this.groupedByAccount.find((x) => x.cuenta === cuenta);
+    if (!g) return;
+    const next: Record<number, true> = { ...this.selectedTxIds };
+    for (const tx of g.transactions) {
+      if (tx.id != null) next[tx.id] = true;
+    }
+    this.selectedTxIds = next;
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+  }
+
+  deselectAllInAccount(cuenta: string): void {
+    const g = this.groupedByAccount.find((x) => x.cuenta === cuenta);
+    if (!g) return;
+    const next: Record<number, true> = { ...this.selectedTxIds };
+    for (const tx of g.transactions) {
+      if (tx.id != null) delete next[tx.id];
+    }
+    this.selectedTxIds = next;
+  }
+
+  clearBulkSelection(): void {
+    this.selectedTxIds = {};
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+  }
+
+  /** Clave de cuenta igual que en `groupedByAccount`. */
+  private accountKeyForTx(t: Transaction): string {
+    return (t.cuenta || '').toString().trim() || 'Sin cuenta';
+  }
+
+  /** Ids seleccionados que pertenecen a esa cuenta (clave de agrupación). */
+  selectedIdsForAccount(cuentaKey: string): number[] {
+    return this.bulkSelectedIds.filter((id) => {
+      const tx = this.transactions.find((x) => x.id === id);
+      return !!tx && this.accountKeyForTx(tx) === cuentaKey;
+    });
+  }
+
+  selectedCountForAccount(cuentaKey: string): number {
+    return this.selectedIdsForAccount(cuentaKey).length;
+  }
+
+  getEffectiveBulkSubcategoria(): string {
+    if (this.bulkBatchSubcategoria === ADD_NEW_SUBCATEGORY) {
+      return (this.bulkBatchSubcategoriaCustom || '').toString().trim();
+    }
+    return (this.bulkBatchSubcategoria || '').toString().trim();
+  }
+
+  deleteBulkForAccount(cuentaKey: string, ev: MouseEvent): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+    const ids = this.selectedIdsForAccount(cuentaKey);
+    if (ids.length === 0) return;
+    const n = ids.length;
+    const okDel = confirm(
+      `¿Eliminar ${n} ${n === 1 ? 'movimiento' : 'movimientos'} de «${cuentaKey}»? Esta acción no se puede deshacer.`
+    );
+    if (!okDel) return;
+    void this.runBulkDeleteIds(ids);
+  }
+
+  private applyCategoryToLocalState(id: number, categoria: string | null, subcategoria: string | null): void {
+    const t = this.transactions.find((x) => x.id === id);
+    if (!t) return;
+    const cat = (categoria ?? '').toString().trim();
+    const sub = (subcategoria ?? '').toString().trim();
+    t.categoria = cat;
+    t.subcategoria = sub;
+    const key = String(id);
+    this.draftCategoria[key] = cat;
+    const subList = this.getSubcategoriesFor(cat);
+    if (sub && !subList.includes(sub)) {
+      this.draftSubcategoria[key] = ADD_NEW_SUBCATEGORY;
+      this.draftSubcategoriaCustom[key] = sub;
+    } else {
+      this.draftSubcategoria[key] = sub;
+      delete this.draftSubcategoriaCustom[key];
+    }
+  }
+
+  async applyBulkCategoryForAccount(cuentaKey: string): Promise<void> {
+    this.bulkBarError = null;
+    this.bulkResultMessage = null;
+    const ids = this.selectedIdsForAccount(cuentaKey);
+    if (ids.length === 0) {
+      this.bulkBarError = 'No hay movimientos seleccionados en esta cuenta.';
+      return;
+    }
+    if (this.bulkBatchSubcategoria === ADD_NEW_SUBCATEGORY && !this.getEffectiveBulkSubcategoria()) {
+      this.bulkBarError = 'Escribe la subcategoría nueva o elige otra opción.';
+      return;
+    }
+    const categoriaDraft = (this.bulkBatchCategoria || '').trim();
+    const subcategoriaDraft = this.getEffectiveBulkSubcategoria();
+    const categoria = categoriaDraft || null;
+    const subcategoria = subcategoriaDraft || null;
+    const catLabel = categoriaDraft || 'Sin categoría';
+    const subLabel =
+      this.bulkBatchSubcategoria === ADD_NEW_SUBCATEGORY
+        ? this.bulkBatchSubcategoriaCustom || 'Sin subcategoría'
+        : this.bulkBatchSubcategoria || 'Sin subcategoría';
+    const n = ids.length;
+    const okApply = confirm(
+      `¿Aplicar categoría «${catLabel}» y subcategoría «${subLabel}» a ${n} ${n === 1 ? 'movimiento' : 'movimientos'} de «${cuentaKey}»?`
+    );
+    if (!okApply) return;
+
+    this.bulkBusy = true;
+    this.bulkResultMessage = null;
+    const nextSel: Record<number, true> = { ...this.selectedTxIds };
+    try {
+      const res = await firstValueFrom(
+        this.transactionService.updateTransactionsCategoryBatch(ids, categoria, subcategoria)
+      );
+      const updatedIds = res.updated_ids || [];
+      for (const id of updatedIds) {
+        this.applyCategoryToLocalState(id, categoria, subcategoria);
+        delete nextSel[id];
+      }
+      this.selectedTxIds = nextSel;
+      const n = res.updated ?? updatedIds.length;
+      this.bulkResultMessage = n === 1 ? '1 movimiento actualizado.' : `${n} movimientos actualizados.`;
+      this.reconcileDraftSubcategories();
+    } catch (err: any) {
+      this.bulkBarError = err?.error?.detail || 'Error al actualizar categorías';
+    } finally {
+      this.bulkBusy = false;
+    }
+  }
+
+  private async runBulkDeleteIds(ids: number[]): Promise<void> {
+    this.bulkBusy = true;
+    this.bulkResultMessage = null;
+    const nextSel: Record<number, true> = { ...this.selectedTxIds };
+    try {
+      const res = await firstValueFrom(this.transactionService.deleteTransactionsBatch(ids));
+      const deletedIds = res.deleted_ids || [];
+      const idSet = new Set(deletedIds);
+      this.transactions = this.transactions.filter((t) => t.id == null || !idSet.has(t.id));
+      for (const id of deletedIds) {
+        const key = String(id);
+        delete this.draftCategoria[key];
+        delete this.draftSubcategoria[key];
+        delete this.draftSubcategoriaCustom[key];
+        delete nextSel[id];
+      }
+      this.selectedTxIds = nextSel;
+      const n = res.deleted ?? deletedIds.length;
+      this.bulkResultMessage =
+        n === 0 ? 'Ningún movimiento eliminado.' : n === 1 ? '1 movimiento eliminado.' : `${n} movimientos eliminados.`;
+    } catch (err: any) {
+      this.bulkBarError = err?.error?.detail || 'Error al eliminar';
+    } finally {
+      this.bulkBusy = false;
+    }
   }
 
   private isOtherCategory(cat: string | undefined | null): boolean {
