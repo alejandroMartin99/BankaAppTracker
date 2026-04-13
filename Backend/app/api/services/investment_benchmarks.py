@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import yfinance as yf
 
+from app.api.services.supabase.supabase_service import supabase_service
+
 # Selección por defecto (autor) si el usuario no ha guardado ningún ISIN en Supabase
 # Cripto en Yahoo (par USD); apartado fijo en la API (no configurable por usuario por ahora)
 DEFAULT_CRYPTO_TICKERS: Tuple[str, ...] = ("BTC-USD",)
@@ -43,6 +45,20 @@ ISIN_CLASIFICACION: Dict[str, str] = {
     "LU0625737910": "renta_variable",  # Pictet-China Index (RV)
     "LU1048684796": "renta_variable",  # Fidelity Emerging Markets
     "LU1623762843": "renta_fija",  # Carmignac Portfolio Credit
+}
+
+# Nombres legibles si Yahoo no devuelve metadata (p. ej. IP de datacenter bloqueada en deploy).
+# Debe cubrir al menos los ISIN de ISIN_CLASIFICACION / lista por defecto.
+ISIN_FALLBACK_LABEL: Dict[str, str] = {
+    "FR0000989626": "Groupama Trésorerie IC",
+    "IE00B03HCZ61": "Vanguard Global Stock Index",
+    "IE00B3X1NT05": "Vanguard Global Small-Cap Index",
+    "IE00BYX5P602": "Fidelity MSCI World Index",
+    "IE0032126645": "Vanguard U.S. 500 Stock Index",
+    "LU0034353002": "DWS Floating Rate Notes LC",
+    "LU0625737910": "Pictet-China Index",
+    "LU1048684796": "Fidelity Emerging Markets",
+    "LU1623762843": "Carmignac Portfolio Credit",
 }
 
 # Claves de periodo soportadas por la API (ytd = desde 1 ene; max = histórico completo vía yfinance period=max)
@@ -89,7 +105,7 @@ def normalize_isin_list(raw: List[str]) -> List[str]:
 def _cache_key(user_id: str, period: str, isins: List[str]) -> str:
     sig_src = ",".join(isins) + "|" + ",".join(DEFAULT_CRYPTO_TICKERS)
     sig = hashlib.sha256(sig_src.encode()).hexdigest()[:28]
-    return f"bench:v8:{user_id}:{period}:{sig}"
+    return f"bench:v9:{user_id}:{period}:{sig}"
 
 
 def _lock_for_cache_key(key: str) -> asyncio.Lock:
@@ -194,20 +210,22 @@ def _looks_like_yahoo_internal_shortname(s: str) -> bool:
     return False
 
 
-def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
-    """Nombre legible usando metadata Yahoo ya cargada en `inf`."""
+def _display_name_from_info_dict(isin: str, inf: Dict[str, Any]) -> Optional[str]:
+    """Nombre legible solo a partir del dict `info` (sin fast_info)."""
+    if not inf:
+        return None
     longn = _norm_name(inf.get("longName"), isin)  # type: ignore[arg-type]
     if longn:
-        return longn[:160]
+        return longn
 
     for key in ("displayName", "name"):
         v = _norm_name(inf.get(key), isin)  # type: ignore[arg-type]
         if v:
-            return v[:160]
+            return v
 
     shortn = _norm_name(inf.get("shortName"), isin)  # type: ignore[arg-type]
     if shortn and not _looks_like_yahoo_internal_shortname(shortn):
-        return shortn[:160]
+        return shortn
 
     desc = inf.get("description")
     if isinstance(desc, str):
@@ -216,7 +234,34 @@ def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
         if len(first) > 12:
             v = _norm_name(first, isin)
             if v:
-                return v[:160]
+                return v
+    return None
+
+
+def _name_from_fund_detail_supabase_cache(isin: str) -> Optional[str]:
+    """Si existe ficha en caché (p. ej. otro request con Yahoo respondiendo), reutiliza longName."""
+    try:
+        if not supabase_service.is_connected():
+            return None
+        row = supabase_service.get_investment_fund_detail_cache(isin.strip().upper())
+        if not row or not isinstance(row.get("payload"), dict):
+            return None
+        pl: Dict[str, Any] = row["payload"]
+        cached_inf = pl.get("info")
+        if isinstance(cached_inf, dict):
+            hit = _display_name_from_info_dict(isin, cached_inf)
+            if hit:
+                return hit[:160]
+    except Exception:
+        return None
+    return None
+
+
+def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
+    """Nombre legible usando metadata Yahoo ya cargada en `inf`."""
+    v = _display_name_from_info_dict(isin, inf)
+    if v:
+        return v[:160]
 
     try:
         fi = t.fast_info
@@ -331,6 +376,12 @@ def _fetch_one_isin_sync(isin: str, period_key: str) -> Dict[str, Any]:
                 points.append({"date": d, "pct_vs_start": p})
         sym = getattr(t, "ticker", None) or isin
         name = _resolve_fund_name(t, isin, inf)
+        if name == isin:
+            cached_nm = _name_from_fund_detail_supabase_cache(isin)
+            if cached_nm:
+                name = cached_nm
+        if name == isin:
+            name = ISIN_FALLBACK_LABEL.get(isin, isin)
         clasificacion = _clasificacion_activo(isin, inf, name)
         return {
             "isin": isin,
