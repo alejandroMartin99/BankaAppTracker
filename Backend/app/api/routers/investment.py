@@ -39,9 +39,25 @@ def _isins_from_db_rows(rows: List[Dict[str, Any]]) -> List[str]:
     return out
 
 
+def _merge_default_and_user_isins(user_isins: List[str]) -> List[str]:
+    """Orden: ISIN por defecto del autor, luego ISIN del usuario que no estén ya."""
+    seen: set[str] = set()
+    out: List[str] = []
+    for isin in DEFAULT_AUTHOR_ISINS:
+        if isin not in seen:
+            seen.add(isin)
+            out.append(isin)
+    for isin in user_isins:
+        if isin not in seen:
+            seen.add(isin)
+            out.append(isin)
+    return out
+
+
 def _resolve_isins_for_user(user_id: str) -> tuple[List[str], bool]:
     """
-    ISIN en orden de la tabla; si no hay filas, lista por defecto del autor.
+    Si no hay fondos guardados, solo la lista por defecto del autor.
+    Si hay filas en la tabla del usuario, se unen (sin duplicar) con la lista por defecto.
     Devuelve (isins, using_default_watchlist).
     """
     if not supabase_service.is_connected():
@@ -49,10 +65,10 @@ def _resolve_isins_for_user(user_id: str) -> tuple[List[str], bool]:
     rows = supabase_service.list_user_investment_funds(user_id)
     if not rows:
         return list(DEFAULT_AUTHOR_ISINS), True
-    isins = _isins_from_db_rows(rows)
-    if not isins:
+    user_isins = _isins_from_db_rows(rows)
+    if not user_isins:
         return list(DEFAULT_AUTHOR_ISINS), True
-    return isins, False
+    return _merge_default_and_user_isins(user_isins), False
 
 
 @router.get(
@@ -67,7 +83,7 @@ async def get_investment_benchmarks(
     ),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    if period not in ("ytd", "1m", "6m", "1y", "3y", "5y", "max"):
+    if period not in ("ytd", "1m", "6m", "1y", "3y", "5y"):
         period = "ytd"
     uid = user.get("sub", "")
     isins, using_default = _resolve_isins_for_user(uid)
@@ -122,6 +138,11 @@ async def add_investment_fund(
         isin = normalize_isin(body.isin)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    if isin in DEFAULT_AUTHOR_ISINS:
+        raise HTTPException(
+            status_code=400,
+            detail="Este ISIN ya forma parte de la selección por defecto de la app; no hace falta guardarlo en tu lista.",
+        )
     n = supabase_service.count_user_investment_funds(uid)
     if n >= max_user_isins():
         raise HTTPException(

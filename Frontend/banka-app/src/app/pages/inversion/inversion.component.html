@@ -16,7 +16,8 @@
   <section class="filter-section">
     <h2 class="section-title">Comparativa (rentabilidad vs inicio del periodo)</h2>
     <p class="hint">
-      Datos vía yfinance. La ventana temporal y los filtros del gráfico están en el bloque siguiente. Requiere sesión.
+      Eje vertical: <strong>% acumulado simple</strong> desde el primer día del periodo (precio del día ÷ precio de ese primer día − 1).
+      No es el rendimiento diario ni la suma de días. Datos vía yfinance (cierre). La ventana y los filtros están abajo. Requiere sesión.
     </p>
   </section>
 
@@ -275,11 +276,11 @@
         <details class="detalle-info-help">
           <summary class="detalle-info-help__summary" aria-label="Ayuda: columnas del detalle">i</summary>
           <div class="detalle-info-help__panel">
-            <p><strong>Caída</strong> — Peor retroceso respecto al máximo acumulado en el periodo (misma serie que el gráfico).</p>
             <p>
-              <strong>Vol.</strong> — Volatilidad anualizada aproximada, a partir de los retornos entre puntos consecutivos de esa serie.
+              <strong>Máx. caída</strong> — Peor retroceso (drawdown) respecto a un máximo intermedio acumulado en el periodo (misma serie que el gráfico).
             </p>
-            <p><strong>Rent.</strong> — Rentabilidad total del periodo respecto al inicio de la ventana temporal.</p>
+            <p><strong>Volatilidad</strong> — Volatilidad anualizada aproximada a partir de los retornos entre puntos consecutivos.</p>
+            <p><strong>Rentabilidad</strong> — Rentabilidad total del periodo respecto al inicio de la ventana temporal.</p>
             <p><strong>Fondo</strong> — Pulsa el nombre para abrir la ficha ampliada (composición y datos Yahoo).</p>
           </div>
         </details>
@@ -294,10 +295,20 @@
           </colgroup>
           <thead>
             <tr>
-              <th title="Pulsa el nombre del fondo para ver la ficha ampliada">Fondo</th>
-              <th class="th-stat th-stat--compact" title="Máx. caída desde el máximo acumulado en el periodo">Caída</th>
-              <th class="th-stat th-stat--compact" title="Volatilidad anualizada aproximada (serie del periodo)">Vol.</th>
-              <th class="th-pct th-stat--compact" title="Rentabilidad total del periodo">Rent.</th>
+              <th class="th-detalle-name" title="Pulsa el nombre del fondo para ver la ficha ampliada">Fondo</th>
+              <th
+                class="th-stat th-stat--compact th-detalle-metric th-detalle-metric--stack"
+                title="Máx. caída desde el máximo acumulado en el periodo"
+              >
+                <span class="th-detalle-stack">
+                  <span class="th-detalle-stack__line">Máx</span>
+                  <span class="th-detalle-stack__line">caída</span>
+                </span>
+              </th>
+              <th class="th-stat th-stat--compact th-detalle-metric" title="Volatilidad anualizada aproximada (serie del periodo)">
+                Volat.
+              </th>
+              <th class="th-pct th-stat--compact th-detalle-metric" title="Rentabilidad total del periodo">Rent.</th>
             </tr>
           </thead>
           @for (grp of detailGroups; track grp.key) {
@@ -318,21 +329,21 @@
                       <span class="cell-name-inner">{{ row.name }}</span>
                     </button>
                   </td>
-                  <td class="cell-stat">
+                  <td class="cell-stat cell-stat--detalle-metric">
                     @if (detailMaxDrawdownPct(row) != null) {
                       <span class="pct pct--neg">{{ detailMaxDrawdownPct(row)! | number : '1.2-2' }}%</span>
                     } @else {
                       <span class="pct pct--na">—</span>
                     }
                   </td>
-                  <td class="cell-stat">
+                  <td class="cell-stat cell-stat--detalle-metric">
                     @if (detailAnnualizedVolatilityPct(row) != null) {
                       <span class="pct">{{ detailAnnualizedVolatilityPct(row)! | number : '1.2-2' }}%</span>
                     } @else {
                       <span class="pct pct--na">—</span>
                     }
                   </td>
-                  <td class="cell-pct">
+                  <td class="cell-pct cell-stat--detalle-metric">
                     @if (row.total_return_pct != null) {
                       <span
                         class="pct"
@@ -508,10 +519,22 @@
           No tienes fondos guardados: se muestra la selección por defecto de la app. Añade ISIN para guardar tu lista en la base de datos.
         </p>
       } @else {
-        <p class="hint">Lista personal: {{ watchlistRows.length }} / {{ maxFunds }} ISIN.</p>
+        <p class="hint">
+          Añadidos por ti (fuera del catálogo por defecto): {{ watchlistUserOnlyRows.length }} / {{ maxFunds }} ISIN. En
+          gráfico y detalle también se incluyen los fondos por defecto de la app.
+        </p>
+        @if (watchlistDefaultDuplicateRows.length > 0) {
+          <p class="hint hint--watchlist-dup">
+            Tienes {{ watchlistDefaultDuplicateRows.length }} ISIN guardados que ya están en el catálogo por defecto; no
+            se muestran como chips.
+            <button type="button" class="btn-watchlist-purge" (click)="purgeDefaultIsinsFromWatchlist()">
+              Quitar duplicados de mi lista
+            </button>
+          </p>
+        }
       }
       <div class="watchlist-chips">
-        @for (w of watchlistRows; track w.isin) {
+        @for (w of watchlistUserOnlyRows; track w.isin) {
           <span class="watchlist-chip">
             {{ w.isin }}
             <button type="button" class="chip-remove" (click)="removeFund(w.isin)" aria-label="Quitar ISIN">×</button>

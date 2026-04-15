@@ -183,7 +183,6 @@ export class InversionComponent implements OnInit {
     { id: '1y', label: '1Y' },
     { id: '3y', label: '3Y' },
     { id: '5y', label: '5Y' },
-    { id: 'max', label: 'MAX' },
   ];
 
   loading = false;
@@ -239,6 +238,8 @@ export class InversionComponent implements OnInit {
   detailGroups: DetailGroup[] = [];
 
   watchlistRows: { isin: string; sort_order?: number; created_at?: string }[] = [];
+  /** ISIN del catálogo por defecto (autor); no se muestran como chips ni se deben volver a guardar. */
+  private defaultAuthorIsinSet = new Set<string>();
   usingDefaultWatchlist = true;
   maxFunds = 40;
   newIsin = '';
@@ -267,7 +268,6 @@ export class InversionComponent implements OnInit {
       '1y': '1Y',
       '3y': '3Y',
       '5y': '5Y',
-      max: 'MAX',
     };
     return m[this.period];
   }
@@ -884,6 +884,10 @@ export class InversionComponent implements OnInit {
       this.fundError = 'El ISIN debe tener 12 caracteres.';
       return;
     }
+    if (this.defaultAuthorIsinSet.has(raw)) {
+      this.fundError = 'Este ISIN ya está en la selección por defecto; no hace falta añadirlo.';
+      return;
+    }
     this.investment.addFund(raw).subscribe({
       next: () => {
         this.newIsin = '';
@@ -901,6 +905,35 @@ export class InversionComponent implements OnInit {
       next: () => this.refreshFundsAndBenchmarks(),
       error: (err) => {
         this.fundError = err.error?.detail || 'No se pudo eliminar.';
+      },
+    });
+  }
+
+  /** Chips «Mis fondos»: solo ISIN añadidos por el usuario que no están en el catálogo por defecto. */
+  get watchlistUserOnlyRows(): { isin: string; sort_order?: number; created_at?: string }[] {
+    return this.watchlistRows.filter((w) => {
+      const k = (w.isin || '').trim().toUpperCase();
+      return k.length === 12 && !this.defaultAuthorIsinSet.has(k);
+    });
+  }
+
+  /** Guardados en BD pero redundantes con el catálogo por defecto (no se listan como chips). */
+  get watchlistDefaultDuplicateRows(): { isin: string; sort_order?: number; created_at?: string }[] {
+    return this.watchlistRows.filter((w) => {
+      const k = (w.isin || '').trim().toUpperCase();
+      return k.length === 12 && this.defaultAuthorIsinSet.has(k);
+    });
+  }
+
+  /** Quita de Supabase los ISIN que coinciden con el catálogo por defecto (limpieza de duplicados). */
+  purgeDefaultIsinsFromWatchlist(): void {
+    const isins = this.watchlistDefaultDuplicateRows.map((r) => r.isin.trim().toUpperCase());
+    if (!isins.length) return;
+    this.fundError = null;
+    forkJoin(isins.map((i) => this.investment.removeFund(i))).subscribe({
+      next: () => this.refreshFundsAndBenchmarks(),
+      error: (err) => {
+        this.fundError = err.error?.detail || 'No se pudieron quitar todos los ISIN duplicados.';
       },
     });
   }
@@ -925,6 +958,8 @@ export class InversionComponent implements OnInit {
   private applyFundsResponse(f: InvestmentFundsResponse): void {
     this.watchlistRows = Array.isArray(f.items) ? f.items : [];
     this.maxFunds = typeof f.max_funds === 'number' ? f.max_funds : 40;
+    const defs = Array.isArray(f.default_isins) ? f.default_isins : [];
+    this.defaultAuthorIsinSet = new Set(defs.map((x) => String(x).trim().toUpperCase()).filter((x) => x.length === 12));
   }
 
   private applyBenchmarkResponse(res: BenchmarksResponse): void {

@@ -5,7 +5,11 @@ import type {
   BenchmarksResponse,
 } from '../services/investment.service';
 
+/** `close` = precio o NAV absoluto; el % vs inicio de ventana no tiene techo fijo (p. ej. +350% en años). */
 export type NavBar = { date: string; close: number };
+
+const NAV_BAR_MIN_STEP_RATIO = 0.008;
+const NAV_BAR_MAX_STEP_RATIO = 30;
 
 const INTERVAL_BY_PERIOD: Record<BenchmarkPeriod, string> = {
   ytd: '1d',
@@ -14,34 +18,35 @@ const INTERVAL_BY_PERIOD: Record<BenchmarkPeriod, string> = {
   '1y': '1mo',
   '3y': '1mo',
   '5y': '1d',
-  max: '1mo',
 };
 
+/** YYYY-MM-DD en calendario local (no UTC): alinear con fechas de `nav_bars` del backend. */
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function periodStartIso(period: BenchmarkPeriod, now: Date): string | null {
-  if (period === 'max') return null;
   const dayMs = 86400000;
   if (period === 'ytd') {
     return `${now.getFullYear()}-01-01`;
   }
   if (period === '1m') {
-    const t = new Date(now.getTime() - 32 * dayMs);
-    return t.toISOString().slice(0, 10);
+    return ymdLocal(new Date(now.getTime() - 32 * dayMs));
   }
   if (period === '6m') {
-    const t = new Date(now.getTime() - 183 * dayMs);
-    return t.toISOString().slice(0, 10);
+    return ymdLocal(new Date(now.getTime() - 183 * dayMs));
   }
   if (period === '1y') {
-    const t = new Date(now.getTime() - 365 * dayMs);
-    return t.toISOString().slice(0, 10);
+    return ymdLocal(new Date(now.getTime() - 365 * dayMs));
   }
   if (period === '3y') {
-    const t = new Date(now.getTime() - 365 * 3 * dayMs);
-    return t.toISOString().slice(0, 10);
+    return ymdLocal(new Date(now.getTime() - 365 * 3 * dayMs));
   }
   if (period === '5y') {
-    const t = new Date(now.getTime() - 365 * 5 * dayMs);
-    return t.toISOString().slice(0, 10);
+    return ymdLocal(new Date(now.getTime() - 365 * 5 * dayMs));
   }
   return null;
 }
@@ -51,7 +56,12 @@ function sliceNavBars(bars: NavBar[], startIso: string | null): NavBar[] {
   return bars.filter((b) => (b.date || '') >= startIso);
 }
 
-/** Quita cierres con saltos imposibles (mismo criterio que el backend). */
+/** Fechas ISO YYYY-MM-DD; sin esto el «primer» cierre puede ser el último año y el % vs inicio se ve invertido. */
+function sortNavBarsByDateAsc(bars: NavBar[]): NavBar[] {
+  return [...bars].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+
+/** Solo barra a barra (datos corruptos); no limita el % acumulado respecto al primer cierre. */
 function sanitizeNavBars(bars: NavBar[]): NavBar[] {
   if (!bars?.length || bars.length < 2) {
     return bars?.length ? [...bars] : [];
@@ -63,7 +73,7 @@ function sanitizeNavBars(bars: NavBar[]): NavBar[] {
     let use = raw;
     if (prev > 0) {
       const ratio = raw / prev;
-      if (ratio < 0.05 || ratio > 25) {
+      if (ratio < NAV_BAR_MIN_STEP_RATIO || ratio > NAV_BAR_MAX_STEP_RATIO) {
         use = prev;
       }
     }
@@ -75,15 +85,15 @@ function sanitizeNavBars(bars: NavBar[]): NavBar[] {
   return out;
 }
 
+/** Rentabilidad acumulada vs el primer cierre de la serie ya recortada al periodo (sin techo ±100). */
 function pctPointsFromNavBars(bars: NavBar[]): BenchmarkPoint[] {
   const cleaned = sanitizeNavBars(bars);
   const first = cleaned.find((b) => typeof b.close === 'number' && b.close > 0)?.close;
   if (first == null || first <= 0) return [];
-  return cleaned.map((b) => {
-    const rawPct = (b.close / first - 1) * 100;
-    const pct_vs_start = Math.round(Math.max(-100, Math.min(5e6, rawPct)) * 100) / 100;
-    return { date: b.date, pct_vs_start };
-  });
+  return cleaned.map((b) => ({
+    date: b.date,
+    pct_vs_start: Math.round((b.close / first - 1) * 10000) / 100,
+  }));
 }
 
 function materializeItemForPeriod(row: BenchmarkItem, period: BenchmarkPeriod): BenchmarkItem {
@@ -95,7 +105,7 @@ function materializeItemForPeriod(row: BenchmarkItem, period: BenchmarkPeriod): 
     };
   }
   const startIso = periodStartIso(period, new Date());
-  const sub = sliceNavBars(bars, startIso);
+  const sub = sliceNavBars(sortNavBarsByDateAsc(bars), startIso);
   const points = pctPointsFromNavBars(sub);
   let total_return_pct: number | null = null;
   if (points.length >= 2) {

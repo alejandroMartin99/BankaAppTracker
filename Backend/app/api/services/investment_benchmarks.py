@@ -61,8 +61,8 @@ ISIN_FALLBACK_LABEL: Dict[str, str] = {
     "LU1623762843": "Carmignac Portfolio Credit",
 }
 
-# Claves de periodo soportadas por la API (ytd = desde 1 ene; max = histórico completo vía yfinance period=max)
-API_PERIODS = frozenset({"ytd", "1m", "6m", "1y", "3y", "5y", "max"})
+# Claves de periodo soportadas por la API (el servidor devuelve ~5y en caché; el cliente filtra la ventana).
+API_PERIODS = frozenset({"ytd", "1m", "6m", "1y", "3y", "5y"})
 
 # Histórico guardado en Supabase (yfinance); el cliente filtra ventana en memoria.
 # 5y en diario: YTD y 1M muestran curva diaria (antes 1wk/1mo dejaban YTD casi vacío).
@@ -150,8 +150,6 @@ def _download_history(t: yf.Ticker, period_key: str) -> pd.DataFrame:
         return t.history(period="3y", interval="1mo", auto_adjust=True)
     if period_key == "5y":
         return _history_5y_preferred_daily(t)
-    if period_key == "max":
-        return t.history(period="max", interval="1mo", auto_adjust=True)
     return _history_5y_preferred_daily(t)
 
 
@@ -172,10 +170,8 @@ def _history_to_series(hist: pd.DataFrame) -> Tuple[List[str], List[Optional[flo
     closes: List[Optional[float]] = []
     for idx, val in zip(hist.index, hist["Close"]):
         ts = pd.Timestamp(idx)
-        if ts.tzinfo is None:
-            ts = ts.tz_localize("UTC")
-        else:
-            ts = ts.tz_convert("UTC")
+        # Calendario del propio huso del índice (p. ej. Europe/Madrid). Si pasamos a UTC, un cierre
+        # "2021-04-15+02" pasa a "2021-04-14" y el recorte del front excluye el primer cierre → % bajo.
         dates.append(ts.strftime("%Y-%m-%d"))
         if val is None or (isinstance(val, float) and math.isnan(val)):
             closes.append(None)
@@ -184,13 +180,25 @@ def _history_to_series(hist: pd.DataFrame) -> Tuple[List[str], List[Optional[flo
     return dates, closes
 
 
+# Salto imposible entre dos cierres consecutivos (corrupto / split mal). No limita el % acumulado vs el
+# primer día del periodo: ese puede ser >>100% o <<-100% en teoría con apalancamiento; con NAV spot >0
+# el suelo práctico es -100% respecto al primer cierre.
+_NAV_BAR_MIN_STEP_RATIO = 0.008
+_NAV_BAR_MAX_STEP_RATIO = 30.0
+
+
+def _sort_nav_bars_by_date(bars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Cronológico ascendente; si no, el «primer» cierre del array puede ser el más reciente y el % acumulado queda invertido."""
+    return sorted(bars, key=lambda r: str(r.get("date") or ""))
+
+
 def _nav_bars_from_hist(hist: pd.DataFrame) -> List[Dict[str, Any]]:
     dates, closes = _history_to_series(hist)
     bars: List[Dict[str, Any]] = []
     for d, c in zip(dates, closes):
         if c is not None and c > 0:
             bars.append({"date": d, "close": round(float(c), 6)})
-    return _sanitize_nav_bars(bars)
+    return _sanitize_nav_bars(_sort_nav_bars_by_date(bars))
 
 
 def _sanitize_nav_bars(bars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -205,11 +213,40 @@ def _sanitize_nav_bars(bars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         use = raw
         if prev > 0:
             ratio = raw / prev
-            if ratio < 0.05 or ratio > 25.0:
+            if ratio < _NAV_BAR_MIN_STEP_RATIO or ratio > _NAV_BAR_MAX_STEP_RATIO:
                 use = prev
         if use > 0:
             prev = use
         out.append({"date": bars[i]["date"], "close": round(float(use), 6)})
+    return out
+
+
+def _sanitize_close_list(closes: List[Optional[float]]) -> List[Optional[float]]:
+    """Filtra cierres con saltos imposibles (misma heurística que `_sanitize_nav_bars`)."""
+    out: List[Optional[float]] = []
+    prev: Optional[float] = None
+    for c in closes:
+        if c is None:
+            out.append(None)
+            continue
+        try:
+            cf = float(c)
+        except (TypeError, ValueError):
+            out.append(None)
+            continue
+        if math.isnan(cf) or cf <= 0:
+            out.append(None)
+            continue
+        if prev is None or prev <= 0:
+            out.append(cf)
+            prev = cf
+            continue
+        r = cf / prev
+        if r < _NAV_BAR_MIN_STEP_RATIO or r > _NAV_BAR_MAX_STEP_RATIO:
+            out.append(prev)
+        else:
+            out.append(cf)
+            prev = cf
     return out
 
 
@@ -229,7 +266,7 @@ def _coerce_and_sanitize_cached_nav_bars(nb: List[Any]) -> List[Dict[str, Any]]:
             continue
         if cf > 0:
             bars.append({"date": str(d), "close": round(cf, 6)})
-    return _sanitize_nav_bars(bars)
+    return _sanitize_nav_bars(_sort_nav_bars_by_date(bars))
 
 
 def _pct_from_start(closes: List[Optional[float]]) -> List[Optional[float]]:
@@ -256,8 +293,7 @@ def _total_return_pct(closes: List[Optional[float]]) -> Optional[float]:
     a, b = vals[0], vals[-1]
     if a <= 0:
         return None
-    t = round((b / a - 1.0) * 100.0, 2)
-    return -100.0 if t < -100.0 else t
+    return round((b / a - 1.0) * 100.0, 2)
 
 
 def _norm_name(s: Optional[str], isin: str) -> Optional[str]:

@@ -3,14 +3,17 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environment';
 
-export type BenchmarkPeriod = 'ytd' | '1m' | '6m' | '1y' | '3y' | '5y' | 'max';
+export type BenchmarkPeriod = 'ytd' | '1m' | '6m' | '1y' | '3y' | '5y';
 
 export interface BenchmarkPoint {
   date: string;
   pct_vs_start: number;
 }
 
-/** Serie de cierres (~5y) servida por caché Supabase; el front deriva `points` al cambiar el periodo. */
+/**
+ * Cierre diario (o agregado) en **precio / NAV absoluto** (>0), misma unidad todos los días.
+ * El % acumulado respecto al inicio de la ventana es `(close/cierre_inicial - 1)*100` y **no** está acotado a ±100.
+ */
 export interface BenchmarkNavBar {
   date: string;
   close: number;

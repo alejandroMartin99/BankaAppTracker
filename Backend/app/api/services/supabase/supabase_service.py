@@ -489,6 +489,32 @@ class SupabaseService:
                 print(f"[Supabase] get_investment_benchmark_series_batch chunk {i // chunk_size}: {e}")
         return out
 
+    def clear_investment_benchmark_series_cache(self) -> int:
+        """Borra todas las filas de la caché de series de benchmarks. Devuelve cuántas claves se borraron."""
+        if not self.supabase:
+            return 0
+        try:
+            r = (
+                self.supabase.table("investment_benchmark_series_cache")
+                .select("instrument_key")
+                .execute()
+            )
+            keys = [row["instrument_key"] for row in (r.data or []) if row.get("instrument_key")]
+            if not keys:
+                return 0
+            deleted = 0
+            chunk_size = 40
+            for i in range(0, len(keys), chunk_size):
+                chunk = keys[i : i + chunk_size]
+                self.supabase.table("investment_benchmark_series_cache").delete().in_(
+                    "instrument_key", chunk
+                ).execute()
+                deleted += len(chunk)
+            return deleted
+        except Exception as e:
+            print(f"[Supabase] clear_investment_benchmark_series_cache: {e}")
+            return 0
+
     def upsert_investment_benchmark_series(
         self, instrument_key: str, yahoo_symbol: str, payload: Dict[str, Any]
     ) -> None:
