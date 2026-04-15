@@ -908,7 +908,7 @@
   min-width: 0;
   height: auto;
   /* meet = escala uniforme; mismo ratio que `CHART_ASPECT_H` en inversion.component.ts */
-  aspect-ratio: 16 / 7.85;
+  aspect-ratio: 16 / 8.95;
 }
 
 .chart-grid-line {
@@ -938,22 +938,36 @@
   vector-effect: non-scaling-stroke;
 }
 
-.chart-svg .chart-tip-panel-bg {
-  fill: rgba(255, 255, 255, 0.86);
-  stroke: rgba(148, 163, 184, 0.55);
-  stroke-width: 0.22px;
+.chart-svg .chart-tip-leader {
+  opacity: 0.92;
+  paint-order: stroke fill;
+}
+
+.chart-svg .chart-tip-callout-bg {
+  fill: #ffffff;
   vector-effect: non-scaling-stroke;
 }
 
 .chart-svg .chart-tip-panel-row {
-  font-size: 2.35px;
+  /* Coincidir con CHART_CALLOUT_FONT_PX en inversion.component.ts */
+  font-size: 2.28px;
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  font-weight: 400;
   vector-effect: non-scaling-stroke;
 }
 
-.chart-svg .chart-tip-panel-name {
-  fill: #000000;
+.chart-svg .chart-tip-callout-label {
+  font-weight: 400;
+}
+
+.chart-svg .chart-tip-callout-fund-name {
+  fill: #0f172a;
+  font-weight: 400;
+}
+
+.chart-svg .chart-tip-callout-pct {
+  font-weight: 400;
 }
 
 .chart-svg .chart-x-tick {

@@ -177,54 +177,75 @@
               }
             }
             @if (chartPlot && crosshairIndex != null) {
+              @if (crosshairLegendPanel; as leg) {
+                <g class="chart-tip-panel chart-tip-panel--bg">
+                  @for (row of leg.rows; track row.seriesKey) {
+                    <g class="chart-tip-callout">
+                      <rect
+                        class="chart-tip-callout-bg"
+                        [attr.x]="row.boxX"
+                        [attr.y]="row.boxY"
+                        [attr.width]="row.boxW"
+                        [attr.height]="row.boxH"
+                        rx="0.75"
+                        ry="0.75"
+                        [attr.stroke]="row.color"
+                        stroke-opacity="1"
+                        stroke-width="0.44"
+                      />
+                      <path
+                        class="chart-tip-leader"
+                        [attr.d]="row.leaderD"
+                        fill="none"
+                        [attr.stroke]="row.color"
+                        stroke-width="0.22"
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        vector-effect="non-scaling-stroke"
+                      />
+                    </g>
+                  }
+                </g>
+              }
               <line
                 class="chart-crosshair"
                 [attr.x1]="crosshairX"
                 [attr.x2]="crosshairX"
-                [attr.y1]="chartPlot.plotTop"
+                [attr.y1]="0"
                 [attr.y2]="chartPlot.plotBottom"
               />
-              @if (crosshairLegendPanel; as leg) {
-                <g class="chart-tip-panel">
-                  <rect
-                    class="chart-tip-panel-bg"
-                    [attr.x]="leg.boxX"
-                    [attr.y]="leg.boxY"
-                    [attr.width]="leg.boxW"
-                    [attr.height]="leg.boxH"
-                    rx="0.9"
-                    ry="0.9"
-                  />
-                  @for (row of leg.rows; track row.seriesKey) {
-                    <circle
-                      class="chart-tip-dot"
-                      [attr.cx]="crosshairX"
-                      [attr.cy]="row.pointY"
-                      r="0.45"
-                      [attr.fill]="row.color"
-                      stroke="#fff"
-                      stroke-width="0.2"
-                      vector-effect="non-scaling-stroke"
-                    />
-                  }
-                  @for (row of leg.rows; track row.seriesKey) {
-                    <text
-                      class="chart-tip-panel-row"
-                      [attr.transform]="'translate(' + leg.textStartX + ',' + row.pointY + ')'"
-                      [attr.text-anchor]="leg.placeRight ? 'start' : 'end'"
-                      [attr.x]="0"
-                      dominant-baseline="middle"
-                    >
-                      @if (leg.placeRight) {
-                        <tspan [attr.fill]="row.color" font-weight="700">{{ row.pctLabel }}</tspan>
-                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">·</tspan>
-                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">{{ row.shortName }}</tspan>
-                      } @else {
-                        <tspan class="chart-tip-panel-name" font-weight="500">{{ row.shortName }}</tspan>
-                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">·</tspan>
-                        <tspan [attr.fill]="row.color" dx="0.35" font-weight="700">{{ row.pctLabel }}</tspan>
-                      }
-                    </text>
+              @if (crosshairLegendPanel; as leg2) {
+                <g class="chart-tip-panel chart-tip-panel--fg">
+                  @for (row of leg2.rows; track row.seriesKey) {
+                    <g class="chart-tip-callout">
+                      <text
+                        class="chart-tip-panel-row chart-tip-callout-label"
+                        [attr.transform]="'translate(' + row.textX + ',' + row.centerY + ')'"
+                        [attr.text-anchor]="leg2.placeRight ? 'start' : 'end'"
+                        [attr.x]="0"
+                        dominant-baseline="middle"
+                      >
+                        @if (row.singleRow) {
+                          <tspan class="chart-tip-callout-fund-name">{{ row.nameLine1 }}</tspan>
+                          <tspan class="chart-tip-callout-fund-name"> </tspan>
+                          <tspan class="chart-tip-callout-pct" [attr.fill]="row.pctToneFill">({{ row.pctLabel }})</tspan>
+                        } @else if (row.nameLine2) {
+                          <tspan class="chart-tip-callout-fund-name" dy="-0.56em">{{ row.nameLine1 }}</tspan>
+                          <tspan class="chart-tip-callout-fund-name" x="0" dy="1.08em">{{ row.nameLine2 }} </tspan>
+                          <tspan class="chart-tip-callout-pct" [attr.fill]="row.pctToneFill">({{ row.pctLabel }})</tspan>
+                        }
+                      </text>
+                      <circle
+                        class="chart-tip-dot"
+                        [attr.cx]="crosshairX"
+                        [attr.cy]="row.pointY"
+                        r="0.48"
+                        [attr.fill]="row.color"
+                        stroke="#fff"
+                        stroke-width="0.24"
+                        vector-effect="non-scaling-stroke"
+                      />
+                    </g>
                   }
                 </g>
               }
@@ -453,11 +474,11 @@
     </div>
   }
 
-  @if (!loading && !error && !hasBenchmarkSeries && loadAttempted) {
+  @if (!loading && !error && !hasBenchmarkSeries && loadAttempted && errors.length === 0 && cryptoErrors.length === 0) {
     <div class="empty-state">No hay datos para mostrar. Revisa la consola del backend o reintenta más tarde.</div>
   }
 
-  @if (errors.length > 0) {
+  @if (!loading && errors.length > 0) {
     <div class="errors-block">
       <p class="errors-title">ISIN sin datos</p>
       <ul class="errors-list">
@@ -468,7 +489,7 @@
     </div>
   }
 
-  @if (cryptoErrors.length > 0) {
+  @if (!loading && cryptoErrors.length > 0) {
     <div class="errors-block">
       <p class="errors-title">Cripto sin datos</p>
       <ul class="errors-list">

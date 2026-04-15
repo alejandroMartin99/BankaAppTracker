@@ -10,6 +10,12 @@ export interface BenchmarkPoint {
   pct_vs_start: number;
 }
 
+/** Serie de cierres (~5y) servida por caché Supabase; el front deriva `points` al cambiar el periodo. */
+export interface BenchmarkNavBar {
+  date: string;
+  close: number;
+}
+
 /** Clasificación aproximada enviada por el backend */
 export type BenchmarkClasificacion =
   | 'renta_variable'
@@ -24,6 +30,7 @@ export interface BenchmarkItem {
   clasificacion?: BenchmarkClasificacion | string;
   total_return_pct: number | null;
   points: BenchmarkPoint[];
+  nav_bars?: BenchmarkNavBar[];
 }
 
 export interface BenchmarksResponse {
@@ -81,9 +88,9 @@ export class InvestmentService {
   private readonly fundsUrl = `${this.apiUrl}/GET/investment/funds`;
   private readonly fundDetailUrl = `${this.apiUrl}/GET/investment/fund-detail`;
 
-  getBenchmarks(period: BenchmarkPeriod): Observable<BenchmarksResponse> {
-    const params = new HttpParams().set('period', period);
-    return this.http.get<BenchmarksResponse>(this.benchmarksUrl, { params });
+  /** Siempre horizonte completo en caché; el periodo se aplica en el cliente. */
+  getBenchmarks(): Observable<BenchmarksResponse> {
+    return this.http.get<BenchmarksResponse>(this.benchmarksUrl);
   }
 
   getFunds(): Observable<InvestmentFundsResponse> {

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.deps import get_current_user
@@ -9,6 +9,7 @@ from app.api.services.investment_benchmarks import (
     build_benchmarks_payload,
     max_user_isins,
     normalize_isin,
+    refresh_instrument_keys_sync,
 )
 from app.api.services.investment_fund_detail import get_or_build_fund_detail
 from app.api.services.supabase.supabase_service import supabase_service
@@ -60,19 +61,29 @@ def _resolve_isins_for_user(user_id: str) -> tuple[List[str], bool]:
     response_model=Dict[str, Any],
 )
 async def get_investment_benchmarks(
-    period: str = Query("ytd", description="Ventana: ytd, 1m, 6m, 1y, 3y, 5y, max"),
+    period: str = Query(
+        "ytd",
+        description="Ignorado en servidor: siempre se devuelve el horizonte 5y en caché; el cliente filtra la ventana.",
+    ),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     if period not in ("ytd", "1m", "6m", "1y", "3y", "5y", "max"):
         period = "ytd"
     uid = user.get("sub", "")
     isins, using_default = _resolve_isins_for_user(uid)
+    if not supabase_service.is_connected():
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio de datos de inversión no disponible (Supabase).",
+        )
     try:
         payload = await build_benchmarks_payload(period, uid, isins)
         payload["using_default_watchlist"] = using_default
         return payload
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"No se pudieron obtener datos: {e!s}") from e
 
@@ -101,6 +112,7 @@ async def list_investment_funds(user: dict = Depends(get_current_user)) -> Dict[
 )
 async def add_investment_fund(
     body: InvestmentFundBody,
+    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     if not supabase_service.is_connected():
@@ -122,6 +134,7 @@ async def add_investment_fund(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e!s}") from e
+    background_tasks.add_task(refresh_instrument_keys_sync, [isin])
     return {"success": True, "isin": isin}
 
 

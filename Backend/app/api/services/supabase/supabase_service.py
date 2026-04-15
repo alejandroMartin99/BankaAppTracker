@@ -441,5 +441,72 @@ class SupabaseService:
         except Exception as e:
             print(f"[Supabase] upsert_investment_fund_detail_cache: {e}")
 
+    # --- Caché global series benchmark (Inversión, horizonte 5y en JSON) ---
+
+    def list_distinct_investment_isins(self) -> List[str]:
+        """Todos los ISIN distintos guardados por usuarios (para refresco periódico)."""
+        if not self.supabase:
+            return []
+        try:
+            r = self.supabase.table("user_investment_funds").select("isin").execute()
+            out: Set[str] = set()
+            for row in r.data or []:
+                raw = row.get("isin")
+                if isinstance(raw, str) and len(raw.strip()) == 12:
+                    out.add(raw.strip().upper())
+            return sorted(out)
+        except Exception as e:
+            print(f"[Supabase] list_distinct_investment_isins: {e}")
+            return []
+
+    def get_investment_benchmark_series_batch(
+        self, instrument_keys: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """Devuelve instrument_key -> payload (copia) para claves encontradas."""
+        if not self.supabase or not instrument_keys:
+            return {}
+        keys = [str(k).strip().upper() for k in instrument_keys if k and str(k).strip()]
+        if not keys:
+            return {}
+        # PostgREST puede fallar o truncar con `.in_` muy largo; troceamos y fusionamos.
+        chunk_size = 80
+        out: Dict[str, Dict[str, Any]] = {}
+        for i in range(0, len(keys), chunk_size):
+            chunk = keys[i : i + chunk_size]
+            try:
+                r = (
+                    self.supabase.table("investment_benchmark_series_cache")
+                    .select("instrument_key, payload, updated_at")
+                    .in_("instrument_key", chunk)
+                    .execute()
+                )
+                for row in r.data or []:
+                    k = row.get("instrument_key")
+                    pl = row.get("payload")
+                    if k and isinstance(pl, dict):
+                        out[str(k).strip().upper()] = dict(pl)
+            except Exception as e:
+                print(f"[Supabase] get_investment_benchmark_series_batch chunk {i // chunk_size}: {e}")
+        return out
+
+    def upsert_investment_benchmark_series(
+        self, instrument_key: str, yahoo_symbol: str, payload: Dict[str, Any]
+    ) -> None:
+        if not self.supabase:
+            return
+        row = {
+            "instrument_key": instrument_key.strip(),
+            "yahoo_symbol": (yahoo_symbol or "").strip(),
+            "payload": payload,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            self.supabase.table("investment_benchmark_series_cache").upsert(
+                row,
+                on_conflict="instrument_key",
+            ).execute()
+        except Exception as e:
+            print(f"[Supabase] upsert_investment_benchmark_series: {e}")
+
 
 supabase_service = SupabaseService()

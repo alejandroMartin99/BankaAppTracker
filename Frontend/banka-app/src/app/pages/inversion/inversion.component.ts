@@ -1,5 +1,14 @@
 import { formatDate, formatNumber } from '@angular/common';
-import { Component, ElementRef, HostListener, OnInit, ViewChild, inject, LOCALE_ID } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  HostListener,
+  OnInit,
+  ViewChild,
+  inject,
+  LOCALE_ID,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { trigger, transition, style, animate } from '@angular/animations';
@@ -14,6 +23,7 @@ import {
   InvestmentFundsResponse,
   InvestmentService,
 } from '../../services/investment.service';
+import { sliceBenchmarksForPeriod } from '../../utils/investment-benchmark-slice';
 
 const CHART_COLORS = [
   '#111827',
@@ -94,29 +104,38 @@ interface ChartPlotModel {
   xTicks: ChartXTick[];
 }
 
-/** Fila dentro del panel único del crosshair (leyenda flotante). */
-interface CrosshairLegendRow {
+/** Una caja de leyenda por fondo + línea recta hasta la bolita en el corte. */
+interface CrosshairLegendCallout {
   seriesKey: string;
-  shortName: string;
   pctLabel: string;
+  /** Color del texto entre paréntesis: verde si el rendimiento es no negativo, rojo si es negativo. */
+  pctToneFill: string;
   color: string;
+  /** Y de la serie en el gráfico (bolita). */
   pointY: number;
-}
-
-/** Un solo rectángulo blanco; cada línea de texto anclada al corte (crosshairX, pointY). */
-interface CrosshairLegendPanel {
+  /** Centro vertical de la caja y del texto. */
+  centerY: number;
   boxX: number;
   boxY: number;
   boxW: number;
   boxH: number;
-  /** Inicio del texto en X: junto a la línea vertical (+/- margen). */
-  textStartX: number;
-  /** Ancho útil del texto (sin pads del rect). */
-  contentW: number;
-  padX: number;
-  padY: number;
-  lineHalf: number;
-  rows: CrosshairLegendRow[];
+  /** X del ancla del texto (borde interno de la caja). */
+  textX: number;
+  /** Línea recta desde el borde de la caja (lado de la bolita) hasta la bolita. */
+  leaderD: string;
+  /** Nombre (línea 1 o única antes del paréntesis). */
+  nameLine1: string;
+  /** Continuación del nombre; null si todo el nombre cabe en la primera línea lógica. */
+  nameLine2: string | null;
+  /** `nombre (pct)` en una sola fila dentro de la caja. */
+  singleRow: boolean;
+  /** Ancho interior de la etiqueta usado al posicionar (evita recortar al encajar en el plot). */
+  innerContentW: number;
+}
+
+/** Conjunto de callouts alineados a la misma columna X (sin panel único). */
+interface CrosshairLegendPanel {
+  rows: CrosshairLegendCallout[];
   placeRight: boolean;
 }
 
@@ -137,11 +156,14 @@ export class InversionComponent implements OnInit {
   private readonly investment = inject(InvestmentService);
   private readonly locale = inject(LOCALE_ID);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   @ViewChild('chartSvg', { read: ElementRef }) chartSvgRef?: ElementRef<SVGSVGElement>;
 
   /** Altura del viewBox: ratio vertical con el ancho (debe coincidir con `aspect-ratio` de `.chart-svg` en SCSS). */
-  private static readonly CHART_ASPECT_H = 7.85;
+  private static readonly CHART_ASPECT_H = 8.95;
+  /** `font-size` de la leyenda del crosshair en unidades SVG; alinear con `.chart-svg .chart-tip-panel-row` en SCSS. */
+  private static readonly CHART_CALLOUT_FONT_PX = 2.28;
   private static readonly CHART_VB_H = (100 * InversionComponent.CHART_ASPECT_H) / 16;
   readonly chartViewBox = `0 0 100 ${InversionComponent.CHART_VB_H}`;
   /** Escala Y respecto al layout histórico 0–100 (tipografía/márgenes bajo el trazado). */
@@ -150,8 +172,8 @@ export class InversionComponent implements OnInit {
   readonly chartPadL = 10.25;
   /** Margen derecho del trazado (eje X / etiquetas). */
   readonly chartPadR = 1.25;
-  readonly chartPadT = 15;
-  readonly chartPadB = 13.5;
+  readonly chartPadT = 5;
+  readonly chartPadB = 15.1;
 
   period: BenchmarkPeriod = 'ytd';
   periodPresets: { id: BenchmarkPeriod; label: string }[] = [
@@ -179,13 +201,15 @@ export class InversionComponent implements OnInit {
 
   /** Índice de fecha bajo el cursor / arrastre (null = oculto). */
   crosshairIndex: number | null = null;
+  /** Leyenda del crosshair; se actualiza en cada movimiento (no depender solo del getter con event coalescing). */
+  crosshairLegendPanel: CrosshairLegendPanel | null = null;
   private crosshairDragging = false;
 
   /** Series ocultas en el gráfico (solo vista; los datos siguen en memoria). */
   hiddenSeriesKeys: string[] = [];
 
-  /** Respuestas de benchmarks por periodo ya descargadas (sin repetir HTTP). */
-  private benchmarksCache: Partial<Record<BenchmarkPeriod, BenchmarksResponse>> = {};
+  /** Payload completo del backend (horizonte ~5y + nav_bars); el periodo del gráfico se aplica en memoria. */
+  private benchmarksRaw: BenchmarksResponse | null = null;
 
   /** Color estable por serie para la respuesta actual. */
   private seriesColorByKey = new Map<string, string>();
@@ -316,84 +340,152 @@ export class InversionComponent implements OnInit {
     return this.formatChartTipDate(p.dates[this.crosshairIndex]);
   }
 
-  get crosshairLegendPanel(): CrosshairLegendPanel | null {
+  private computeCrosshairLegendPanel(): CrosshairLegendPanel | null {
     const p = this.chartPlot;
     if (!p || this.crosshairIndex == null) return null;
     const idx = this.crosshairIndex;
     const xLine = this.crosshairX;
-    const rows: CrosshairLegendRow[] = [];
+    type Draft = {
+      seriesKey: string;
+      name: string;
+      pctLabel: string;
+      pctValue: number;
+      pctToneFill: string;
+      color: string;
+      pointY: number;
+    };
+    const draft: Draft[] = [];
     for (const s of p.series) {
       const v = s.values[idx];
       if (v == null) continue;
-      rows.push({
+      draft.push({
         seriesKey: s.seriesKey,
-        shortName: InversionComponent.truncateCrosshairName(s.name),
+        name: (s.name || '').trim(),
         pctLabel: InversionComponent.formatTipPct(v),
+        pctValue: v,
+        pctToneFill: InversionComponent.crosshairPctToneFill(v),
         color: s.color,
         pointY: this.chartYAt(p, v),
       });
     }
-    if (rows.length === 0) return null;
-    rows.sort((a, b) => a.pointY - b.pointY);
+    if (draft.length === 0) return null;
+    draft.sort((a, b) => a.pointY - b.pointY);
 
     const sy = this.chartSvgYScale;
-    /** ViewBox ~0–100; texto ~2.35px: subestimar dejaba el rect solo a lo ancho del %. */
-    const charUnit = 0.7;
-    const padX = 1.1;
-    const padY = 0.5 * sy;
-    const lineHalf = 1.55 * sy;
-    const margin = 0.75;
-    let estContentW = 16;
-    for (const r of rows) {
-      const line = `${r.pctLabel} · ${r.shortName}`;
-      estContentW = Math.max(estContentW, line.length * charUnit + 2.2);
-    }
-    estContentW = Math.min(estContentW, 98);
+    const fz = InversionComponent.CHART_CALLOUT_FONT_PX;
+    /** Ancho medio por carácter en coords. SVG (sans proporcional; mayúsculas / tabular-nums). */
+    const charUnit = 1.1 * (fz / 3.05);
+    const padX = 1.68;
+    const padYTight = 0.28 * sy;
+    const plotMargin = 0.35;
+    const dotR = 0.48;
+    /** Hueco horizontal entre el borde de la bolita y el borde interior de la caja. */
+    const hGapAfterDot = 1.35;
 
-    const spaceLeft = xLine - p.plotLeft - margin;
-    const spaceRight = p.plotRight - xLine - margin;
+    let estProbeW = 30;
+    for (const d of draft) {
+      const paren = `(${d.pctLabel})`;
+      const wLine = (d.name + ' ' + paren).length * charUnit + 2.6;
+      estProbeW = Math.max(estProbeW, wLine);
+    }
+    estProbeW = Math.min(estProbeW, 96);
+
+    const laneRightMin = xLine + dotR + hGapAfterDot;
+    const laneLeftMax = xLine - dotR - hGapAfterDot;
+    const spaceRight = p.plotRight - laneRightMin - plotMargin;
+    const spaceLeft = laneLeftMax - p.plotLeft - plotMargin;
     let placeRight = spaceRight >= spaceLeft;
-    const probeBoxW = estContentW + padX * 2;
+    const probeBoxW = estProbeW + padX * 2;
     if (spaceRight < probeBoxW && spaceLeft >= probeBoxW) placeRight = false;
     else if (spaceLeft < probeBoxW && spaceRight >= probeBoxW) placeRight = true;
 
-    const textStartX = placeRight ? xLine + margin : xLine - margin;
-    const avail = placeRight ? p.plotRight - textStartX - 0.3 : textStartX - p.plotLeft - 0.3;
-    const contentW = Math.min(estContentW, Math.max(14, avail - padX));
-    const boxW = contentW + padX * 2;
-    let boxX = placeRight ? textStartX - padX : textStartX - contentW - padX;
-    if (boxX + boxW > p.plotRight - 0.12) {
-      boxX = Math.max(p.plotLeft + 0.12, p.plotRight - boxW - 0.12);
-    }
-    if (boxX < p.plotLeft + 0.12) {
-      boxX = p.plotLeft + 0.12;
+    const avail = placeRight ? p.plotRight - laneRightMin - plotMargin : laneLeftMax - p.plotLeft - plotMargin;
+    const charsAvail = Math.max(16, Math.min(58, Math.floor((Math.max(28, avail) - 0.35) / charUnit)));
+
+    const rows: CrosshairLegendCallout[] = [];
+    for (let i = 0; i < draft.length; i++) {
+      const d = draft[i];
+      let chars = charsAvail;
+      let lab = InversionComponent.buildCrosshairFundLabel(d.name, d.pctLabel, chars);
+      let tight = InversionComponent.crosshairLabelContentWidth(lab, d.pctLabel, charUnit);
+      while (tight > avail - 0.02 && chars > 16) {
+        chars -= 1;
+        lab = InversionComponent.buildCrosshairFundLabel(d.name, d.pctLabel, chars);
+        tight = InversionComponent.crosshairLabelContentWidth(lab, d.pctLabel, charUnit);
+      }
+      /** Respiro horizontal + sidebearings; la caja debe sobrar respecto al texto medido. */
+      const hBreath = 0.92 * fz + 2.55;
+      const naturalInner = tight + hBreath;
+      const contentW = Math.min(naturalInner, Math.max(14, avail));
+      const boxW = contentW + padX * 2;
+      const twoName = !lab.singleRow;
+      /** Alto del bloque de texto (em) + margen real para descenders y `stroke` del rect (el layout debe ≥ píxeles pintados). */
+      const textBlockH = twoName ? (0.6 + 1.14 + 1.22) * fz : 1.42 * fz;
+      const boxH = 2 * padYTight + textBlockH + 0.78;
+      rows.push({
+        seriesKey: d.seriesKey,
+        pctLabel: d.pctLabel,
+        pctToneFill: d.pctToneFill,
+        color: d.color,
+        pointY: d.pointY,
+        centerY: 0,
+        boxX: 0,
+        boxY: 0,
+        boxW,
+        boxH,
+        textX: 0,
+        leaderD: '',
+        nameLine1: lab.nameLine1,
+        nameLine2: lab.nameLine2,
+        singleRow: lab.singleRow,
+        innerContentW: contentW,
+      });
     }
 
-    const ys = rows.map((r) => r.pointY);
-    const minPy = Math.min(...ys);
-    const maxPy = Math.max(...ys);
-    let boxY = minPy - lineHalf - padY;
-    let boxH = maxPy - minPy + 2 * lineHalf + 2 * padY;
-    if (boxY < p.plotTop + 0.12) {
-      boxY = p.plotTop + 0.12;
-    }
-    if (boxY + boxH > p.plotBottom - 0.12) {
-      boxH = Math.max(2 * lineHalf + 2 * padY, p.plotBottom - 0.12 - boxY);
+    /** Hueco mínimo entre rectángulos (centros separados con boxH real). */
+    const slack = Math.max(6.4 * sy, 4.5 + 1.85 * (rows.length - 1));
+    InversionComponent.assignCrosshairCalloutCenters(rows, p.plotTop, p.plotBottom, slack);
+
+    const maxR = p.plotRight - plotMargin;
+    const minL = p.plotLeft + plotMargin;
+    for (const r of rows) {
+      let bw = r.innerContentW + padX * 2;
+      r.boxW = bw;
+      r.boxX = placeRight ? laneRightMin : laneLeftMax - bw;
+      if (placeRight && r.boxX + r.boxW > maxR) {
+        const shiftedX = maxR - r.boxW;
+        if (shiftedX >= laneRightMin - 0.02) {
+          r.boxX = shiftedX;
+        } else {
+          r.boxX = laneRightMin;
+          r.boxW = Math.max(padX * 2 + 14 * charUnit, maxR - r.boxX);
+        }
+      }
+      if (!placeRight) {
+        if (r.boxX < minL) {
+          const shiftedX = minL;
+          if (shiftedX + r.boxW <= laneLeftMax + 0.02) {
+            r.boxX = shiftedX;
+          } else {
+            r.boxX = Math.max(minL, laneLeftMax - r.boxW);
+          }
+        }
+        if (r.boxX + r.boxW > laneLeftMax) {
+          r.boxW = Math.max(padX * 2 + 14 * charUnit, laneLeftMax - r.boxX);
+          r.boxX = laneLeftMax - r.boxW;
+        }
+      }
+      r.boxY = r.centerY - r.boxH / 2;
+      r.textX = placeRight ? r.boxX + padX : r.boxX + r.boxW - padX;
+      const ax = placeRight ? r.boxX : r.boxX + r.boxW;
+      r.leaderD = `M ${xLine} ${r.pointY} L ${ax} ${r.centerY}`;
     }
 
-    return {
-      boxX,
-      boxY,
-      boxW,
-      boxH,
-      textStartX,
-      contentW,
-      padX,
-      padY,
-      lineHalf,
-      rows,
-      placeRight,
-    };
+    return { rows, placeRight };
+  }
+
+  private syncCrosshairLegendPanel(): void {
+    this.crosshairLegendPanel = this.computeCrosshairLegendPanel();
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -427,6 +519,7 @@ export class InversionComponent implements OnInit {
   onChartMouseLeave(): void {
     if (this.crosshairDragging) return;
     this.crosshairIndex = null;
+    this.crosshairLegendPanel = null;
   }
 
   onChartTouchStart(ev: TouchEvent): void {
@@ -470,6 +563,8 @@ export class InversionComponent implements OnInit {
     const t = p.n <= 1 ? 0 : (clamped - p.plotLeft) / (p.plotRight - p.plotLeft);
     const idx = Math.round(t * (p.n - 1));
     this.crosshairIndex = Math.min(p.n - 1, Math.max(0, idx));
+    this.syncCrosshairLegendPanel();
+    this.cdr.detectChanges();
   }
 
   private chartXAt(p: ChartPlotModel, i: number): number {
@@ -515,18 +610,152 @@ export class InversionComponent implements OnInit {
     return `+${x}%`;
   }
 
-  private static truncateCrosshairName(name: string, max = 34): string {
-    const t = (name || '').trim();
-    if (t.length <= max) return t;
-    return `${t.slice(0, max - 1)}…`;
+  private static crosshairPctToneFill(v: number): string {
+    return v >= 0 ? '#15803d' : '#b91c1c';
+  }
+
+  /**
+   * Nombre en negro + `(pct)` aparte; una fila si cabe, si no nombre en dos líneas y `(pct)` al final de la segunda.
+   */
+  private static buildCrosshairFundLabel(
+    name: string,
+    pctLabel: string,
+    charsPerLine: number,
+  ): { nameLine1: string; nameLine2: string | null; singleRow: boolean } {
+    const nm = (name || '').trim();
+    const paren = `(${pctLabel})`;
+    const combined = `${nm} ${paren}`;
+    if (combined.length <= charsPerLine) {
+      return { nameLine1: nm, nameLine2: null, singleRow: true };
+    }
+    const room2 = Math.max(8, charsPerLine - paren.length - 1);
+    const room1 = Math.max(8, charsPerLine);
+    const sp = InversionComponent.splitCrosshairNameLines(nm, room1, room2);
+    if (sp.line2 != null && sp.line2.length > 0) {
+      return { nameLine1: sp.line1, nameLine2: sp.line2, singleRow: false };
+    }
+    const cut = Math.max(1, room1 - 1);
+    const line1 = nm.slice(0, cut).trimEnd();
+    const line2 = nm.slice(cut).trimStart();
+    if (!line2) return { nameLine1: nm, nameLine2: null, singleRow: true };
+    return { nameLine1: line1, nameLine2: line2, singleRow: false };
+  }
+
+  /** Ancho de contenido (sin padding de caja) según el reparto de líneas ya calculado. */
+  private static crosshairLabelContentWidth(
+    lab: { nameLine1: string; nameLine2: string | null; singleRow: boolean },
+    pctLabel: string,
+    charUnit: number,
+  ): number {
+    const paren = `(${pctLabel})`;
+    /** Cola anti-recorte (kerning, glifos anchos, tabular-nums, redondeo del motor de texto). */
+    const tail = 6.45 + 0.07 * Math.max(12, paren.length + lab.nameLine1.length + (lab.nameLine2?.length ?? 0));
+    if (lab.singleRow) {
+      return (lab.nameLine1.length + 1 + paren.length) * charUnit + tail;
+    }
+    const w1 = lab.nameLine1.length * charUnit;
+    const w2 = ((lab.nameLine2 || '') + ' ' + paren).length * charUnit;
+    return Math.max(w1, w2) + tail;
+  }
+
+  /**
+   * Parte el nombre en dos líneas por espacio (sin truncar salvo imposible caber).
+   */
+  private static splitCrosshairNameLines(
+    rawName: string,
+    maxCharsLine1: number,
+    maxCharsLine2: number,
+  ): { line1: string; line2: string | null } {
+    const s = (rawName || '').trim();
+    if (!s) return { line1: '', line2: null };
+    if (s.length <= maxCharsLine1) return { line1: s, line2: null };
+    let cut = maxCharsLine1;
+    const win = s.slice(0, Math.min(s.length, maxCharsLine1 + 24));
+    const sp = win.lastIndexOf(' ');
+    if (sp >= Math.floor(maxCharsLine1 * 0.38)) cut = sp;
+    const part1 = s.slice(0, cut).trimEnd();
+    const part2 = s.slice(cut).trimStart();
+    if (!part2) return { line1: part1 || s, line2: null };
+    if (part2.length <= maxCharsLine2) return { line1: part1, line2: part2 };
+    const w = part2.slice(0, maxCharsLine2 + 20);
+    const sp2 = w.lastIndexOf(' ');
+    let cut2 = maxCharsLine2;
+    if (sp2 > Math.floor(maxCharsLine2 * 0.38)) cut2 = sp2;
+    const p2a = part2.slice(0, cut2).trimEnd();
+    const p2b = part2.slice(cut2).trimStart();
+    if (p2b.length === 0) return { line1: part1, line2: p2a };
+    return { line1: part1, line2: `${p2a} ${p2b}`.trim() };
+  }
+
+  /**
+   * Centros Y del texto: misma orden que pointY; separación según altura de cada caja + slack.
+   */
+  private static assignCrosshairCalloutCenters(
+    rows: CrosshairLegendCallout[],
+    plotTop: number,
+    plotBottom: number,
+    slack: number,
+  ): void {
+    const n = rows.length;
+    if (n === 0) return;
+    const margin = 0.35;
+    const half0 = rows[0].boxH / 2;
+    const topB = plotTop + half0 + margin;
+    const halfLast = rows[n - 1].boxH / 2;
+    const botB = plotBottom - halfLast - margin;
+    if (n === 1) {
+      rows[0].centerY = Math.min(botB, Math.max(topB, rows[0].pointY));
+      return;
+    }
+    let ly = rows.map((r) => r.pointY);
+    for (let pass = 0; pass < n + 14; pass++) {
+      for (let i = 1; i < n; i++) {
+        const need = ly[i - 1] + rows[i - 1].boxH / 2 + rows[i].boxH / 2 + slack;
+        if (ly[i] < need) ly[i] = need;
+      }
+      for (let i = n - 2; i >= 0; i--) {
+        const need = ly[i + 1] - rows[i + 1].boxH / 2 - rows[i].boxH / 2 - slack;
+        if (ly[i] > need) ly[i] = need;
+      }
+    }
+    if (ly[0] - rows[0].boxH / 2 < plotTop + margin) {
+      const d = plotTop + margin + rows[0].boxH / 2 - ly[0];
+      ly = ly.map((y) => y + d);
+    }
+    if (ly[n - 1] + rows[n - 1].boxH / 2 > plotBottom - margin) {
+      const d = plotBottom - margin - rows[n - 1].boxH / 2 - ly[n - 1];
+      ly = ly.map((y) => y + d);
+    }
+    if (ly[0] - rows[0].boxH / 2 < plotTop + margin || ly[n - 1] + rows[n - 1].boxH / 2 > plotBottom - margin) {
+      const span = Math.max(0, botB - topB);
+      const midSum = rows.slice(1, -1).reduce((s, r) => s + r.boxH, 0);
+      /** Distancia mínima centro[i]→centro[i+1] sin hueco extra (solo mitades de caja). */
+      const T = rows[0].boxH / 2 + rows[n - 1].boxH / 2 + midSum;
+      if (span < T - 1e-6) {
+        const step = span / Math.max(1, n - 1);
+        ly = rows.map((_, k) => topB + k * step);
+      } else {
+        /** Hueco efectivo entre cajas: el pedido `slack` o lo que quepa en el alto del plot. */
+        const effSlack = Math.min(slack, (span - T) / Math.max(1, n - 1));
+        const chain = T + (n - 1) * effSlack;
+        let y0 = topB + Math.max(0, (span - chain) / 2);
+        ly = [y0];
+        for (let j = 1; j < n; j++) {
+          y0 += rows[j - 1].boxH / 2 + rows[j].boxH / 2 + effSlack;
+          ly.push(y0);
+        }
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      rows[i].centerY = ly[i];
+    }
   }
 
   setPeriod(p: BenchmarkPeriod): void {
     if (this.period === p) return;
     this.period = p;
-    const cached = this.benchmarksCache[p];
-    if (cached) {
-      this.applyBenchmarkResponse(cached);
+    if (this.benchmarksRaw) {
+      this.reapplyPeriodSlice();
       return;
     }
     this.loadBenchmarksOnly();
@@ -585,20 +814,21 @@ export class InversionComponent implements OnInit {
     this.showLoader = true;
     this.error = null;
     this.fundError = null;
+    this.errors = [];
+    this.cryptoErrors = [];
     forkJoin({
       funds: this.investment.getFunds(),
-      bench: this.investment.getBenchmarks(this.period),
+      bench: this.investment.getBenchmarks(),
     }).subscribe({
       next: ({ funds, bench }) => {
         this.applyFundsResponse(funds);
-        this.benchmarksCache[this.period] = bench;
         this.applyBenchmarkResponse(bench);
         this.loading = false;
         this.showLoader = false;
       },
       error: (err) => {
         this.loadAttempted = true;
-        this.benchmarksCache = {};
+        this.benchmarksRaw = null;
         this.items = [];
         this.cryptoItems = [];
         this.errors = [];
@@ -621,14 +851,16 @@ export class InversionComponent implements OnInit {
     this.loading = true;
     this.showLoader = true;
     this.error = null;
-    this.investment.getBenchmarks(this.period).subscribe({
+    this.errors = [];
+    this.cryptoErrors = [];
+    this.investment.getBenchmarks().subscribe({
       next: (res) => {
-        this.benchmarksCache[this.period] = res;
         this.applyBenchmarkResponse(res);
         this.loading = false;
         this.showLoader = false;
       },
       error: (err) => {
+        this.benchmarksRaw = null;
         this.items = [];
         this.cryptoItems = [];
         this.errors = [];
@@ -674,18 +906,18 @@ export class InversionComponent implements OnInit {
   }
 
   private refreshFundsAndBenchmarks(): void {
-    this.benchmarksCache = {};
     forkJoin({
       funds: this.investment.getFunds(),
-      bench: this.investment.getBenchmarks(this.period),
+      bench: this.investment.getBenchmarks(),
     }).subscribe({
       next: ({ funds, bench }) => {
         this.applyFundsResponse(funds);
-        this.benchmarksCache[this.period] = bench;
         this.applyBenchmarkResponse(bench);
       },
       error: (err) => {
         this.fundError = err.error?.detail || 'Error al actualizar la lista.';
+        this.loading = false;
+        this.showLoader = false;
       },
     });
   }
@@ -697,11 +929,26 @@ export class InversionComponent implements OnInit {
 
   private applyBenchmarkResponse(res: BenchmarksResponse): void {
     this.loadAttempted = true;
-    this.items = Array.isArray(res.items) ? res.items : [];
-    this.cryptoItems = Array.isArray(res.crypto_items) ? res.crypto_items : [];
+    this.benchmarksRaw = res;
     this.errors = Array.isArray(res.errors) ? res.errors : [];
     this.cryptoErrors = Array.isArray(res.crypto_errors) ? res.crypto_errors : [];
     this.usingDefaultWatchlist = res.using_default_watchlist ?? true;
+    this.reapplyPeriodSlice();
+  }
+
+  private reapplyPeriodSlice(): void {
+    if (!this.benchmarksRaw) {
+      this.items = [];
+      this.cryptoItems = [];
+      this.pruneHiddenSeriesKeys();
+      this.refreshSeriesColorMap();
+      this.rebuildChart();
+      this.rebuildDetailGroups();
+      return;
+    }
+    const sliced = sliceBenchmarksForPeriod(this.benchmarksRaw, this.period);
+    this.items = sliced.items;
+    this.cryptoItems = Array.isArray(sliced.crypto_items) ? sliced.crypto_items : [];
     this.pruneHiddenSeriesKeys();
     this.refreshSeriesColorMap();
     this.rebuildChart();
@@ -872,6 +1119,7 @@ export class InversionComponent implements OnInit {
       this.yGridLines = [];
       this.chartPlot = null;
       this.crosshairIndex = null;
+      this.crosshairLegendPanel = null;
       return;
     }
 
@@ -919,6 +1167,7 @@ export class InversionComponent implements OnInit {
       this.yGridLines = [];
       this.chartPlot = null;
       this.crosshairIndex = null;
+      this.crosshairLegendPanel = null;
       return;
     }
     if (ymin === ymax) {
@@ -1023,6 +1272,7 @@ export class InversionComponent implements OnInit {
     } else {
       this.crosshairIndex = null;
     }
+    this.syncCrosshairLegendPanel();
   }
 
   openFundDetail(row: BenchmarkItem, grpKey: BenchmarkClasificacion): void {

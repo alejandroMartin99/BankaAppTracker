@@ -64,8 +64,21 @@ ISIN_FALLBACK_LABEL: Dict[str, str] = {
 # Claves de periodo soportadas por la API (ytd = desde 1 ene; max = histórico completo vía yfinance period=max)
 API_PERIODS = frozenset({"ytd", "1m", "6m", "1y", "3y", "5y", "max"})
 
+# Histórico guardado en Supabase (yfinance); el cliente filtra ventana en memoria.
+# 5y en diario: YTD y 1M muestran curva diaria (antes 1wk/1mo dejaban YTD casi vacío).
+STORE_HORIZON_PERIOD = "5y"
+
 _CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 _CACHE_TTL_SEC = 1800.0
+# Lecturas Supabase: TTL por defecto cuando el payload es bueno.
+_BENCHMARK_GET_CACHE_TTL_SEC = 45.0
+# Si hubo fallos (p. ej. caché aún no poblada), no congelar ese resultado mucho tiempo en RAM.
+_BENCHMARK_GET_CACHE_TTL_SOFT_FAIL_SEC = 3.0
+_BENCHMARK_GET_CACHE_TTL_PARTIAL_ERR_SEC = 12.0
+
+
+def crypto_instrument_key(ticker: str) -> str:
+    return f"CRYPTO:{ticker.strip().upper()}"
 
 _MAX_USER_ISINS = 40
 _CACHE_LOCKS: Dict[str, asyncio.Lock] = {}
@@ -114,6 +127,13 @@ def _lock_for_cache_key(key: str) -> asyncio.Lock:
     return _CACHE_LOCKS[key]
 
 
+def _history_5y_preferred_daily(t: yf.Ticker) -> pd.DataFrame:
+    df = t.history(period="5y", interval="1d", auto_adjust=True)
+    if df is None or df.empty:
+        df = t.history(period="5y", interval="1wk", auto_adjust=True)
+    return df
+
+
 def _download_history(t: yf.Ticker, period_key: str) -> pd.DataFrame:
     """Histórico según ventana: YTD por fecha inicio (más fiable que period=ytd en fondos)."""
     today = date.today()
@@ -129,10 +149,10 @@ def _download_history(t: yf.Ticker, period_key: str) -> pd.DataFrame:
     if period_key == "3y":
         return t.history(period="3y", interval="1mo", auto_adjust=True)
     if period_key == "5y":
-        return t.history(period="5y", interval="1mo", auto_adjust=True)
+        return _history_5y_preferred_daily(t)
     if period_key == "max":
         return t.history(period="max", interval="1mo", auto_adjust=True)
-    return t.history(period="5y", interval="1mo", auto_adjust=True)
+    return _history_5y_preferred_daily(t)
 
 
 def _safe_info_dict(t: yf.Ticker) -> Dict[str, Any]:
@@ -164,6 +184,54 @@ def _history_to_series(hist: pd.DataFrame) -> Tuple[List[str], List[Optional[flo
     return dates, closes
 
 
+def _nav_bars_from_hist(hist: pd.DataFrame) -> List[Dict[str, Any]]:
+    dates, closes = _history_to_series(hist)
+    bars: List[Dict[str, Any]] = []
+    for d, c in zip(dates, closes):
+        if c is not None and c > 0:
+            bars.append({"date": d, "close": round(float(c), 6)})
+    return _sanitize_nav_bars(bars)
+
+
+def _sanitize_nav_bars(bars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Elimina cierres aberrantes (splits/errores Yahoo) repitiendo el último cierre válido."""
+    if len(bars) < 2:
+        return bars
+    out: List[Dict[str, Any]] = []
+    prev = float(bars[0]["close"])
+    out.append({"date": bars[0]["date"], "close": round(prev, 6)})
+    for i in range(1, len(bars)):
+        raw = float(bars[i]["close"])
+        use = raw
+        if prev > 0:
+            ratio = raw / prev
+            if ratio < 0.05 or ratio > 25.0:
+                use = prev
+        if use > 0:
+            prev = use
+        out.append({"date": bars[i]["date"], "close": round(float(use), 6)})
+    return out
+
+
+def _coerce_and_sanitize_cached_nav_bars(nb: List[Any]) -> List[Dict[str, Any]]:
+    """Normaliza filas JSONB y aplica el mismo filtro de outliers que en descarga yfinance."""
+    bars: List[Dict[str, Any]] = []
+    for x in nb:
+        if not isinstance(x, dict):
+            continue
+        d = x.get("date")
+        c = x.get("close")
+        if d is None or c is None:
+            continue
+        try:
+            cf = float(c)
+        except (TypeError, ValueError):
+            continue
+        if cf > 0:
+            bars.append({"date": str(d), "close": round(cf, 6)})
+    return _sanitize_nav_bars(bars)
+
+
 def _pct_from_start(closes: List[Optional[float]]) -> List[Optional[float]]:
     first: Optional[float] = None
     for c in closes:
@@ -188,7 +256,8 @@ def _total_return_pct(closes: List[Optional[float]]) -> Optional[float]:
     a, b = vals[0], vals[-1]
     if a <= 0:
         return None
-    return round((b / a - 1.0) * 100.0, 2)
+    t = round((b / a - 1.0) * 100.0, 2)
+    return -100.0 if t < -100.0 else t
 
 
 def _norm_name(s: Optional[str], isin: str) -> Optional[str]:
@@ -365,6 +434,7 @@ def _fetch_one_isin_sync(isin: str, period_key: str) -> Dict[str, Any]:
         t = yf.Ticker(yahoo_sym)
         hist = _download_history(t, period_key)
         dates, closes = _history_to_series(hist)
+        closes = _sanitize_close_list(closes)
         if not dates:
             return {"isin": isin, "error": "Sin precios en yfinance para este ISIN en el intervalo pedido"}
         inf = _safe_info_dict(t)
@@ -402,6 +472,7 @@ def _fetch_crypto_sync(ticker: str, period_key: str) -> Dict[str, Any]:
         t = yf.Ticker(ticker)
         hist = _download_history(t, period_key)
         dates, closes = _history_to_series(hist)
+        closes = _sanitize_close_list(closes)
         if not dates:
             return {"symbol": ticker, "error": "Sin precios en yfinance para este activo en el intervalo pedido"}
         inf = _safe_info_dict(t)
@@ -426,13 +497,226 @@ def _fetch_crypto_sync(ticker: str, period_key: str) -> Dict[str, Any]:
         return {"symbol": ticker, "error": str(e)[:220]}
 
 
+def _build_isin_nav_cache_row_sync(
+    isin: str, period_key: str = STORE_HORIZON_PERIOD
+) -> Dict[str, Any]:
+    """Serie de cierres para guardar en Supabase (no incluye `instrument_key` de fila)."""
+    try:
+        yahoo_sym = YAHOO_SYMBOL_BY_ISIN.get(isin, isin)
+        t = yf.Ticker(yahoo_sym)
+        hist = _download_history(t, period_key)
+        nav_bars = _nav_bars_from_hist(hist)
+        if not nav_bars:
+            return {"isin": isin, "error": "Sin precios en yfinance para este ISIN en el intervalo pedido"}
+        inf = _safe_info_dict(t)
+        name = _resolve_fund_name(t, isin, inf)
+        if name == isin:
+            cached_nm = _name_from_fund_detail_supabase_cache(isin)
+            if cached_nm:
+                name = cached_nm
+        if name == isin:
+            name = ISIN_FALLBACK_LABEL.get(isin, isin)
+        clasificacion = _clasificacion_activo(isin, inf, name)
+        sym = getattr(t, "ticker", None) or isin
+        return {
+            "isin": isin,
+            "symbol": str(sym),
+            "name": name,
+            "clasificacion": clasificacion,
+            "nav_bars": nav_bars,
+            "source": "yfinance",
+        }
+    except Exception as e:
+        return {"isin": isin, "error": str(e)[:220]}
+
+
+def _build_crypto_nav_cache_row_sync(
+    ticker: str, period_key: str = STORE_HORIZON_PERIOD
+) -> Dict[str, Any]:
+    try:
+        t = yf.Ticker(ticker)
+        hist = _download_history(t, period_key)
+        nav_bars = _nav_bars_from_hist(hist)
+        if not nav_bars:
+            return {"symbol": ticker, "error": "Sin precios en yfinance para este activo en el intervalo pedido"}
+        inf = _safe_info_dict(t)
+        name = _resolve_fund_name(t, ticker, inf)
+        sym = getattr(t, "ticker", None) or ticker
+        return {
+            "isin": "",
+            "symbol": str(sym),
+            "name": name,
+            "clasificacion": "criptoactivos",
+            "nav_bars": nav_bars,
+            "source": "yfinance",
+        }
+    except Exception as e:
+        return {"symbol": ticker, "error": str(e)[:220]}
+
+
+def collect_refresh_instrument_keys() -> List[str]:
+    keys: set[str] = set(DEFAULT_AUTHOR_ISINS)
+    if supabase_service.is_connected():
+        for isin in supabase_service.list_distinct_investment_isins():
+            keys.add(isin)
+    for t in DEFAULT_CRYPTO_TICKERS:
+        keys.add(crypto_instrument_key(t))
+    return sorted(keys)
+
+
+def refresh_instrument_keys_sync(keys: List[str]) -> None:
+    """Descarga yfinance y escribe Supabase para cada clave (ISIN o CRYPTO:…)."""
+    if not supabase_service.is_connected():
+        print("[benchmark-cache] Supabase no conectado; se omite refresco")
+        return
+    seen: set[str] = set()
+    for raw_key in keys:
+        key = (raw_key or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        if key.startswith("CRYPTO:"):
+            ticker = key.split(":", 1)[1].strip()
+            if not ticker:
+                continue
+            pl = _build_crypto_nav_cache_row_sync(ticker, STORE_HORIZON_PERIOD)
+            if pl.get("error"):
+                print(f"[benchmark-cache] {key}: {pl.get('error')}")
+                continue
+            ysym = str(pl.get("symbol") or ticker)
+            supabase_service.upsert_investment_benchmark_series(key, ysym, pl)
+        else:
+            pl = _build_isin_nav_cache_row_sync(key, STORE_HORIZON_PERIOD)
+            if pl.get("error"):
+                print(f"[benchmark-cache] {key}: {pl.get('error')}")
+                continue
+            ysym = str(pl.get("symbol") or key)
+            supabase_service.upsert_investment_benchmark_series(key, ysym, pl)
+
+
+def run_refresh_investment_benchmark_cache() -> None:
+    refresh_instrument_keys_sync(collect_refresh_instrument_keys())
+
+
+def _nav_bars_from_cached_payload(pl: Any) -> Optional[List[Any]]:
+    """`nav_bars` en JSONB (snake o camel); None si no hay serie usable."""
+    if not isinstance(pl, dict):
+        return None
+    nb = pl.get("nav_bars")
+    if isinstance(nb, list) and len(nb) > 0:
+        return nb
+    nb = pl.get("navBars")
+    if isinstance(nb, list) and len(nb) > 0:
+        return nb
+    return None
+
+
+def _build_benchmarks_payload_from_supabase_sync(user_id: str, isins: List[str]) -> Dict[str, Any]:
+    """Lee solo Supabase: items con `nav_bars` (horizonte STORE); sin yfinance."""
+    _ = user_id
+    if not supabase_service.is_connected():
+        raise RuntimeError("Supabase no disponible")
+    keys_needed: List[str] = []
+    for isin in isins:
+        keys_needed.append(str(isin).strip().upper())
+    for t in DEFAULT_CRYPTO_TICKERS:
+        keys_needed.append(crypto_instrument_key(t))
+    rows = supabase_service.get_investment_benchmark_series_batch(keys_needed)
+    if len(rows) == 0 and len(keys_needed) > 0:
+        time.sleep(0.25)
+        rows = supabase_service.get_investment_benchmark_series_batch(keys_needed)
+    items: List[Dict[str, Any]] = []
+    errors: List[Dict[str, str]] = []
+    for isin in isins:
+        pl = rows.get(isin)
+        nb_raw = _nav_bars_from_cached_payload(pl)
+        if not nb_raw:
+            errors.append(
+                {
+                    "isin": isin,
+                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
+                }
+            )
+            continue
+        nb = _coerce_and_sanitize_cached_nav_bars(nb_raw)
+        if not nb:
+            errors.append(
+                {
+                    "isin": isin,
+                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
+                }
+            )
+            continue
+        items.append(
+            {
+                "isin": pl.get("isin") or isin,
+                "symbol": pl.get("symbol") or "",
+                "name": pl.get("name") or isin,
+                "clasificacion": pl.get("clasificacion") or "renta_variable",
+                "total_return_pct": None,
+                "points": [],
+                "nav_bars": nb,
+                "source": pl.get("source") or "supabase_cache",
+            }
+        )
+    crypto_items: List[Dict[str, Any]] = []
+    crypto_errors: List[Dict[str, str]] = []
+    for t in DEFAULT_CRYPTO_TICKERS:
+        ck = crypto_instrument_key(t)
+        pl = rows.get(str(ck).strip().upper())
+        nb_raw = _nav_bars_from_cached_payload(pl)
+        if not nb_raw:
+            crypto_errors.append(
+                {
+                    "symbol": t,
+                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
+                }
+            )
+            continue
+        nb = _coerce_and_sanitize_cached_nav_bars(nb_raw)
+        if not nb:
+            crypto_errors.append(
+                {
+                    "symbol": t,
+                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
+                }
+            )
+            continue
+        crypto_items.append(
+            {
+                "isin": "",
+                "symbol": pl.get("symbol") or t,
+                "name": pl.get("name") or t,
+                "clasificacion": "criptoactivos",
+                "total_return_pct": None,
+                "points": [],
+                "nav_bars": nb,
+                "source": pl.get("source") or "supabase_cache",
+            }
+        )
+    return {
+        "success": True,
+        "period": STORE_HORIZON_PERIOD,
+        "range": STORE_HORIZON_PERIOD,
+        "horizon": STORE_HORIZON_PERIOD,
+        "interval": _interval_for_period(STORE_HORIZON_PERIOD),
+        "source": "supabase_cache",
+        "items": items,
+        "errors": errors,
+        "crypto_items": crypto_items,
+        "crypto_errors": crypto_errors,
+    }
+
+
 def _interval_for_period(period_key: str) -> str:
     if period_key == "ytd":
         return "1wk"
     if period_key == "1m":
         return "1d"
-    if period_key in ("1y", "3y", "5y"):
+    if period_key in ("1y", "3y"):
         return "1mo"
+    if period_key == "5y":
+        return "1d"
     return "1wk"
 
 
@@ -443,7 +727,9 @@ async def build_benchmarks_payload(period: str, user_id: str, isins: List[str]) 
         raise ValueError("Lista de ISIN vacía")
     if len(isins) > _MAX_USER_ISINS:
         raise ValueError(f"Máximo {_MAX_USER_ISINS} ISIN por usuario")
-    ck = _cache_key(user_id, period, isins)
+    # `period` lo ignora el payload: siempre horizonte almacenado; el front filtra la ventana.
+    _ = period
+    ck = _cache_key(user_id, "supabase_full", isins)
     now = time.monotonic()
     hit = _CACHE.get(ck)
     if hit and hit[0] > now:
@@ -456,37 +742,18 @@ async def build_benchmarks_payload(period: str, user_id: str, isins: List[str]) 
         if hit and hit[0] > now:
             return hit[1]
 
-        items: List[Dict[str, Any]] = []
-        errors: List[Dict[str, str]] = []
-        crypto_items: List[Dict[str, Any]] = []
-        crypto_errors: List[Dict[str, str]] = []
-
-        for isin in isins:
-            r = await asyncio.to_thread(_fetch_one_isin_sync, isin, period)
-            if r.get("error"):
-                errors.append({"isin": r["isin"], "detail": r["error"]})
-            else:
-                items.append(r)
-            await asyncio.sleep(0.15)
-
-        for ticker in DEFAULT_CRYPTO_TICKERS:
-            r = await asyncio.to_thread(_fetch_crypto_sync, ticker, period)
-            if r.get("error"):
-                crypto_errors.append({"symbol": r.get("symbol", ticker), "detail": r["error"]})
-            else:
-                crypto_items.append(r)
-            await asyncio.sleep(0.12)
-
-        payload: Dict[str, Any] = {
-            "success": True,
-            "period": period,
-            "range": period,
-            "interval": _interval_for_period(period),
-            "source": "yfinance",
-            "items": items,
-            "errors": errors,
-            "crypto_items": crypto_items,
-            "crypto_errors": crypto_errors,
-        }
-        _CACHE[ck] = (time.monotonic() + _CACHE_TTL_SEC, payload)
+        payload = await asyncio.to_thread(_build_benchmarks_payload_from_supabase_sync, user_id, isins)
+        items = payload.get("items") or []
+        citems = payload.get("crypto_items") or []
+        errs = payload.get("errors") or []
+        cerrs = payload.get("crypto_errors") or []
+        # No guardar en RAM un “todo vacío”: si Supabase se rellena justo después, el cliente vería fallo hasta expirar TTL.
+        if len(items) == 0 and len(citems) == 0:
+            return payload
+        ttl = _BENCHMARK_GET_CACHE_TTL_SEC
+        if len(isins) > 0 and len(items) == 0 and len(errs) >= len(isins):
+            ttl = min(ttl, _BENCHMARK_GET_CACHE_TTL_SOFT_FAIL_SEC)
+        elif errs or cerrs:
+            ttl = min(ttl, _BENCHMARK_GET_CACHE_TTL_PARTIAL_ERR_SEC)
+        _CACHE[ck] = (time.monotonic() + ttl, payload)
         return payload

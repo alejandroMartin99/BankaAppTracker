@@ -14,12 +14,30 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from app.core.config import settings
+
+
+async def _investment_benchmark_refresh_loop() -> None:
+    """Refresco periódico de series Inversión → Supabase (yfinance), sin depender de peticiones del cliente."""
+    await asyncio.sleep(60)
+    while True:
+        try:
+            from app.api.services.investment_benchmarks import run_refresh_investment_benchmark_cache
+
+            await asyncio.to_thread(run_refresh_investment_benchmark_cache)
+        except asyncio.CancelledError:
+            print("[benchmark-cache] detenido")
+            break
+        except Exception as e:
+            print(f"[benchmark-cache] error: {e}")
+        interval = max(300.0, float(settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS))
+        await asyncio.sleep(interval)
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
 from app.api.routers.investment import router as investment_router
 from app.api.services.supabase.supabase_service import supabase_service
 
 KEEP_ALIVE_TASK: asyncio.Task | None = None
+BENCHMARK_CACHE_TASK: asyncio.Task | None = None
 
 
 async def _keep_alive_loop() -> None:
@@ -48,16 +66,28 @@ async def _keep_alive_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global KEEP_ALIVE_TASK
+    global KEEP_ALIVE_TASK, BENCHMARK_CACHE_TASK
     base_url = settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL")
     if base_url:
         KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
         print(f"[keep-alive] iniciado cada {settings.KEEP_ALIVE_INTERVAL_SECONDS}s -> {base_url}/health")
+    if supabase_service.is_connected():
+        BENCHMARK_CACHE_TASK = asyncio.create_task(_investment_benchmark_refresh_loop())
+        print(
+            f"[benchmark-cache] bucle cada {max(300, settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS)}s "
+            "(primer arranque tras 60s)"
+        )
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()
         try:
             await KEEP_ALIVE_TASK
+        except asyncio.CancelledError:
+            pass
+    if BENCHMARK_CACHE_TASK and not BENCHMARK_CACHE_TASK.done():
+        BENCHMARK_CACHE_TASK.cancel()
+        try:
+            await BENCHMARK_CACHE_TASK
         except asyncio.CancelledError:
             pass
 
