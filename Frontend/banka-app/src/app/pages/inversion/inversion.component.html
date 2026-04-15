@@ -38,60 +38,80 @@
 
       <div class="chart-toolbar chart-toolbar--above">
         <div class="chart-toolbar-triggers">
-          <label class="chart-toolbar-field chart-toolbar-field--select chart-toolbar-period">
-            <span class="visually-hidden">Ventana temporal del gráfico</span>
-            <select
-              class="chart-toolbar-select"
-              [ngModel]="period"
-              (ngModelChange)="setPeriod($event)"
-              [disabled]="loading"
-              [attr.title]="'Rango de fechas mostrado'"
-            >
-              @for (p of periodPresets; track p.id) {
-                <option [value]="p.id">{{ p.label }}</option>
-              }
-            </select>
-          </label>
-
-          @if (chartCategoriesInData.length > 0) {
-            <details class="chart-dd" name="inv-chart-toolbar">
-              <summary class="chart-dd-summary">Tipo</summary>
-              <div class="chart-dd-body chart-dd-body--tipo">
-                @for (c of chartCategoriesInData; track c.key) {
-                  <button type="button" class="chart-dd-tipo-item" (click)="toggleCategoryVisibility(c.key)">
-                    <span
-                      class="chart-dd-tick"
-                      [class.chart-dd-tick--on]="categoryChipState(c.key) === 'all'"
-                      [class.chart-dd-tick--partial]="categoryChipState(c.key) === 'partial'"
-                      [class.chart-dd-tick--off]="categoryChipState(c.key) === 'none'"
-                      aria-hidden="true"
-                    ></span>
-                    <span class="chart-dd-tipo-label">{{ c.label }}</span>
-                  </button>
-                }
-                @if (hiddenSeriesKeys.length > 0) {
-                  <button type="button" class="chart-dd-footer-btn" (click)="showAllChartSeries()">Mostrar todas las series</button>
-                }
-              </div>
-            </details>
-          }
-
-          <details class="chart-dd chart-dd--fondos" name="inv-chart-toolbar">
-            <summary class="chart-dd-summary">Fondos</summary>
-            <div class="chart-dd-body chart-dd-body--scroll chart-dd-body--fondos">
-              @for (e of chartLegendEntries; track e.seriesKey) {
-                <label class="chart-dd-check">
-                  <input
-                    type="checkbox"
-                    [checked]="e.visible"
-                    (change)="setSeriesVisible(e.seriesKey, $any($event.target).checked)"
-                  />
-                  <span class="chart-dd-swatch" [style.background]="e.color"></span>
-                  <span class="chart-dd-check-text">{{ e.name }}</span>
-                </label>
-              }
+          <div
+            class="chart-filter-bar"
+            [class.chart-filter-bar--no-tipo]="chartCategoriesInData.length === 0"
+          >
+            <div class="chart-filter-bar__cell chart-filter-bar__cell--period">
+              <label class="chart-filter-bar__face chart-filter-bar__face--period">
+                <span class="visually-hidden">Ventana temporal del gráfico</span>
+                <select
+                  class="chart-filter-bar__select"
+                  [ngModel]="period"
+                  (ngModelChange)="setPeriod($event)"
+                  [disabled]="loading"
+                  [attr.title]="'Rango de fechas mostrado'"
+                >
+                  @for (p of periodPresets; track p.id) {
+                    <option [value]="p.id">{{ p.label }}</option>
+                  }
+                </select>
+                <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
+              </label>
             </div>
-          </details>
+
+            @if (chartCategoriesInData.length > 0) {
+              <div class="chart-filter-bar__cell chart-filter-bar__cell--tipo">
+                <details class="chart-dd" name="inv-chart-toolbar">
+                  <summary class="chart-dd-summary chart-filter-bar__face">
+                    <span class="chart-filter-bar__face-text">Tipo</span>
+                    <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
+                  </summary>
+                  <div class="chart-dd-body chart-dd-body--tipo">
+                    @for (c of chartCategoriesInData; track c.key) {
+                      <button type="button" class="chart-dd-tipo-item" (click)="toggleCategoryVisibility(c.key)">
+                        <span
+                          class="chart-dd-tick"
+                          [class.chart-dd-tick--on]="categoryChipState(c.key) === 'all'"
+                          [class.chart-dd-tick--partial]="categoryChipState(c.key) === 'partial'"
+                          [class.chart-dd-tick--off]="categoryChipState(c.key) === 'none'"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="chart-dd-tipo-label">{{ c.label }}</span>
+                      </button>
+                    }
+                    @if (hiddenSeriesKeys.length > 0) {
+                      <button type="button" class="chart-dd-footer-btn" (click)="showAllChartSeries()">Mostrar todas las series</button>
+                    }
+                  </div>
+                </details>
+              </div>
+            }
+
+            <div class="chart-filter-bar__cell chart-filter-bar__cell--fondos">
+              <details class="chart-dd chart-dd--fondos" name="inv-chart-toolbar">
+                <summary class="chart-dd-summary chart-filter-bar__face">
+                  <span class="chart-filter-bar__face-text">Fondos</span>
+                  <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
+                </summary>
+                <div class="chart-dd-body chart-dd-body--scroll chart-dd-body--fondos">
+                  <div class="chart-fondos-list">
+                    @for (e of chartLegendEntries; track e.seriesKey) {
+                      <label class="chart-dd-check chart-dd-check--fondo-row">
+                        <input
+                          type="checkbox"
+                          [checked]="e.visible"
+                          (change)="setSeriesVisible(e.seriesKey, $any($event.target).checked)"
+                        />
+                        <span class="chart-dd-swatch" [style.background]="e.color"></span>
+                        <span class="chart-dd-check-text">{{ e.name }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -114,29 +134,6 @@
             preserveAspectRatio="xMidYMid meet"
             aria-label="Gráfico comparativo de rentabilidad"
           >
-            <defs>
-              <filter id="invChartTipBg" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
-                <feColorMatrix
-                  in="blur"
-                  type="matrix"
-                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.75 0"
-                  result="wash"
-                />
-                <feMerge result="frosted">
-                  <feMergeNode in="wash" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-                <feDropShadow
-                  in="frosted"
-                  dx="0"
-                  dy="0.35"
-                  stdDeviation="1.25"
-                  flood-color="#0f172a"
-                  flood-opacity="0.15"
-                />
-              </filter>
-            </defs>
             @for (ln of yGridLines; track ln.pct) {
               <line
                 class="chart-grid-line"
@@ -187,40 +184,48 @@
                 [attr.y1]="chartPlot.plotTop"
                 [attr.y2]="chartPlot.plotBottom"
               />
-              @for (tip of crosshairTips; track tip.seriesKey) {
-                <g class="chart-tip-group">
+              @if (crosshairLegendPanel; as leg) {
+                <g class="chart-tip-panel">
                   <rect
-                    class="chart-tip-box"
-                    [attr.x]="tip.boxX"
-                    [attr.y]="tip.boxY"
-                    [attr.width]="tip.boxW"
-                    [attr.height]="tip.boxH"
-                    rx="0.95"
-                    ry="0.95"
-                    filter="url(#invChartTipBg)"
+                    class="chart-tip-panel-bg"
+                    [attr.x]="leg.boxX"
+                    [attr.y]="leg.boxY"
+                    [attr.width]="leg.boxW"
+                    [attr.height]="leg.boxH"
+                    rx="0.9"
+                    ry="0.9"
                   />
-                  <circle
-                    class="chart-tip-dot"
-                    [attr.cx]="crosshairX"
-                    [attr.cy]="tip.pointY"
-                    r="0.45"
-                    [attr.fill]="tip.color"
-                    stroke="#fff"
-                    stroke-width="0.2"
-                    vector-effect="non-scaling-stroke"
-                  />
-                  <text
-                    class="chart-tip-label"
-                    [attr.transform]="'translate(' + tip.boxX + ',' + tip.boxY + ')'"
-                    [attr.x]="tip.tipTextX"
-                    [attr.y]="tip.boxH * 0.5"
-                    [attr.text-anchor]="tip.tipTextAnchor"
-                    dominant-baseline="middle"
-                  >
-                    <tspan [attr.fill]="tip.color" font-weight="700">{{ tip.pctLabel }}</tspan>
-                    <tspan class="chart-tip-label-muted" dx="0.35" font-weight="500">·</tspan>
-                    <tspan class="chart-tip-label-muted" dx="0.35" font-weight="500">{{ tip.shortName }}</tspan>
-                  </text>
+                  @for (row of leg.rows; track row.seriesKey) {
+                    <circle
+                      class="chart-tip-dot"
+                      [attr.cx]="crosshairX"
+                      [attr.cy]="row.pointY"
+                      r="0.45"
+                      [attr.fill]="row.color"
+                      stroke="#fff"
+                      stroke-width="0.2"
+                      vector-effect="non-scaling-stroke"
+                    />
+                  }
+                  @for (row of leg.rows; track row.seriesKey) {
+                    <text
+                      class="chart-tip-panel-row"
+                      [attr.transform]="'translate(' + leg.textStartX + ',' + row.pointY + ')'"
+                      [attr.text-anchor]="leg.placeRight ? 'start' : 'end'"
+                      [attr.x]="0"
+                      dominant-baseline="middle"
+                    >
+                      @if (leg.placeRight) {
+                        <tspan [attr.fill]="row.color" font-weight="700">{{ row.pctLabel }}</tspan>
+                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">·</tspan>
+                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">{{ row.shortName }}</tspan>
+                      } @else {
+                        <tspan class="chart-tip-panel-name" font-weight="500">{{ row.shortName }}</tspan>
+                        <tspan class="chart-tip-panel-name" dx="0.35" font-weight="500">·</tspan>
+                        <tspan [attr.fill]="row.color" dx="0.35" font-weight="700">{{ row.pctLabel }}</tspan>
+                      }
+                    </text>
+                  }
                 </g>
               }
               <text

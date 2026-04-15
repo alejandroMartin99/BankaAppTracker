@@ -94,24 +94,30 @@ interface ChartPlotModel {
   xTicks: ChartXTick[];
 }
 
-interface CrosshairTip {
+/** Fila dentro del panel único del crosshair (leyenda flotante). */
+interface CrosshairLegendRow {
   seriesKey: string;
-  name: string;
   shortName: string;
   pctLabel: string;
   color: string;
-  /** Posición Y de la etiqueta (coord. viewBox), tras evitar solapes. */
-  labelY: number;
-  /** Posición Y del punto en la serie. */
   pointY: number;
-  /** Recuadro difuminado (coords. absolutas viewBox). */
+}
+
+/** Un solo rectángulo blanco; cada línea de texto anclada al corte (crosshairX, pointY). */
+interface CrosshairLegendPanel {
   boxX: number;
   boxY: number;
   boxW: number;
   boxH: number;
-  textPadX: number;
-  tipTextAnchor: 'start' | 'end';
-  tipTextX: number;
+  /** Inicio del texto en X: junto a la línea vertical (+/- margen). */
+  textStartX: number;
+  /** Ancho útil del texto (sin pads del rect). */
+  contentW: number;
+  padX: number;
+  padY: number;
+  lineHalf: number;
+  rows: CrosshairLegendRow[];
+  placeRight: boolean;
 }
 
 @Component({
@@ -310,113 +316,84 @@ export class InversionComponent implements OnInit {
     return this.formatChartTipDate(p.dates[this.crosshairIndex]);
   }
 
-  get crosshairTips(): CrosshairTip[] {
+  get crosshairLegendPanel(): CrosshairLegendPanel | null {
     const p = this.chartPlot;
-    if (!p || this.crosshairIndex == null) return [];
+    if (!p || this.crosshairIndex == null) return null;
     const idx = this.crosshairIndex;
     const xLine = this.crosshairX;
-    const raw: {
-      seriesKey: string;
-      name: string;
-      shortName: string;
-      pctLabel: string;
-      color: string;
-      pointY: number;
-    }[] = [];
+    const rows: CrosshairLegendRow[] = [];
     for (const s of p.series) {
       const v = s.values[idx];
       if (v == null) continue;
-      raw.push({
+      rows.push({
         seriesKey: s.seriesKey,
-        name: s.name,
         shortName: InversionComponent.truncateCrosshairName(s.name),
         pctLabel: InversionComponent.formatTipPct(v),
         color: s.color,
         pointY: this.chartYAt(p, v),
       });
     }
-    raw.sort((a, b) => a.pointY - b.pointY);
+    if (rows.length === 0) return null;
+    rows.sort((a, b) => a.pointY - b.pointY);
+
     const sy = this.chartSvgYScale;
-    const gap = 2.85 * sy;
-    let prevBottom = -1e9;
-    const boxH = 3.55 * sy;
-    const textPadX = 0.95;
-    const charW = 0.52;
+    /** ViewBox ~0–100; texto ~2.35px: subestimar dejaba el rect solo a lo ancho del %. */
+    const charUnit = 0.7;
+    const padX = 1.1;
+    const padY = 0.5 * sy;
+    const lineHalf = 1.55 * sy;
     const margin = 0.75;
-
-    type Pre = typeof raw[number] & {
-      labelY: number;
-      boxW: number;
-      boxY: number;
-    };
-    const prelims: Pre[] = [];
-    for (const r of raw) {
-      let labelY = r.pointY;
-      if (labelY < prevBottom + gap) labelY = prevBottom + gap;
-      const maxY = p.plotBottom - 2 * sy;
-      if (labelY > maxY) labelY = maxY;
+    let estContentW = 16;
+    for (const r of rows) {
       const line = `${r.pctLabel} · ${r.shortName}`;
-      const boxW = Math.min(48, Math.max(13, line.length * charW + textPadX * 2));
-      let boxY = labelY - boxH / 2;
-      if (boxY < p.plotTop + 0.3) boxY = p.plotTop + 0.3;
-      if (boxY + boxH > p.plotBottom - 0.3) boxY = p.plotBottom - boxH - 0.3;
-      prelims.push({ ...r, labelY, boxW, boxY });
-      prevBottom = labelY + gap * 0.38;
+      estContentW = Math.max(estContentW, line.length * charUnit + 2.2);
     }
+    estContentW = Math.min(estContentW, 98);
 
-    const maxBoxW = Math.max(13, ...prelims.map((q) => q.boxW));
     const spaceLeft = xLine - p.plotLeft - margin;
     const spaceRight = p.plotRight - xLine - margin;
+    let placeRight = spaceRight >= spaceLeft;
+    const probeBoxW = estContentW + padX * 2;
+    if (spaceRight < probeBoxW && spaceLeft >= probeBoxW) placeRight = false;
+    else if (spaceLeft < probeBoxW && spaceRight >= probeBoxW) placeRight = true;
 
-    let placeRight: boolean;
-    if (spaceRight >= maxBoxW && spaceLeft >= maxBoxW) {
-      placeRight = spaceRight >= spaceLeft;
-    } else if (spaceRight >= maxBoxW) {
-      placeRight = true;
-    } else if (spaceLeft >= maxBoxW) {
-      placeRight = false;
-    } else {
-      placeRight = spaceRight >= spaceLeft;
+    const textStartX = placeRight ? xLine + margin : xLine - margin;
+    const avail = placeRight ? p.plotRight - textStartX - 0.3 : textStartX - p.plotLeft - 0.3;
+    const contentW = Math.min(estContentW, Math.max(14, avail - padX));
+    const boxW = contentW + padX * 2;
+    let boxX = placeRight ? textStartX - padX : textStartX - contentW - padX;
+    if (boxX + boxW > p.plotRight - 0.12) {
+      boxX = Math.max(p.plotLeft + 0.12, p.plotRight - boxW - 0.12);
+    }
+    if (boxX < p.plotLeft + 0.12) {
+      boxX = p.plotLeft + 0.12;
     }
 
-    const out: CrosshairTip[] = [];
-    for (const pr of prelims) {
-      let boxX: number;
-      let tipTextAnchor: 'start' | 'end';
-      let tipTextX: number;
-      if (placeRight) {
-        boxX = xLine + margin;
-        if (boxX + pr.boxW > p.plotRight - 0.2) {
-          boxX = Math.max(p.plotLeft + 0.2, p.plotRight - pr.boxW - 0.2);
-        }
-        tipTextAnchor = 'start';
-        tipTextX = textPadX;
-      } else {
-        boxX = xLine - margin - pr.boxW;
-        if (boxX < p.plotLeft + 0.2) {
-          boxX = p.plotLeft + 0.2;
-        }
-        tipTextAnchor = 'end';
-        tipTextX = pr.boxW - textPadX;
-      }
-      out.push({
-        seriesKey: pr.seriesKey,
-        name: pr.name,
-        shortName: pr.shortName,
-        pctLabel: pr.pctLabel,
-        color: pr.color,
-        labelY: pr.labelY,
-        pointY: pr.pointY,
-        boxX,
-        boxY: pr.boxY,
-        boxW: pr.boxW,
-        boxH,
-        textPadX,
-        tipTextAnchor,
-        tipTextX,
-      });
+    const ys = rows.map((r) => r.pointY);
+    const minPy = Math.min(...ys);
+    const maxPy = Math.max(...ys);
+    let boxY = minPy - lineHalf - padY;
+    let boxH = maxPy - minPy + 2 * lineHalf + 2 * padY;
+    if (boxY < p.plotTop + 0.12) {
+      boxY = p.plotTop + 0.12;
     }
-    return out;
+    if (boxY + boxH > p.plotBottom - 0.12) {
+      boxH = Math.max(2 * lineHalf + 2 * padY, p.plotBottom - 0.12 - boxY);
+    }
+
+    return {
+      boxX,
+      boxY,
+      boxW,
+      boxH,
+      textStartX,
+      contentW,
+      padX,
+      padY,
+      lineHalf,
+      rows,
+      placeRight,
+    };
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -538,7 +515,7 @@ export class InversionComponent implements OnInit {
     return `+${x}%`;
   }
 
-  private static truncateCrosshairName(name: string, max = 26): string {
+  private static truncateCrosshairName(name: string, max = 34): string {
     const t = (name || '').trim();
     if (t.length <= max) return t;
     return `${t.slice(0, max - 1)}…`;
