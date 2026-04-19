@@ -161,9 +161,16 @@ export class InversionComponent implements OnInit {
   @ViewChild('chartSvg', { read: ElementRef }) chartSvgRef?: ElementRef<SVGSVGElement>;
 
   /** Altura del viewBox: ratio vertical con el ancho (debe coincidir con `aspect-ratio` de `.chart-svg` en SCSS). */
-  private static readonly CHART_ASPECT_H = 8.95;
+  private static readonly CHART_ASPECT_H = 11;
   /** `font-size` de la leyenda del crosshair en unidades SVG; alinear con `.chart-svg .chart-tip-panel-row` en SCSS. */
   private static readonly CHART_CALLOUT_FONT_PX = 2.28;
+  /**
+   * Tope de caracteres (aprox.) para intentar nombre + % en una sola fila antes de partir en dos.
+   * El bucle baja `chars` si no cabe en `avail`; este máximo evita partir demasiado pronto en pantallas anchas.
+   */
+  private static readonly CHART_CALLOUT_MAX_CHARS_SINGLE_LINE = 104;
+  /** Tope del ancho estimado del tooltip (coords. SVG) al decidir izquierda/derecha del crosshair. */
+  private static readonly CHART_CALLOUT_PROBE_MAX_WIDTH = 128;
   private static readonly CHART_VB_H = (100 * InversionComponent.CHART_ASPECT_H) / 16;
   readonly chartViewBox = `0 0 100 ${InversionComponent.CHART_VB_H}`;
   /** Escala Y respecto al layout histórico 0–100 (tipografía/márgenes bajo el trazado). */
@@ -172,8 +179,10 @@ export class InversionComponent implements OnInit {
   readonly chartPadL = 10.25;
   /** Margen derecho del trazado (eje X / etiquetas). */
   readonly chartPadR = 1.25;
-  readonly chartPadT = 5;
-  readonly chartPadB = 15.1;
+  /** Mínimo arriba del área de curvas (evita recorte del trazo). */
+  readonly chartPadT = 0;
+  /** Reserva bajo el trazado para fechas en eje X y etiqueta del crosshair (~≥9 en coords. 0–100). */
+  readonly chartPadB = 9;
 
   period: BenchmarkPeriod = 'ytd';
   periodPresets: { id: BenchmarkPeriod; label: string }[] = [
@@ -388,7 +397,7 @@ export class InversionComponent implements OnInit {
       const wLine = (d.name + ' ' + paren).length * charUnit + 2.6;
       estProbeW = Math.max(estProbeW, wLine);
     }
-    estProbeW = Math.min(estProbeW, 96);
+    estProbeW = Math.min(estProbeW, InversionComponent.CHART_CALLOUT_PROBE_MAX_WIDTH);
 
     const laneRightMin = xLine + dotR + hGapAfterDot;
     const laneLeftMax = xLine - dotR - hGapAfterDot;
@@ -400,7 +409,13 @@ export class InversionComponent implements OnInit {
     else if (spaceLeft < probeBoxW && spaceRight >= probeBoxW) placeRight = true;
 
     const avail = placeRight ? p.plotRight - laneRightMin - plotMargin : laneLeftMax - p.plotLeft - plotMargin;
-    const charsAvail = Math.max(16, Math.min(58, Math.floor((Math.max(28, avail) - 0.35) / charUnit)));
+    const charsAvail = Math.max(
+      16,
+      Math.min(
+        InversionComponent.CHART_CALLOUT_MAX_CHARS_SINGLE_LINE,
+        Math.floor((Math.max(28, avail) - 0.35) / charUnit),
+      ),
+    );
 
     const rows: CrosshairLegendCallout[] = [];
     for (let i = 0; i < draft.length; i++) {
@@ -1209,7 +1224,7 @@ export class InversionComponent implements OnInit {
       ymin -= 2;
       ymax += 2;
     }
-    const pad = (ymax - ymin) * 0.06;
+    const pad = (ymax - ymin) * 0.02;
     ymin -= pad;
     ymax += pad;
 

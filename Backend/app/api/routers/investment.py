@@ -1,6 +1,7 @@
+import asyncio
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.deps import get_current_user
@@ -128,7 +129,6 @@ async def list_investment_funds(user: dict = Depends(get_current_user)) -> Dict[
 )
 async def add_investment_fund(
     body: InvestmentFundBody,
-    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     if not supabase_service.is_connected():
@@ -155,7 +155,8 @@ async def add_investment_fund(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e!s}") from e
-    background_tasks.add_task(refresh_instrument_keys_sync, [isin])
+    # Antes en BackgroundTasks: el cliente pedía benchmarks antes de que yfinance escribiera en Supabase.
+    await asyncio.to_thread(refresh_instrument_keys_sync, [isin])
     return {"success": True, "isin": isin}
 
 
