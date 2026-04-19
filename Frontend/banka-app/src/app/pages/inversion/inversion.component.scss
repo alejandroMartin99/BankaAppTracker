@@ -1029,6 +1029,8 @@
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius);
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .table-wrap {
@@ -1036,10 +1038,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Detalle: cabe en el ancho del contenedor (sin scroll horizontal) */
+/* Detalle: sin desbordar el viewport (min-width:0 en cadena flex/grid) */
 .table-wrap--detalle-help {
   overflow-x: hidden;
   max-width: 100%;
+  min-width: 0;
 }
 
 .bench-table {
@@ -1101,15 +1104,20 @@
   border-bottom: none;
 }
 
-/* Detalle: nombre en una línea; métricas al mínimo (truco width:1% en tablas) */
+/* Detalle: ancho fijo al contenedor; nombre parte en varias líneas sin empujar métricas */
 .bench-table--detalle {
-  table-layout: auto;
-  width: max-content;
-  min-width: 100%;
+  table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bench-table--detalle col.detalle-col-name {
+  width: 52%;
 }
 
 .bench-table--detalle col.detalle-col-metric {
-  width: 1%;
+  width: 16%;
 }
 
 .bench-table--detalle col.detalle-col-action {
@@ -1123,6 +1131,7 @@
 
 .bench-table--detalle th:first-child,
 .bench-table--detalle td.cell-name {
+  min-width: 0;
   padding-left: 10px;
   padding-right: 10px;
   text-align: left;
@@ -1220,7 +1229,10 @@
 /* Nombre = enlace a ficha (ahorra columna del +) */
 .bench-table--detalle .cell-name-trigger {
   display: block;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: none;
@@ -1233,6 +1245,7 @@
 
 .bench-table--detalle .cell-name-trigger .cell-name-inner {
   display: block;
+  max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
