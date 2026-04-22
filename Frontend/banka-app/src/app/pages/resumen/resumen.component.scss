@@ -349,7 +349,7 @@
 }
 
 .category-detail {
-  padding: 6px 12px 10px 28px;
+  padding: 2px 8px 6px 18px;
   background: rgba(0, 0, 0, 0.02);
   border-top: 1px solid var(--color-border-light);
   overflow-x: hidden;
@@ -359,10 +359,11 @@
 .detail-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 11px;
-  border-bottom: 1px solid var(--color-border-light);
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 10px;
+  line-height: 1.25;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   min-width: 0;
 
   &:last-child {
@@ -377,17 +378,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-text);
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .detail-date {
   flex-shrink: 0;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .detail-amount {
   flex-shrink: 0;
   font-weight: 600;
+  font-size: 10px;
   color: var(--color-text);
 
   &--income {
@@ -397,9 +401,9 @@
 
 .detail-account {
   flex-shrink: 0;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 8px;
   font-weight: 600;
 
   &.detail-account-revolut {
@@ -425,12 +429,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin-left: 2px;
+  width: 26px;
+  height: 26px;
+  margin-left: 0;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
@@ -443,13 +447,13 @@
 
   &:focus-visible {
     outline: 2px solid var(--color-text);
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
 }
 
 .detail-edit-icon {
-  width: 17px;
-  height: 17px;
+  width: 14px;
+  height: 14px;
   display: block;
 }
 
