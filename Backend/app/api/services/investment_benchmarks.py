@@ -59,6 +59,7 @@ ISIN_FALLBACK_LABEL: Dict[str, str] = {
     "LU0625737910": "Pictet-China Index",
     "LU1048684796": "Fidelity Emerging Markets",
     "LU1623762843": "Carmignac Portfolio Credit",
+    "ES0165243025": "Myinvestor Value FI",
 }
 
 # Claves de periodo soportadas por la API (el servidor devuelve ~5y en caché; el cliente filtra la ventana).
@@ -315,36 +316,88 @@ def _looks_like_yahoo_internal_shortname(s: str) -> bool:
     return False
 
 
+def _usable_display_string(raw: Optional[Any], isin: str) -> Optional[str]:
+    """Igual que _norm_name pero descarta códigos internos Yahoo (a veces en longName/name)."""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        try:
+            raw = str(raw)
+        except Exception:
+            return None
+    v = _norm_name(raw, isin)
+    if not v:
+        return None
+    if _looks_like_yahoo_internal_shortname(v):
+        return None
+    return v
+
+
 def _display_name_from_info_dict(isin: str, inf: Dict[str, Any]) -> Optional[str]:
     """Nombre legible solo a partir del dict `info` (sin fast_info)."""
     if not inf:
         return None
-    longn = _norm_name(inf.get("longName"), isin)  # type: ignore[arg-type]
-    if longn:
-        return longn
-
-    for key in ("displayName", "name"):
-        v = _norm_name(inf.get(key), isin)  # type: ignore[arg-type]
+    inv = isin.strip().upper()
+    for key in ("longName", "displayName", "name", "shortName"):
+        v = _usable_display_string(inf.get(key), isin)
         if v:
             return v
 
-    shortn = _norm_name(inf.get("shortName"), isin)  # type: ignore[arg-type]
-    if shortn and not _looks_like_yahoo_internal_shortname(shortn):
-        return shortn
+    # fundFamily suele ser la SGIIC/gestora (p. ej. Andbank), no el nombre comercial del fondo.
+    fb = ISIN_FALLBACK_LABEL.get(inv)
+    if fb:
+        return fb[:160]
 
     desc = inf.get("description")
     if isinstance(desc, str):
         chunk = desc.strip().split(". ")
         first = chunk[0].strip() if chunk else ""
         if len(first) > 12:
-            v = _norm_name(first, isin)
+            v = _usable_display_string(first, isin)
             if v:
                 return v
+
+    ff = _usable_display_string(inf.get("fundFamily"), isin)
+    cat = _usable_display_string(inf.get("category"), isin)
+    if ff and cat and ff.lower() != cat.lower():
+        combo = f"{ff} ({cat})"
+        if combo:
+            return combo[:160]
+    if ff:
+        return ff[:160]
+    return None
+
+
+def _display_name_from_composition(comp: Dict[str, Any], isin: str) -> Optional[str]:
+    """Nombre desde composición (fund_overview / descripción) cuando `info` solo trae ticker interno."""
+    fo = comp.get("fund_overview")
+    if isinstance(fo, dict):
+        for key in (
+            "Fund Name",
+            "Name",
+            "Legal Name",
+            "Fund legal name",
+            "Fund Name (Legal)",
+            "longName",
+        ):
+            v = _usable_display_string(fo.get(key), isin)
+            if v:
+                return v
+        for raw in fo.values():
+            v = _usable_display_string(raw, isin) if isinstance(raw, str) else None
+            if v and len(v) >= 10 and " " in v:
+                return v
+    d = comp.get("description")
+    if isinstance(d, str) and d.strip():
+        first = d.strip().split(". ")[0].strip()
+        v = _usable_display_string(first, isin)
+        if v and len(first) > 12:
+            return v
     return None
 
 
 def _name_from_fund_detail_supabase_cache(isin: str) -> Optional[str]:
-    """Si existe ficha en caché (p. ej. otro request con Yahoo respondiendo), reutiliza longName."""
+    """Si existe ficha en caché (p. ej. otro request con Yahoo respondiendo), reutiliza longName o descripción del fondo."""
     try:
         if not supabase_service.is_connected():
             return None
@@ -357,9 +410,29 @@ def _name_from_fund_detail_supabase_cache(isin: str) -> Optional[str]:
             hit = _display_name_from_info_dict(isin, cached_inf)
             if hit:
                 return hit[:160]
+        comp = pl.get("composition")
+        if isinstance(comp, dict):
+            hit = _display_name_from_composition(comp, isin)
+            if hit:
+                return hit[:160]
     except Exception:
         return None
     return None
+
+
+def _resolve_benchmark_display_name(isin: str, pl: Dict[str, Any]) -> str:
+    """Nombre para UI (detalle/gráfico): evita mostrar solo el ISIN si hay ficha o etiqueta de respaldo."""
+    inv = isin.strip().upper()
+    raw = str(pl.get("name") or "").strip()
+    if raw and raw.upper() != inv and not _looks_like_yahoo_internal_shortname(raw):
+        return raw[:160]
+    alt = _name_from_fund_detail_supabase_cache(inv)
+    if alt:
+        return alt[:160]
+    fb = ISIN_FALLBACK_LABEL.get(inv)
+    if fb:
+        return fb
+    return raw or inv
 
 
 def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
@@ -375,14 +448,28 @@ def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
                 raw = fi[key]  # type: ignore[index]
             except (KeyError, TypeError, AttributeError):
                 raw = getattr(fi, key, None)
-            v = _norm_name(str(raw) if raw is not None else None, isin)
+            v = _usable_display_string(str(raw) if raw is not None else None, isin)
             if not v:
-                continue
-            if key == "shortName" and _looks_like_yahoo_internal_shortname(v):
                 continue
             return v[:160]
     except Exception:
         pass
+
+    try:
+        fd = t.get_funds_data()
+        desc = str(getattr(fd, "description", None) or "")
+        if desc.strip():
+            first = desc.strip().split(". ")[0].strip()
+            v = _usable_display_string(first, isin)
+            if v and len(first) > 12:
+                return v[:160]
+    except Exception:
+        pass
+
+    inv = isin.strip().upper()
+    fb = ISIN_FALLBACK_LABEL.get(inv)
+    if fb:
+        return fb[:160]
 
     return isin
 
@@ -687,7 +774,7 @@ def _build_benchmarks_payload_from_supabase_sync(user_id: str, isins: List[str])
             {
                 "isin": pl.get("isin") or isin,
                 "symbol": pl.get("symbol") or "",
-                "name": pl.get("name") or isin,
+                "name": _resolve_benchmark_display_name(isin, pl if isinstance(pl, dict) else {}),
                 "clasificacion": pl.get("clasificacion") or "renta_variable",
                 "total_return_pct": None,
                 "points": [],

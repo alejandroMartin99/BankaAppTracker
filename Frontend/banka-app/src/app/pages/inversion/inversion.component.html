@@ -410,7 +410,7 @@
                 <table class="fund-kv-table">
                   @for (row of essentials; track row.key) {
                     <tr>
-                      <th>{{ row.label }}</th>
+                      <th [attr.title]="row.hint ?? null">{{ row.label }}</th>
                       <td>{{ formatFundInfoValue(row.key, row.value) }}</td>
                     </tr>
                   }

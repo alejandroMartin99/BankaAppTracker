@@ -12,7 +12,7 @@ from app.api.services.investment_benchmarks import (
     normalize_isin,
     refresh_instrument_keys_sync,
 )
-from app.api.services.investment_fund_detail import get_or_build_fund_detail
+from app.api.services.investment_fund_detail import get_or_build_fund_detail, warm_fund_detail_cache_force_sync
 from app.api.services.supabase.supabase_service import supabase_service
 
 router = APIRouter(prefix="/GET", tags=["GET"])
@@ -155,7 +155,8 @@ async def add_investment_fund(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e!s}") from e
-    # Antes en BackgroundTasks: el cliente pedía benchmarks antes de que yfinance escribiera en Supabase.
+    # Ficha Yahoo primero → nombres/composición en caché; luego serie benchmark (sigue el refresco periódico global).
+    await asyncio.to_thread(warm_fund_detail_cache_force_sync, isin)
     await asyncio.to_thread(refresh_instrument_keys_sync, [isin])
     return {"success": True, "isin": isin}
 

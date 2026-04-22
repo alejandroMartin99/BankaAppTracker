@@ -19,6 +19,7 @@ import {
   BenchmarkPeriod,
   BenchmarkPoint,
   BenchmarksResponse,
+  FundDetailPayload,
   FundDetailResponse,
   InvestmentFundsResponse,
   InvestmentService,
@@ -616,6 +617,97 @@ export class InversionComponent implements OnInit {
     } catch {
       return iso;
     }
+  }
+
+  private static readonly YAHOO_INTERNAL_TICKER_RE = /^0P[0-9A-Z]{6,}\.[A-Z0-9]+$/i;
+
+  /** Misma lista reducida que ISIN_FALLBACK_LABEL en backend (nombre comercial vs fundFamily = gestora). */
+  private static readonly FUND_DETAIL_TITLE_ISIN_FALLBACK: Readonly<Record<string, string>> = {
+    ES0165243025: 'Myinvestor Value FI',
+  };
+
+  /** Evita usar códigos internos tipo 0P0001T8V7.F como título del modal. */
+  private static pickNonInternalFundTitle(
+    idKeyUpper: string,
+    raw?: string | null,
+  ): string | null {
+    const s = (raw || '').trim();
+    if (!s || s.toUpperCase() === idKeyUpper) return null;
+    if (InversionComponent.YAHOO_INTERNAL_TICKER_RE.test(s)) return null;
+    return s;
+  }
+
+  /** Título de ficha: prioriza nombres legibles; alinea criterios con el backend. */
+  private static resolveFundDetailTitle(
+    idKeyUpper: string,
+    detail: FundDetailPayload | null | undefined,
+    fallback: string,
+  ): string {
+    if (!detail) return fallback;
+
+    const infRaw = detail.info;
+    const infOk =
+      infRaw && typeof infRaw === 'object' && !Array.isArray(infRaw)
+        ? (infRaw as Record<string, unknown>)
+        : null;
+
+    const gi = (k: string): string | undefined => {
+      if (!infOk) return undefined;
+      const v = infOk[k];
+      return typeof v === 'string' ? v.trim() : undefined;
+    };
+
+    if (infOk) {
+      for (const k of ['longName', 'displayName', 'name', 'shortName']) {
+        const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, gi(k));
+        if (hit) return hit;
+      }
+    }
+
+    const curated = InversionComponent.FUND_DETAIL_TITLE_ISIN_FALLBACK[idKeyUpper];
+    if (curated) return curated;
+
+    const descInf = gi('description');
+    if (descInf) {
+      const first = descInf.split('. ')[0].trim();
+      const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, first);
+      if (hit && first.length > 12) return hit;
+    }
+
+    const comp = detail.composition;
+    if (comp && typeof comp === 'object' && !Array.isArray(comp)) {
+      const fo = comp['fund_overview'];
+      if (fo && typeof fo === 'object' && !Array.isArray(fo)) {
+        const o = fo as Record<string, unknown>;
+        for (const key of ['Fund Name', 'Name', 'Legal Name', 'longName']) {
+          const v = o[key];
+          if (typeof v === 'string') {
+            const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, v);
+            if (hit) return hit;
+          }
+        }
+      }
+      const desc = comp['description'];
+      if (typeof desc === 'string' && desc.trim()) {
+        const first = desc.trim().split('. ')[0].trim();
+        const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, first);
+        if (hit && first.length > 12) return hit;
+      }
+    }
+
+    const ff = gi('fundFamily');
+    const cat = gi('category');
+    if (ff && cat && ff.toLowerCase() !== cat.toLowerCase()) {
+      const combo = `${ff} (${cat})`;
+      const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, combo);
+      if (hit) return hit;
+    }
+    if (ff) {
+      const hit = InversionComponent.pickNonInternalFundTitle(idKeyUpper, ff);
+      if (hit) return hit;
+    }
+
+    return fallback;
   }
 
   private static formatTipPct(v: number): string {
@@ -1331,7 +1423,10 @@ export class InversionComponent implements OnInit {
     const sym = isCrypto && row.symbol?.trim() ? row.symbol.trim() : undefined;
     if (!isin && !sym) return;
     this.fundDetailOpen = true;
-    this.fundDetailTitle = row.name || isin || sym || '';
+    const idKey = (isin || sym || '').trim().toUpperCase();
+    const initialRaw = (row.name || isin || sym || '').trim();
+    const cleaned = InversionComponent.pickNonInternalFundTitle(idKey, initialRaw);
+    this.fundDetailTitle = cleaned || idKey;
     this.fundDetailIsin = isin ?? null;
     this.fundDetailCryptoSymbol = sym ?? null;
     this.fundDetailLoading = true;
@@ -1341,6 +1436,12 @@ export class InversionComponent implements OnInit {
       next: (r) => {
         this.fundDetailResponse = r;
         this.fundDetailLoading = false;
+        const idKey = (isin || sym || '').trim().toUpperCase();
+        this.fundDetailTitle = InversionComponent.resolveFundDetailTitle(
+          idKey,
+          r.detail,
+          this.fundDetailTitle,
+        );
         if (!r.success) {
           this.fundDetailError = 'La ficha no está disponible.';
         }
@@ -1423,14 +1524,19 @@ export class InversionComponent implements OnInit {
   }
 
   /** Solo campos útiles del bloque `info` (orden fijo). */
-  fundDetailEssentialInfoRows(): { key: string; label: string; value: unknown }[] {
+  fundDetailEssentialInfoRows(): { key: string; label: string; value: unknown; hint?: string }[] {
     const info = this.fundDetailInfo();
     if (!info) return [];
-    const out: { key: string; label: string; value: unknown }[] = [];
+    const out: { key: string; label: string; value: unknown; hint?: string }[] = [];
     for (const { key, label } of InversionComponent.FUND_DETAIL_ESSENTIAL_FIELDS) {
       const v = info[key];
       if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) continue;
-      out.push({ key, label, value: v });
+      out.push({
+        key,
+        label,
+        value: v,
+        hint: InversionComponent.FUND_DETAIL_ESSENTIAL_HINTS[key],
+      });
     }
     return out;
   }
@@ -1466,12 +1572,20 @@ export class InversionComponent implements OnInit {
     { key: 'fullExchangeName', label: 'Mercado' },
     { key: 'totalAssets', label: 'Activos totales' },
     { key: 'yield', label: 'Yield' },
-    { key: 'ytdReturn', label: 'Rentabilidad YTD' },
+    { key: 'fiftyTwoWeekChangePercent', label: 'Variación 52 semanas' },
     { key: 'annualReportExpenseRatio', label: 'Ratio de gastos (TER)' },
     { key: 'fundInceptionDate', label: 'Fecha de lanzamiento' },
     { key: 'morningStarOverallRating', label: 'Morningstar (valoración)' },
     { key: 'morningStarRiskRating', label: 'Morningstar (riesgo)' },
   ];
+
+  private static readonly FUND_DETAIL_ESSENTIAL_HINTS: Readonly<Record<string, string>> = {
+    fiftyTwoWeekChangePercent: 'Variación aproximada del precio en 52 semanas según Yahoo.',
+    annualReportExpenseRatio:
+      'Si aparece 0%, suele ser dato no publicado en esta fuente, no necesariamente comisión cero.',
+    yield: 'Distribución / rendimiento por cupón según Yahoo; a veces 0 si no hay dato.',
+    totalAssets: 'Patrimonio bajo gestión (referencia); puede ir en divisa de cotización.',
+  };
 
   private static formatFundDetailScalar(v: unknown): string {
     if (v == null) return '—';
@@ -1524,16 +1638,65 @@ export class InversionComponent implements OnInit {
     return String(v);
   }
 
+  /**
+   * Yahoo envía `fundInceptionDate` como epoch (segundos o ms) o a veces ISO string.
+   */
+  private static formatFundInceptionForDisplay(locale: string, v: unknown): string | null {
+    const fromSec = (sec: number): string | null => {
+      if (!Number.isFinite(sec)) return null;
+      if (sec < 315532800 || sec > 2524608000) return null;
+      const d = new Date(sec * 1000);
+      if (Number.isNaN(d.getTime())) return null;
+      return formatDate(d, 'mediumDate', locale);
+    };
+
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      const n = v;
+      if (n >= 315532800000 && n <= 2524608000000) return fromSec(Math.round(n / 1000));
+      return fromSec(Math.round(n));
+    }
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+        const d = new Date(t);
+        if (!Number.isNaN(d.getTime())) return formatDate(d, 'mediumDate', locale);
+      }
+      if (/^\d{10,13}$/.test(t)) {
+        const n = Number(t);
+        if (n >= 315532800000) return fromSec(Math.round(n / 1000));
+        return fromSec(Math.round(n));
+      }
+    }
+    return null;
+  }
+
   /** Campos del bloque `info` de Yahoo (clave camelCase). */
   formatFundInfoValue(infoKey: string, v: unknown): string {
     if (v == null) return '—';
     if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+    if (infoKey === 'fundInceptionDate') {
+      const inc = InversionComponent.formatFundInceptionForDisplay(this.locale, v);
+      if (inc != null) return inc;
+    }
     if (typeof v === 'string') {
-      return v.length > 200 ? `${v.slice(0, 200)}…` : v;
+      const t0 = v.trim();
+      if (InversionComponent.fundInfoKeyIsPercent(infoKey)) {
+        const normalized = t0.replace(/\s/g, '').replace('%', '').replace(',', '.');
+        if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(normalized)) {
+          const n = Number(normalized);
+          if (Number.isFinite(n)) {
+            return InversionComponent.formatPercentFromYahooNumber(this.locale, infoKey, n);
+          }
+        }
+      }
+      return t0.length > 200 ? `${t0.slice(0, 200)}…` : t0;
     }
     if (typeof v === 'number' && Number.isFinite(v)) {
       const k = infoKey.toLowerCase();
       if (/morning|starrating|riskrating/.test(k)) {
+        return formatNumber(v, this.locale, '1.0-0');
+      }
+      if (infoKey === 'totalAssets') {
         return formatNumber(v, this.locale, '1.0-0');
       }
       if (InversionComponent.fundInfoKeyIsPercent(infoKey)) {

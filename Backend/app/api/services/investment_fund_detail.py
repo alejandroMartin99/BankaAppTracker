@@ -114,6 +114,54 @@ def _resolve_yahoo_symbol(isin: Optional[str], symbol: Optional[str]) -> str:
     raise ValueError("Falta isin o symbol")
 
 
+def _fund_detail_cache_needs_refetch(isin_norm: str, payload: Dict[str, Any], *, for_crypto: bool) -> bool:
+    """True si la fila en Supabase no aporta ficha útil (p. ej. Yahoo falló y quedó JSON casi vacío)."""
+    inf = payload.get("info")
+    if not isinstance(inf, dict) or len(inf) == 0:
+        return True
+    if for_crypto:
+        return False
+    from app.api.services.investment_benchmarks import (
+        _display_name_from_composition,
+        _display_name_from_info_dict,
+    )
+
+    if _display_name_from_info_dict(isin_norm, inf):
+        return False
+    comp = payload.get("composition")
+    if isinstance(comp, dict) and _display_name_from_composition(comp, isin_norm):
+        return False
+    if comp is None:
+        return True
+    if not isinstance(comp, dict):
+        return True
+    if (comp.get("composition_error") or "").strip() and not (
+        comp.get("top_holdings")
+        or comp.get("sector_weightings")
+        or (str(comp.get("description") or "")).strip()
+    ):
+        return True
+    return not bool(
+        (str(comp.get("description") or "")).strip()
+        or comp.get("top_holdings")
+        or comp.get("sector_weightings")
+        or comp.get("fund_overview")
+    )
+
+
+def warm_fund_detail_cache_force_sync(isin: str) -> None:
+    """Descarga Yahoo y sobrescribe la ficha en Supabase (p. ej. al añadir ISIN antes de refrescar benchmarks)."""
+    if not supabase_service.is_connected():
+        return
+    try:
+        ck = normalize_isin(isin)
+    except ValueError:
+        return
+    ysym = _resolve_yahoo_symbol(ck, None)
+    detail = _fetch_fund_detail_sync(ck, ysym)
+    supabase_service.upsert_investment_fund_detail_cache(ck, ysym, detail)
+
+
 def _fetch_fund_detail_sync(cache_key: str, yahoo_symbol: str) -> Dict[str, Any]:
     t = yf.Ticker(yahoo_symbol)
     inf = {}
@@ -206,14 +254,17 @@ async def get_or_build_fund_detail(isin: Optional[str], symbol: Optional[str]) -
         row = await asyncio.to_thread(supabase_service.get_investment_fund_detail_cache, ck)
         if row and isinstance(row.get("payload"), dict):
             payload = row["payload"]
-            return {
-                "success": True,
-                "cached": True,
-                "cache_key": ck,
-                "yahoo_symbol": row.get("yahoo_symbol") or ysym,
-                "updated_at": row.get("updated_at"),
-                "detail": payload,
-            }, True, ck
+            for_crypto = bool(symbol and not isin)
+            key_for_name = normalize_isin(isin) if isin else ck
+            if not _fund_detail_cache_needs_refetch(key_for_name, payload, for_crypto=for_crypto):
+                return {
+                    "success": True,
+                    "cached": True,
+                    "cache_key": ck,
+                    "yahoo_symbol": row.get("yahoo_symbol") or ysym,
+                    "updated_at": row.get("updated_at"),
+                    "detail": payload,
+                }, True, ck
 
     detail = await asyncio.to_thread(_fetch_fund_detail_sync, ck, ysym)
     now_iso = datetime.now(timezone.utc).isoformat()
