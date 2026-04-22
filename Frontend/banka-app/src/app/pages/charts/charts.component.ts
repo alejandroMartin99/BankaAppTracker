@@ -46,6 +46,20 @@ export interface SubcategoryLineChartModel {
   maxAmount: number;
 }
 
+/** Filas de la tabla bajo el gráfico de subcategorías (mismo top N que el gráfico). */
+export interface SubcategoryDetailTableRow {
+  subcategoria: string;
+  avgPerMonth: number;
+  lastMonthValue: number;
+  /** Último mes − media propia de la subcategoría (€). */
+  deltaVsOwnAvgEur: number;
+  /** Cuánto representa esta subcategoría en el total de la categoría en el último mes (0–100). */
+  pctOfCategoryLastMonth: number;
+  lastMonthVsAvgPct: number;
+  /** Meses del período con importe &gt; 0 (para detectar “nuevo” / un solo mes). */
+  monthsWithData: number;
+}
+
 @Component({
   selector: 'app-charts',
   standalone: true,
@@ -416,6 +430,40 @@ export class ChartsComponent implements OnInit, OnDestroy {
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value) + '%';
   }
 
+  /**
+   * Últ. mes vs media: con un solo mes con datos la media = último mes → 0% no aporta.
+   * En ese caso mostramos 100% como “todo el histórico reciente está en el último mes”.
+   */
+  lastMonthVsAvgPresentation(row: {
+    lastMonthVsAvgPct: number;
+    lastMonthValue: number;
+    monthsWithData: number;
+  }): { text: string; neutral: boolean; hint?: string } {
+    const pct = row.lastMonthVsAvgPct;
+    const last = row.lastMonthValue;
+    const mh = row.monthsWithData;
+    if (last <= 0) return { text: '—', neutral: true };
+    if (mh <= 1 && Math.abs(pct) < 0.05) {
+      return {
+        text: '100%',
+        neutral: true,
+        hint: 'Solo hay movimientos en un mes del período; la media mensual coincide con el último mes.',
+      };
+    }
+    const prefix = pct > 0 ? '+' : '';
+    return { text: prefix + this.formatPercent(pct), neutral: false };
+  }
+
+  lastMonthVsAvgToneOver(isExpense: boolean, pct: number, neutral: boolean): boolean {
+    if (neutral) return false;
+    return (isExpense && pct > 0) || (!isExpense && pct < 0);
+  }
+
+  lastMonthVsAvgToneUnder(isExpense: boolean, pct: number, neutral: boolean): boolean {
+    if (neutral) return false;
+    return (isExpense && pct < 0) || (!isExpense && pct > 0);
+  }
+
   formatScaleRef(): string {
     return this.formatAmount(this.chartScaleRef);
   }
@@ -616,6 +664,51 @@ export class ChartsComponent implements OnInit, OnDestroy {
   subLineSvgViewBox(): string {
     const { vw, vh } = ChartsComponent.SUB_LINE_VB;
     return `0 0 ${vw} ${vh}`;
+  }
+
+  /** Etiqueta del mes más reciente del modal (misma columna derecha del gráfico). */
+  categoryDetailFocusedMonthLabel(): string {
+    const ser = this.categoryDetailSeries;
+    if (!ser.length) return 'Mes reciente';
+    return ser[ser.length - 1]!.monthLabel || 'Mes reciente';
+  }
+
+  /**
+   * Tabla bajo el gráfico de líneas: orientada al **último mes** y al **desvío en €**
+   * frente a la media propia de cada subcategoría (encaja con el % vs media de la categoría).
+   */
+  getSubcategoryDetailTableRows(): SubcategoryDetailTableRow[] {
+    const chart = this.categoryDetailSubLineChart;
+    if (!chart || chart.series.length === 0) return [];
+    const ser = this.categoryDetailSeries;
+    const categoryLastMonthTotal =
+      ser.length > 0 ? Math.max(0, ser[ser.length - 1]!.total) : 0;
+    const rows: SubcategoryDetailTableRow[] = [];
+    for (const s of chart.series) {
+      const lastMonthValue = s.values.length ? s.values[s.values.length - 1]! : 0;
+      const monthsWithData = s.values.filter((v) => v > 0).length;
+      const avgPerMonth = s.avgPerMonth;
+      const deltaVsOwnAvgEur = lastMonthValue - avgPerMonth;
+      let lastMonthVsAvgPct = 0;
+      if (avgPerMonth > 0) {
+        lastMonthVsAvgPct = ((lastMonthValue - avgPerMonth) / avgPerMonth) * 100;
+      }
+      const pctOfCategoryLastMonth =
+        categoryLastMonthTotal > 0
+          ? Math.min(100, (lastMonthValue / categoryLastMonthTotal) * 100)
+          : 0;
+      rows.push({
+        subcategoria: s.subcategoria,
+        avgPerMonth,
+        lastMonthValue,
+        deltaVsOwnAvgEur,
+        pctOfCategoryLastMonth,
+        lastMonthVsAvgPct,
+        monthsWithData,
+      });
+    }
+    rows.sort((a, b) => Math.abs(b.deltaVsOwnAvgEur) - Math.abs(a.deltaVsOwnAvgEur));
+    return rows;
   }
 
   /** Puntos para marcadores (evita @for anidado con track inválido). */

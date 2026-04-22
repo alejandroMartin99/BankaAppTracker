@@ -95,6 +95,7 @@
           </thead>
           <tbody>
             @for (row of getExpensesTableRows(); track row.categoria) {
+              @let vs = lastMonthVsAvgPresentation(row);
               <tr>
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
@@ -102,11 +103,13 @@
                 <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
                 <td
                   class="charts-td-num charts-td-num--clickable"
-                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
-                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
+                  [class.charts-vs-over]="lastMonthVsAvgToneOver(true, row.lastMonthVsAvgPct, vs.neutral)"
+                  [class.charts-vs-under]="lastMonthVsAvgToneUnder(true, row.lastMonthVsAvgPct, vs.neutral)"
+                  [class.charts-vs-neutral]="vs.neutral"
+                  [attr.title]="vs.hint ?? null"
                   (click)="openCategoryDetail(row.categoria, true)"
                 >
-                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
+                  {{ vs.text }}
                 </td>
               </tr>
             }
@@ -175,6 +178,7 @@
           </thead>
           <tbody>
             @for (row of getIncomeTableRows(); track row.categoria) {
+              @let vs = lastMonthVsAvgPresentation(row);
               <tr>
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
@@ -182,11 +186,13 @@
                 <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
                 <td
                   class="charts-td-num charts-td-num--clickable"
-                  [class.charts-vs-over]="row.lastMonthVsAvgPct > 0"
-                  [class.charts-vs-under]="row.lastMonthVsAvgPct < 0"
+                  [class.charts-vs-over]="lastMonthVsAvgToneOver(false, row.lastMonthVsAvgPct, vs.neutral)"
+                  [class.charts-vs-under]="lastMonthVsAvgToneUnder(false, row.lastMonthVsAvgPct, vs.neutral)"
+                  [class.charts-vs-neutral]="vs.neutral"
+                  [attr.title]="vs.hint ?? null"
                   (click)="openCategoryDetail(row.categoria, false)"
                 >
-                  {{ row.lastMonthVsAvgPct > 0 ? '+' : '' }}{{ formatPercent(row.lastMonthVsAvgPct) }}
+                  {{ vs.text }}
                 </td>
               </tr>
             }
@@ -253,7 +259,7 @@
   <!-- Modal: detalle por categoría (evolución mensual) -->
   @if (categoryDetailOpen) {
     <div class="charts-modal-overlay" (click)="closeCategoryDetail()"></div>
-    <div class="charts-modal-popover" (click)="$event.stopPropagation()">
+    <div class="charts-modal-popover charts-modal-popover--category-detail" (click)="$event.stopPropagation()">
       <h3 class="charts-modal-title">
         Evolución mensual de {{ categoryDetailName }}
       </h3>
@@ -276,6 +282,7 @@
         </button>
       </div>
 
+      <div class="charts-modal-detail-scroll">
       @if (categoryDetailViewMode === 'categoria') {
         <p class="charts-modal-desc">
           Total mensual y variación frente a su media mensual.
@@ -386,12 +393,94 @@
                 </span>
               }
             </div>
+            @if (getSubcategoryDetailTableRows(); as subRows) {
+              @if (subRows.length > 0) {
+                <div class="charts-sub-line-table-wrap">
+                  <h4 class="charts-sub-line-title">
+                    @if (categoryDetailIsExpense) {
+                      Gasto por subcategoría en el mes más reciente
+                    } @else {
+                      Ingreso por subcategoría en el mes más reciente
+                    }
+                  </h4>
+                  <div class="charts-table-wrap charts-table-wrap--modal">
+                    <table class="charts-table charts-table--submodal">
+                      <thead>
+                        <tr>
+                          <th>Subcategoría</th>
+                          <th
+                            class="charts-th-num"
+                            [attr.title]="
+                              (categoryDetailIsExpense ? 'Gasto en ' : 'Ingreso en ') +
+                              categoryDetailFocusedMonthLabel() +
+                              ' (mismo mes que el extremo derecho del gráfico).'
+                            "
+                          >
+                            {{ categoryDetailFocusedMonthLabel() }}<br /><span class="charts-th-sub">(ese mes)</span>
+                          </th>
+                          <th
+                            class="charts-th-num"
+                            [attr.title]="
+                              'Porcentaje del total de la categoría en ' + categoryDetailFocusedMonthLabel()
+                            "
+                          >
+                            % en cat.<br /><span class="charts-th-sub">ese mes</span>
+                          </th>
+                          <th
+                            class="charts-th-num"
+                            title="Importe del mes indicado menos la media mensual habitual de esta subcategoría (todo el período del gráfico)"
+                          >
+                            Desvío €<br /><span class="charts-th-sub">vs su media</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of subRows; track row.subcategoria) {
+                          @let vs = lastMonthVsAvgPresentation(row);
+                          <tr>
+                            <td class="charts-td-cat">{{ row.subcategoria }}</td>
+                            <td class="charts-td-num">{{ formatAmount(row.lastMonthValue) }}</td>
+                            <td class="charts-td-num">{{ formatPercent(row.pctOfCategoryLastMonth) }}</td>
+                            <td
+                              class="charts-td-num"
+                              [class.charts-vs-over]="
+                                lastMonthVsAvgToneOver(
+                                  categoryDetailIsExpense,
+                                  row.deltaVsOwnAvgEur,
+                                  vs.neutral
+                                )
+                              "
+                              [class.charts-vs-under]="
+                                lastMonthVsAvgToneUnder(
+                                  categoryDetailIsExpense,
+                                  row.deltaVsOwnAvgEur,
+                                  vs.neutral
+                                )
+                              "
+                              [class.charts-vs-neutral]="vs.neutral"
+                              [attr.title]="
+                                vs.hint ??
+                                'Comparado con la media mensual de esta subcategoría en el período del gráfico.'
+                              "
+                            >
+                              {{ formatSignedAmount(row.deltaVsOwnAvgEur) }}
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              }
+            }
           </div>
         } @else {
           <p class="charts-modal-empty">No hay datos de subcategorías para el período.</p>
         }
       }
-      <div class="charts-modal-actions">
+      </div>
+
+      <div class="charts-modal-actions charts-modal-actions--category-detail">
         <button type="button" class="charts-modal-btn charts-modal-btn--confirm" (click)="closeCategoryDetail()">
           Cerrar
         </button>

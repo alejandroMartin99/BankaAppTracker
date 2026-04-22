@@ -118,6 +118,21 @@
                               }
                               <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
                               <span class="detail-amount detail-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (tx.importe | number:'1.2-2':'es') + ' €' }}</span>
+                              @if (tx.id) {
+                                <button
+                                  type="button"
+                                  class="detail-edit-btn"
+                                  (click)="openEditModal(tx); $event.stopPropagation()"
+                                  aria-label="Editar movimiento"
+                                >
+                                  <svg class="detail-edit-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                      fill="currentColor"
+                                      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l8.06-8.06.92.92L5.92 20.08zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+                                    />
+                                  </svg>
+                                </button>
+                              }
                             </div>
                           }
                         </div>
@@ -162,6 +177,21 @@
                             }
                             <span class="detail-date">{{ formatDisplayDate(tx.dt_date) }}</span>
                             <span class="detail-amount">{{ privacy.hideBalances() ? '***' : (tx.importe | number:'1.2-2':'es') + ' €' }}</span>
+                            @if (tx.id) {
+                              <button
+                                type="button"
+                                class="detail-edit-btn"
+                                (click)="openEditModal(tx); $event.stopPropagation()"
+                                aria-label="Editar movimiento"
+                              >
+                                <svg class="detail-edit-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path
+                                    fill="currentColor"
+                                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l8.06-8.06.92.92L5.92 20.08zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+                                  />
+                                </svg>
+                              </button>
+                            }
                           </div>
                         }
                       </div>
@@ -184,3 +214,63 @@
     </div>
   }
 </div>
+
+@if (editModalTx) {
+  <div class="calendar-overlay resumen-edit-overlay" (click)="closeEditModal()"></div>
+  <div class="calendar-popover ajustes-edit-popover resumen-edit-popover" (click)="$event.stopPropagation()">
+    <h3 class="calendar-title resumen-edit-modal-title">Editar movimiento</h3>
+    <div class="edit-modal-fields">
+      <label>
+        <span>Fecha y hora</span>
+        <input type="datetime-local" step="1" [(ngModel)]="editDraftDateTime" />
+      </label>
+      <label>
+        <span>Descripción</span>
+        <input type="text" [(ngModel)]="editDraftDesc" placeholder="Descripción del movimiento" />
+      </label>
+      <label class="tx-editor-field">
+        <span>Categoría</span>
+        <select [(ngModel)]="editDraftCategoria" (ngModelChange)="onEditModalCategoriaChange()">
+          <option [ngValue]="''">Sin categoría</option>
+          @for (catOpt of allCategories; track catOpt) {
+            <option [ngValue]="catOpt">{{ catOpt }}</option>
+          }
+        </select>
+      </label>
+      <label class="tx-editor-field">
+        <span>Subcategoría</span>
+        <select [(ngModel)]="editDraftSubcategoria">
+          <option [ngValue]="''">Sin subcategoría</option>
+          @for (subOpt of getSubcategoriesFor(editDraftCategoria); track subOpt) {
+            <option [ngValue]="subOpt">{{ subOpt }}</option>
+          }
+          <option [ngValue]="addNewSubcategoryValue">Añadir nueva…</option>
+        </select>
+      </label>
+      @if (editDraftSubcategoria === addNewSubcategoryValue) {
+        <input
+          type="text"
+          class="edit-modal-custom-sub"
+          [(ngModel)]="editDraftSubcategoriaCustom"
+          placeholder="Escribe la subcategoría"
+        />
+      }
+    </div>
+    @if (editError) {
+      <p class="edit-modal-error">{{ editError }}</p>
+    }
+    <div class="calendar-actions edit-modal-actions">
+      <button type="button" class="btn-delete" (click)="deleteEditModal()" [disabled]="savingEdit || deletingEdit">
+        {{ deletingEdit ? 'Eliminando...' : 'Eliminar' }}
+      </button>
+      <div class="edit-modal-actions-right">
+        <button type="button" class="btn-cancel" (click)="closeEditModal()" [disabled]="savingEdit || deletingEdit">
+          Cancelar
+        </button>
+        <button type="button" class="btn-apply" (click)="saveEditModal()" [disabled]="savingEdit || deletingEdit">
+          {{ savingEdit ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

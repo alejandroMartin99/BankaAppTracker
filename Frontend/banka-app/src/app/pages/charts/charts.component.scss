@@ -363,6 +363,30 @@
   max-width: 140px;
 }
 
+.charts-sub-line-table-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.charts-th-sub {
+  display: inline;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.charts-table-wrap--modal {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.charts-table--submodal {
+  min-width: 280px;
+}
+
 .charts-modal-bars--detail-sub {
   .charts-modal-bar-row--sub {
     gap: 8px;
@@ -564,6 +588,11 @@
   color: var(--color-text-muted);
 }
 
+.charts-vs-neutral {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
 .charts-td-num--clickable {
   cursor: pointer;
   text-decoration: underline dotted;
@@ -647,6 +676,38 @@
 
 .charts-modal-popover--wide {
   width: min(480px, 96vw);
+}
+
+/* Detalle categoría: mucho contenido (líneas + leyenda + tabla) → scroll interno, pie fijo */
+.charts-modal-popover--category-detail {
+  width: min(440px, 96vw);
+  max-height: min(92vh, 880px);
+  min-height: 0;
+  overflow: hidden;
+
+  .charts-modal-title,
+  .charts-detail-toggle {
+    flex-shrink: 0;
+  }
+
+  .charts-modal-detail-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 2px;
+    margin-right: -2px;
+  }
+
+  .charts-modal-actions--category-detail {
+    flex-shrink: 0;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border-light);
+    background: var(--color-bg);
+  }
 }
 
 .charts-modal-title {

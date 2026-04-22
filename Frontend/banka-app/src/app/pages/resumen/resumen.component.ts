@@ -3,7 +3,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { switchMap, takeUntil } from 'rxjs/operators';
 import { TransactionService } from '../../services/transaction.service';
 import { Transaction, Account } from '../../models/transaction.model';
 import { PrivacyService } from '../../services/privacy.service';
@@ -24,6 +24,19 @@ interface CategorySummary {
 
 function makeSubKey(cat: string, sub: string): string {
   return `${cat || 'Sin categoría'}|${sub || 'Sin subcategoría'}`;
+}
+
+const ADD_NEW_SUBCATEGORY = '__ADD_NEW__';
+
+function mergeUniqueSortedCategories(fromTx: string[], fromCatalog: string[]): string[] {
+  const keyToCanon = new Map<string, string>();
+  for (const x of [...fromTx, ...fromCatalog]) {
+    const t = (x || '').trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (!keyToCanon.has(k)) keyToCanon.set(k, t);
+  }
+  return Array.from(keyToCanon.values()).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
 @Component({
@@ -57,6 +70,23 @@ export class ResumenComponent implements OnInit, OnDestroy {
   expandedIncomeSubcategoryKey: string | null = null;
   /** Cuentas seleccionadas para filtrar (multi-select). Vacío = todas. */
   selectedAccounts: string[] = [];
+
+  /** Modal editar (fecha, descripción, categoría, subcategoría — como Ajustes). */
+  editModalTx: Transaction | null = null;
+  editDraftDateTime = '';
+  editDraftDesc = '';
+  editDraftCategoria = '';
+  editDraftSubcategoria = '';
+  editDraftSubcategoriaCustom = '';
+  readonly addNewSubcategoryValue = ADD_NEW_SUBCATEGORY;
+  savingEdit = false;
+  deletingEdit = false;
+  editError: string | null = null;
+
+  /** Catálogo backend (desplegables categoría/sub). */
+  catalogCategories: string[] = [];
+  catalogSubByCategory: Record<string, string[]> = {};
+
   private destroy$ = new Subject<void>();
 
   accounts: Account[] = [];
@@ -79,6 +109,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadAccounts();
+    this.loadCategoryCatalog();
     this.applyPreset('month');
     this.transactionService.dataRefresh$
       .pipe(takeUntil(this.destroy$))
@@ -198,6 +229,92 @@ export class ResumenComponent implements OnInit, OnDestroy {
         this.showLoader = false;
       }
     });
+  }
+
+  private loadCategoryCatalog(): void {
+    this.transactionService.getCategoryCatalog().subscribe({
+      next: (res) => {
+        if (res?.success && Array.isArray(res.categories)) {
+          this.catalogCategories = res.categories;
+          this.catalogSubByCategory = res.subcategories_by_category || {};
+        } else {
+          this.catalogCategories = [];
+          this.catalogSubByCategory = {};
+        }
+      },
+      error: () => {
+        this.catalogCategories = [];
+        this.catalogSubByCategory = {};
+      }
+    });
+  }
+
+  private findCatalogCategoryKey(cat: string): string | null {
+    const c = (cat || '').trim();
+    if (!c) return null;
+    if (this.catalogSubByCategory[c]) return c;
+    const lower = c.toLowerCase();
+    for (const k of Object.keys(this.catalogSubByCategory)) {
+      if (k.toLowerCase() === lower) return k;
+    }
+    return null;
+  }
+
+  private getCatalogSubsForCategory(cat: string): string[] {
+    const key = this.findCatalogCategoryKey(cat);
+    if (!key) return [];
+    return this.catalogSubByCategory[key] || [];
+  }
+
+  get allCategories(): string[] {
+    const fromTx: string[] = [];
+    const seen = new Set<string>();
+    for (const t of this.transactions) {
+      const c = (t.categoria || '').toString().trim();
+      if (c && !seen.has(c.toLowerCase())) {
+        seen.add(c.toLowerCase());
+        fromTx.push(c);
+      }
+    }
+    return mergeUniqueSortedCategories(fromTx, this.catalogCategories);
+  }
+
+  getSubcategoriesFor(categoria: string): string[] {
+    const key = (categoria || '').toString().trim();
+    if (!key) return [];
+    const set = new Set<string>();
+    for (const t of this.transactions) {
+      const c = (t.categoria || '').toString().trim();
+      if (c.toLowerCase() !== key.toLowerCase()) continue;
+      const s = (t.subcategoria || '').toString().trim();
+      if (s) set.add(s);
+    }
+    for (const s of this.getCatalogSubsForCategory(key)) {
+      set.add(s);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }
+
+  getEffectiveEditSubcategoria(): string {
+    if (this.editDraftSubcategoria === ADD_NEW_SUBCATEGORY) {
+      return (this.editDraftSubcategoriaCustom || '').toString().trim();
+    }
+    return (this.editDraftSubcategoria || '').toString().trim();
+  }
+
+  onEditModalCategoriaChange(): void {
+    const cat = (this.editDraftCategoria || '').trim();
+    const opts = this.getSubcategoriesFor(cat);
+    const eff = this.getEffectiveEditSubcategoria();
+    if (this.editDraftSubcategoria === ADD_NEW_SUBCATEGORY) {
+      if (eff && opts.includes(eff)) {
+        this.editDraftSubcategoria = eff;
+        this.editDraftSubcategoriaCustom = '';
+      }
+    } else if (this.editDraftSubcategoria && !opts.includes(this.editDraftSubcategoria)) {
+      this.editDraftSubcategoria = '';
+      this.editDraftSubcategoriaCustom = '';
+    }
   }
 
   private loadAccounts() {
@@ -326,5 +443,142 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   getAccountLabel(cuenta?: string): string {
     return cuenta || '';
+  }
+
+  /** Misma lógica que Ajustes para `datetime-local`. */
+  getDateTimeForInput(dt_date: string | undefined): string {
+    if (!dt_date) return '';
+    const s = String(dt_date).trim();
+    if (s.includes('T')) {
+      const part = s.slice(0, 19);
+      if (part.length >= 19) return part;
+      if (part.length === 16) return part + ':00';
+      return part + '00:00:00'.slice(0, 19 - part.length);
+    }
+    return s.slice(0, 10) + 'T00:00:00';
+  }
+
+  openEditModal(tx: Transaction): void {
+    if (!tx?.id) return;
+    this.editModalTx = tx;
+    this.editDraftDateTime = this.getDateTimeForInput(tx.dt_date);
+    this.editDraftDesc = (tx.descripcion || '').trim();
+    this.editDraftCategoria = (tx.categoria || '').trim();
+    const sub = (tx.subcategoria || '').toString().trim();
+    const subList = this.getSubcategoriesFor(this.editDraftCategoria);
+    if (sub && !subList.includes(sub)) {
+      this.editDraftSubcategoria = ADD_NEW_SUBCATEGORY;
+      this.editDraftSubcategoriaCustom = sub;
+    } else {
+      this.editDraftSubcategoria = sub;
+      this.editDraftSubcategoriaCustom = '';
+    }
+    this.editError = null;
+  }
+
+  closeEditModal(): void {
+    this.editModalTx = null;
+    this.savingEdit = false;
+    this.deletingEdit = false;
+    this.editError = null;
+    this.editDraftCategoria = '';
+    this.editDraftSubcategoria = '';
+    this.editDraftSubcategoriaCustom = '';
+  }
+
+  deleteEditModal(): void {
+    const tx = this.editModalTx;
+    if (!tx?.id) {
+      this.closeEditModal();
+      return;
+    }
+    this.editError = null;
+    this.deletingEdit = true;
+    const id = tx.id;
+    this.transactionService.deleteTransaction(id).subscribe({
+      next: () => {
+        this.deletingEdit = false;
+        this.closeEditModal();
+        this.transactionService.dataRefresh$.next();
+      },
+      error: (err) => {
+        this.editError = err.error?.detail || 'Error al eliminar';
+        this.deletingEdit = false;
+      }
+    });
+  }
+
+  private buildDetailsPatch(tx: Transaction): { dt_date?: string; descripcion?: string } | null {
+    const raw = this.editDraftDateTime.trim();
+    const dtNew = raw
+      ? raw.length >= 19
+        ? raw.slice(0, 19)
+        : (raw + ':00'.slice(0, 19 - raw.length)).slice(0, 19)
+      : '';
+    const origNorm = this.getDateTimeForInput(tx.dt_date).slice(0, 19);
+    const descNew = this.editDraftDesc.trim();
+    const descOrig = (tx.descripcion || '').trim();
+    const patch: { dt_date?: string; descripcion?: string } = {};
+    if (dtNew && dtNew !== origNorm) {
+      patch.dt_date = raw.length >= 19 ? raw.slice(0, 19) : raw + ':00'.slice(0, 19 - raw.length);
+    }
+    if (descNew !== descOrig) {
+      patch.descripcion = descNew;
+    }
+    return Object.keys(patch).length > 0 ? patch : null;
+  }
+
+  private buildCategoryPatch(tx: Transaction): { categoria: string | null; subcategoria: string | null } | null {
+    const cat = (this.editDraftCategoria || '').trim() || null;
+    let sub = this.getEffectiveEditSubcategoria() || null;
+    if (this.editDraftSubcategoria === ADD_NEW_SUBCATEGORY && !((sub || '') as string).trim()) {
+      sub = null;
+    }
+    const oCat = (tx.categoria || '').trim() || null;
+    const oSub = (tx.subcategoria || '').trim() || null;
+    const nCat = cat;
+    const nSub = sub;
+    if (oCat === nCat && oSub === nSub) return null;
+    return { categoria: nCat, subcategoria: nSub };
+  }
+
+  saveEditModal(): void {
+    const tx = this.editModalTx;
+    if (!tx?.id) {
+      this.closeEditModal();
+      return;
+    }
+    if (this.editDraftSubcategoria === ADD_NEW_SUBCATEGORY && !this.getEffectiveEditSubcategoria()) {
+      this.editError = 'Escribe la subcategoría nueva o elige otra opción.';
+      return;
+    }
+    this.editError = null;
+    const detPatch = this.buildDetailsPatch(tx);
+    const catPatch = this.buildCategoryPatch(tx);
+    if (!detPatch && !catPatch) {
+      this.closeEditModal();
+      return;
+    }
+    this.savingEdit = true;
+    const id = tx.id;
+    const chain =
+      catPatch && detPatch
+        ? this.transactionService
+            .updateTransactionCategory(id, catPatch.categoria, catPatch.subcategoria)
+            .pipe(switchMap(() => this.transactionService.updateTransactionDetails(id, detPatch)))
+        : catPatch
+          ? this.transactionService.updateTransactionCategory(id, catPatch.categoria, catPatch.subcategoria)
+          : this.transactionService.updateTransactionDetails(id, detPatch!);
+    chain.subscribe({
+      next: () => {
+        this.savingEdit = false;
+        this.closeEditModal();
+        this.transactionService.dataRefresh$.next();
+      },
+      error: (err) => {
+        this.editError = err.error?.detail || 'Error al guardar';
+        this.savingEdit = false;
+      }
+    });
   }
 }
