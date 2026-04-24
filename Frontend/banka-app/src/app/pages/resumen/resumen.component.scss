@@ -7,10 +7,10 @@
 }
 
 .section-title {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--color-text-muted);
   margin: 0 0 10px 0;
 }
@@ -199,7 +199,8 @@
   padding: 12px 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
 }
 
 .totals-row {
@@ -208,12 +209,13 @@
   align-items: center;
   padding: 6px 0;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 
   &--balance {
     border-top: 1px solid var(--color-border-light);
     margin-top: 6px;
     padding-top: 10px;
-    font-weight: 600;
+    font-weight: 700;
   }
 }
 
@@ -250,12 +252,15 @@
 .category-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
   overflow: hidden;
   min-width: 0;
+  transition: box-shadow var(--transition-fast);
 
   &.expanded {
     border-color: var(--color-border);
+    box-shadow: var(--shadow-sm);
   }
 }
 
@@ -288,8 +293,10 @@
 
 .category-amount {
   font-size: 12px;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 
   &--income {
     color: #16a34a;

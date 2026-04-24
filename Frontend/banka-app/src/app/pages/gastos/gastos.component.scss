@@ -9,10 +9,10 @@
 }
 
 .section-title {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--color-text-muted);
   margin: 0 0 8px 0;
 
@@ -35,14 +35,20 @@
 }
 
 .balance-card {
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  transition: box-shadow var(--transition-fast);
+
+  &:hover {
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .balance-card-grid {
@@ -62,26 +68,27 @@
 
 .balance-header {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .balance-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-align: left;
 }
 
 .balance-amount {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .balance-card-grid .balance-stat-value {
@@ -108,11 +115,27 @@
   font-size: 11px;
 }
 
+@mixin shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-border-light) 25%,
+    var(--color-border) 50%,
+    var(--color-border-light) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
 .skeleton-card {
-  height: 48px;
-  background: var(--color-border-light);
-  border-radius: var(--radius);
+  height: 52px;
+  border-radius: var(--radius-md);
   margin-bottom: 8px;
+  @include shimmer;
 }
 
 /* Filtros */
@@ -277,10 +300,10 @@
   top: 0;
   z-index: 5;
   padding: 5px 10px 4px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--color-text-muted);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-light);
@@ -289,10 +312,11 @@
 .tx-row {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-bg);
+  transition: background var(--transition-fast);
 
   &:last-child {
     border-bottom: none;
@@ -352,7 +376,7 @@
 }
 
 .tx-categoria {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-text);
   overflow: hidden;
@@ -361,7 +385,7 @@
 }
 
 .tx-subcat {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--color-text-secondary);
   overflow: hidden;
@@ -370,7 +394,7 @@
 }
 
 .tx-desc {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 400;
   color: var(--color-text-muted);
   overflow: hidden;
@@ -388,9 +412,11 @@
 }
 
 .tx-amount {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 
   &.tx-ingreso {
     color: #16a34a;
@@ -398,9 +424,10 @@
 }
 
 .tx-saldo {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 500;
   color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .tx-cuenta-badge {
@@ -474,32 +501,32 @@
 }
 
 .tx-skel-icon {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius);
-  background: var(--color-border-light);
+  @include shimmer;
 }
 
 .tx-skel-line {
-  height: 12px;
-  width: 70%;
-  background: var(--color-border-light);
+  height: 11px;
+  width: 68%;
   border-radius: var(--radius-sm);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
+  @include shimmer;
 }
 
 .tx-skel-sub {
-  height: 10px;
-  width: 40%;
-  background: var(--color-border-light);
+  height: 9px;
+  width: 38%;
   border-radius: var(--radius-sm);
+  @include shimmer;
 }
 
 .tx-skel-amount {
-  width: 56px;
-  height: 12px;
-  background: var(--color-border-light);
+  width: 54px;
+  height: 11px;
   border-radius: var(--radius-sm);
+  @include shimmer;
 }
 
 /* Error */

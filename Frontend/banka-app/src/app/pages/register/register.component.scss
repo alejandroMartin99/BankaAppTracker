@@ -10,18 +10,18 @@
 .auth-card {
   width: 100%;
   max-width: 360px;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 28px 24px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-md);
 }
 
 .auth-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 800;
   margin: 0 0 4px 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
 }
 
 .auth-subtitle {
@@ -48,16 +48,18 @@
   }
 
   input {
-    padding: 10px 12px;
+    padding: 11px 13px;
     font-size: 15px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-bg);
     font-family: inherit;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 
     &:focus {
       outline: none;
-      border-color: #000;
+      border-color: var(--color-text);
+      box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.08);
     }
 
     &::placeholder {
@@ -90,23 +92,28 @@
 }
 
 .auth-btn {
-  padding: 12px 16px;
+  padding: 13px 16px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
-  background: #000;
+  background: #0a0a0a;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 0.2s;
+  letter-spacing: -0.01em;
+  transition: opacity var(--transition-base), transform var(--transition-fast);
 
   &:hover:not(:disabled) {
-    opacity: 0.9;
+    opacity: 0.88;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.99);
   }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 }
