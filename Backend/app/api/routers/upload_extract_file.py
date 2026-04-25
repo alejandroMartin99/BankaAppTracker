@@ -83,7 +83,7 @@ async def upload_transactions_file(
 
     # Verificar conexión a base de datos
     if not supabase_service.is_connected():
-        print("ERROR: Supabase no conectado")
+        logger.error("Supabase no conectado")
         raise HTTPException(
             status_code=503,
             detail="Servicio de base de datos no disponible"

@@ -2,12 +2,15 @@
 Supabase Service - Conexión y operaciones sobre cuentas y transacciones.
 """
 
+import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Set
 from supabase import create_client, Client
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _uuid_str(val: str) -> str:
@@ -26,7 +29,7 @@ class SupabaseService:
                 self.supabase = create_client(settings.SUPABASE_URL, key)
                 self._uses_service_role = bool(settings.SUPABASE_SERVICE_ROLE_KEY)
             except Exception as e:
-                print(f"[Supabase] Error al conectar: {e}")
+                logger.error("[Supabase] Error al conectar", exc_info=False)
 
     def is_connected(self) -> bool:
         return self.supabase is not None

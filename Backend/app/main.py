@@ -4,11 +4,14 @@ Application entry point for the Rubén Fitness Backend API
 """
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 import httpx
 from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -25,10 +28,10 @@ async def _investment_benchmark_refresh_loop() -> None:
 
             await asyncio.to_thread(run_refresh_investment_benchmark_cache)
         except asyncio.CancelledError:
-            print("[benchmark-cache] detenido")
+            logger.info("[benchmark-cache] detenido")
             break
         except Exception as e:
-            print(f"[benchmark-cache] error: {e}")
+            logger.error("[benchmark-cache] error", exc_info=False)
         interval = max(300.0, float(settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS))
         await asyncio.sleep(interval)
 from app.api.routers.upload_extract_file import router as upload_router
@@ -56,12 +59,12 @@ async def _keep_alive_loop() -> None:
                 continue
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url)
-                print(f"[keep-alive] {now_hour:02d}h GET {url} -> {resp.status_code}")
+                logger.debug("[keep-alive] %02dh GET %s -> %s", now_hour, url, resp.status_code)
         except asyncio.CancelledError:
-            print("[keep-alive] detenido")
+            logger.info("[keep-alive] detenido")
             break
         except Exception as e:
-            print(f"[keep-alive] error: {e}")
+            logger.error("[keep-alive] error", exc_info=False)
 
 
 @asynccontextmanager
@@ -70,13 +73,10 @@ async def lifespan(app: FastAPI):
     base_url = settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL")
     if base_url:
         KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
-        print(f"[keep-alive] iniciado cada {settings.KEEP_ALIVE_INTERVAL_SECONDS}s -> {base_url}/health")
+        logger.info("[keep-alive] iniciado cada %ds -> %s/health", settings.KEEP_ALIVE_INTERVAL_SECONDS, base_url)
     if supabase_service.is_connected():
         BENCHMARK_CACHE_TASK = asyncio.create_task(_investment_benchmark_refresh_loop())
-        print(
-            f"[benchmark-cache] bucle cada {max(300, settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS)}s "
-            "(primer arranque tras 60s)"
-        )
+        logger.info("[benchmark-cache] bucle cada %ds (primer arranque tras 60s)", max(300, settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS))
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()
@@ -104,9 +104,9 @@ app = FastAPI(
 cors_origins = settings.cors_origins_list
 if not cors_origins:
     cors_origins = ["http://localhost:4200"]
-    print("[CORS] CORS_ORIGINS vacío; usando http://localhost:4200")
+    logger.info("[CORS] CORS_ORIGINS vacío; usando http://localhost:4200")
 cors_credentials = False
-print(f"[CORS] origins={cors_origins}")
+logger.info("[CORS] origins=%s", cors_origins)
 
 app.add_middleware(
     CORSMiddleware,
@@ -152,9 +152,11 @@ async def health_check():
 
 @app.get("/test")
 async def test():
-    """Diagnóstico opcional; desactivado en producción salvo ENABLE_DIAGNOSTIC_ENDPOINT=true."""
-    if not settings.ENABLE_DIAGNOSTIC_ENDPOINT:
-        return {"status": "ok"}
+    """Diagnóstico: solo en desarrollo."""
+    from fastapi import HTTPException
+    if not settings.DEBUG:
+        raise HTTPException(status_code=404, detail="Not found")
+
     supabase_ok = supabase_service.is_connected()
     uses_sr = (
         supabase_service.uses_service_role()

@@ -3,7 +3,6 @@ Dependencies for API endpoints (auth, etc.)
 """
 
 import logging
-import traceback
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -42,9 +41,7 @@ def get_current_user(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("Auth get_user failed: %s: %s", type(e).__name__, e)
-        if settings.DEBUG:
-            traceback.print_exc()
+        logger.warning("Auth get_user failed: %s: %s", type(e).__name__, e, exc_info=settings.DEBUG)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",
