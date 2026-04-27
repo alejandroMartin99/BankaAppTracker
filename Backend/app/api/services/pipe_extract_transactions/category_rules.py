@@ -6,8 +6,9 @@ from typing import Optional, Tuple, Dict, Any, List
 CATEGORY_RULES = [
     # Nómina
     (r'INDRA', 'Nómina', 'INDRA'),
-    (r'ING.', 'Nómina', 'INECO'),
+    (r'ING.Y ECON.DEL TRANSPORTE', 'Nómina', 'INECO'),
     (r'NóMINA', 'Nómina', 'EX-EMPRESA'),
+    (r'PENSION DE TESORERIA GENERAL DE LA SEGURIDAD SOCIAL', 'Nómina', 'Pensión'),
 
     # Bizum
     (r'BIZUM', 'Bizum', None),
@@ -16,12 +17,18 @@ CATEGORY_RULES = [
     (r'RECIBO AGUA|CANAL DE ISABEL', 'Suministros', 'Agua'),
     (r'COMERCIALIZADORA RE 0053', 'Suministros', 'Luz'),
     (r'NATURGY', 'Suministros', 'Gas'),
+    (r'CURENERG', 'Suministros', 'Gas'),
+    (r'GAS POWER', 'Suministros', 'Gas'),
     (r'DIGI SPAIN TELECOM', 'Suministros', 'Telefono'),
+    (r'TELEFONICA MOVILES SA', 'Suministros', 'Telefono'),
+    (r'TELEFONICA DE ESPANA SAU', 'Suministros', 'Telefono'),
     (r'COMUNIDAD PROPIETARIOS|COM\. PROP', 'Suministros', 'Comunidad'),
+    (r'RECIBO CDAD. PROP. PSO. EXTREMADURA 407', 'Suministros', 'Comunidad'),
 
     # BienEstar
     (r'WELLHUB|DREAMFIT|DEPORTIVO', 'BienEstar', 'Gimnasio'),
     (r'BEARBERO EMBAJADORES', 'BienEstar', 'Peluquero'),
+    (r'PELUQUER', 'BienEstar', 'Peluquero'),
     (r'CURSOR', 'BienEstar', 'Cursor'),
     (r'DOUGLAS', 'BienEstar', 'Douglas'),
     (r'DRUNI', 'BienEstar', 'Druni'),
@@ -36,12 +43,15 @@ CATEGORY_RULES = [
 
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
+    (r'ADMON LOTERIA', 'OCIO', 'Lotería'),
+    (r'LOTERIA', 'OCIO', 'Lotería'),
     
 
     # Seguros
     (r'IBERVIDA', 'Seguros', 'Vida'),
     (r'OPERACION CSV', 'Seguros', 'Hogar'),
     (r'SEGURO', 'Seguros', None),
+    (r'FIATC MUTUA DE SEGUROS Y REASEGUROS', 'Seguros', 'Fiatc'),
 
     # Vivienda
     (r'HIPOTECA|OPERACION PRESTAMO-CREDITO-AVAL', 'Vivienda', 'Hipoteca'),
@@ -52,6 +62,7 @@ CATEGORY_RULES = [
     (r'VALDEBERNARDO', 'Transporte', 'Gasolina'),
     (r'GASLOWCOST', 'Transporte', 'Gasolina'),
     (r'PETROPRIX', 'Transporte', 'Gasolina'),
+    (r'PETRODIS SL', 'Transporte', 'Gasolina'),
     (r'TAXI|BLA BLA', 'Transporte', 'Taxi'),
     (r'CABIFY', 'Transporte', 'CABIFY'),
     (r'UBER', 'Transporte', 'UBER'),
@@ -62,6 +73,7 @@ CATEGORY_RULES = [
     (r'METRO', 'Transporte', 'Metro'),
     (r'SEITT', 'Transporte', 'Peaje'),
     (r'VIA-T', 'Transporte', 'Peaje'),
+    (r'CASTELLANA DE AUTOPISTAS', 'Transporte', 'Peaje'),
 
     # Hogar
     (r'JYSK', 'Hogar', 'JYSK'),
@@ -78,6 +90,7 @@ CATEGORY_RULES = [
 
     # Supermercados
     (r'CARREF', 'Supermercado', 'Carrefour'),
+    (r'MARKET ALUCHE', 'Supermercado', 'Carrefour'),
     (r'MERCADONA', 'Supermercado', 'Mercadona'),
     (r'LIDL', 'Supermercado', 'Lidl'),
     (r'ALDI', 'Supermercado', 'Aldi'),
@@ -86,7 +99,10 @@ CATEGORY_RULES = [
     (r'ALCAMPO', 'Supermercado', 'Alcampo'),
     (r'AHORRAMAS', 'Supermercado', 'Ahorramas'),
     (r'CARNICAS', 'Supermercado', 'Carniceria'),
+    (r'CARNICERIA', 'Supermercado', 'Carniceria'),
     (r'LA VIDA VERDE', 'Supermercado', 'General'),
+    (r'UNIDE MARKET', 'Supermercado', 'Unide'),
+    (r'LUPA', 'Supermercado', 'Lupa'),
 
     
     # Restaurantes
@@ -138,6 +154,7 @@ CATEGORY_RULES = [
     (r'UNA RECARGA DE APPLE PAY CON', 'Transferencia', 'Recarga'),
     (r'RETIRADA DE EFECTIVO', 'Transferencia', 'CAJERO'),
     (r'ALEJANDRO MARTÍN IGLESIAS', 'Transferencia', 'Revolut'),
+    (r'AHORRO EN CUENTA', 'Transferencia', 'Ahorro'),
 
     # Banco
     (r'COMISION|LIQUIDACION INTERESES', 'Banco', None),

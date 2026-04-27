@@ -8,6 +8,7 @@ from pathlib import Path
 from app.api.services.pipe_extract_transactions.decode_ibercaja import main_decode_ibercaja
 from app.api.services.pipe_extract_transactions.decode_revolut import main_decode_revolut
 from app.api.services.pipe_extract_transactions.decode_pluxee import main_decode_pluxee, is_pluxee_file
+from app.api.services.pipe_extract_transactions.decode_santander import main_decode_santander
 
 
 def _norm_val(x, decimals: bool = False) -> str:
@@ -92,6 +93,10 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
         print("Archivo identificado como Pluxee")
         df_transactions, account_identifier, display_name = main_decode_pluxee(df)
         source_type = "Pluxee"
+    elif pd.notna(df.iloc[7, 0]) and "Fecha operación" in str(df.iloc[7, 0]).strip():
+        print("Archivo identificado como SANTANDER")
+        df_transactions, account_identifier, display_name = main_decode_santander(df)
+        source_type = "Santander"
     else:
         raise ValueError("Formato de archivo no reconocido")
     
