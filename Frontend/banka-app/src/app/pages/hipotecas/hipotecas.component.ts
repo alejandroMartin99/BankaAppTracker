@@ -137,8 +137,12 @@ export class HipotecasComponent implements OnInit {
     return this.confirmedIncludedTxs.length > 0 && this.monthlyInstallment > 0;
   }
 
+  get parametersSaved(): boolean {
+    return this.principal > 0 && this.annualRate > 0 && this.termYears > 0;
+  }
+
   get showMainSummaryBlock(): boolean {
-    return this.hasMortgageConfirmed && !this.editingConditions;
+    return this.parametersSaved && !this.editingConditions;
   }
 
   get avgDetectedAmount(): number {
@@ -622,9 +626,10 @@ export class HipotecasComponent implements OnInit {
     if (grossFund <= 0) return 0;
     const contribution = Math.max(0, this.fundContributionTotal);
     const gain = Math.max(0, grossFund - contribution);
+    if (gain <= 0) return 0;
     const gainRatio = grossFund > 0 ? Math.max(0, Math.min(1, gain / grossFund)) : 0;
     const tax = this.getTaxForWithdrawal(grossFund, gainRatio);
-    return (tax / grossFund) * 100;
+    return (tax / gain) * 100;
   }
 
   get investmentEstimatedTaxTotal(): number {

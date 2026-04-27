@@ -30,6 +30,7 @@ Frontend/banka-app/yarn-error.log
 !.vscode/tasks.json
 !.vscode/launch.json
 .history/
+.claude/*
 
 # Extractos bancarios (datos sensibles - descomenta si no quieres subirlos)
 RAW/
