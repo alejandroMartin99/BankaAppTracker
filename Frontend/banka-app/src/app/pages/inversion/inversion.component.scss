@@ -447,7 +447,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   flex: 1 1 auto;
   align-self: stretch;
@@ -460,7 +460,7 @@
   background: transparent;
   color: #000;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: var(--font-sans);
   line-height: 1.25;
   cursor: pointer;
@@ -468,71 +468,35 @@
 }
 
 .chart-filter-bar__face-text {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: center;
+  text-align: left;
 }
 
 .chart-filter-bar__chev {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
-  opacity: 0.75;
+  opacity: 0.85;
   pointer-events: none;
   user-select: none;
 }
 
-.chart-filter-bar .chart-dd[open] > .chart-filter-bar__face:not(.chart-filter-bar__face--period) .chart-filter-bar__chev {
+.chart-filter-bar .chart-dd[open] > .chart-filter-bar__face .chart-filter-bar__chev {
   transform: rotate(180deg);
 }
 
-.chart-filter-bar__face--period {
-  position: relative;
-  padding: 0;
-}
-
-.chart-filter-bar__select {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 28px 0 12px;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #000;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: var(--font-sans);
-  line-height: 36px;
-  text-align: center;
-  text-align-last: center;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-}
-
-.chart-filter-bar__face--period .chart-filter-bar__chev {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 12px;
-}
+.chart-filter-bar__face--period { padding: 0 12px; }
 
 /* Gana a .chart-dd-summary (display:block + padding 5px) que viene después en la hoja */
 .chart-filter-bar .chart-dd-summary.chart-filter-bar__face {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   width: 100%;
   max-width: none;
@@ -544,12 +508,10 @@
   background: transparent;
   list-style: none;
   color: #000;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
   box-sizing: border-box;
-}
-
-.chart-filter-bar__select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .chart-filter-bar .chart-dd-summary::-webkit-details-marker {
@@ -578,6 +540,39 @@
 
 .chart-filter-bar .chart-dd-body--tipo {
   gap: 0;
+}
+
+.chart-filter-bar .chart-dd-body--period {
+  width: 100%;
+  min-width: 0;
+}
+
+.chart-filter-bar .chart-dd-period-item {
+  width: 100%;
+  margin: 0;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #000;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.chart-filter-bar .chart-dd-period-item + .chart-dd-period-item {
+  border-top: 1px solid #f1f5f9;
+}
+
+.chart-filter-bar .chart-dd-period-item:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.chart-filter-bar .chart-dd-period-item--active {
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .chart-filter-bar .chart-dd-tipo-item {
@@ -699,7 +694,8 @@
 }
 
 .chart-dd--fondos .chart-dd-body {
-  max-width: min(96vw, 560px);
+  width: 100%;
+  max-width: 100%;
   padding: 0;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
@@ -722,9 +718,9 @@
 }
 
 .chart-dd-body--fondos {
-  width: max-content;
-  min-width: min(100%, 22rem);
-  max-width: min(96vw, 560px);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background-color: #fff;
   background-image: none;
 }
@@ -864,7 +860,7 @@
   box-sizing: border-box;
   width: 100%;
   margin: 0;
-  min-height: 36px;
+  min-height: 0;
   padding: 6px 0;
   background: transparent !important;
   background-color: transparent !important;
@@ -897,7 +893,7 @@
   white-space: normal;
   word-break: break-word;
   line-height: 1.35;
-  max-width: min(88vw, 480px);
+  max-width: 100%;
   color: #000 !important;
   -webkit-text-fill-color: #000 !important;
   opacity: 1 !important;
@@ -909,6 +905,10 @@
   margin: 0;
   opacity: 1;
   accent-color: #111827;
+}
+
+.chart-dd--fondos .chart-dd-check.chart-dd-check--fondo-row .chart-dd-swatch {
+  margin-top: 0;
 }
 
 .chart-svg-wrap {

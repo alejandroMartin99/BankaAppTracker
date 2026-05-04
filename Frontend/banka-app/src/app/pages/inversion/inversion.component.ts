@@ -54,7 +54,7 @@ interface YGridLine {
 }
 
 interface DetailGroup {
-  key: BenchmarkClasificacion;
+  key: UiClasificacion;
   label: string;
   rows: BenchmarkItem[];
 }
@@ -80,9 +80,11 @@ interface ChartLegendEntry {
   isin: string;
   name: string;
   color: string;
-  category: BenchmarkClasificacion;
+  category: UiClasificacion;
   visible: boolean;
 }
+
+type UiClasificacion = BenchmarkClasificacion | 'sectores_especificos';
 
 /** Geometría y series alineadas para crosshair / eje X. */
 interface ChartXTick {
@@ -224,25 +226,28 @@ export class InversionComponent implements OnInit {
   private seriesColorByKey = new Map<string, string>();
 
   /** Categorías con chip en el gráfico (solo se listan las que tengan series). */
-  readonly chartCategoryDefs: { key: BenchmarkClasificacion; label: string }[] = [
+  readonly chartCategoryDefs: { key: UiClasificacion; label: string }[] = [
     { key: 'fondos_monetarios', label: 'Monetarios' },
     { key: 'renta_fija', label: 'Renta fija' },
     { key: 'renta_variable', label: 'Renta variable' },
+    { key: 'sectores_especificos', label: 'Sectores específicos' },
     { key: 'criptoactivos', label: 'Cripto' },
   ];
 
   /** Clasificación de filas de fondo (no incluye cripto; el cripto va siempre al grupo criptoactivos). */
   private readonly fundClasificacionKeys = new Set<string>([
+    'sectores_especificos',
     'fondos_monetarios',
     'renta_fija',
     'renta_variable',
   ]);
 
   /** Orden en detalle: monetarios → RF → RV → cripto */
-  readonly detailSectionOrder: { key: BenchmarkClasificacion; label: string }[] = [
+  readonly detailSectionOrder: { key: UiClasificacion; label: string }[] = [
     { key: 'fondos_monetarios', label: 'Fondos monetarios' },
     { key: 'renta_fija', label: 'Renta fija' },
     { key: 'renta_variable', label: 'Renta variable' },
+    { key: 'sectores_especificos', label: 'Sectores específicos' },
     { key: 'criptoactivos', label: 'Criptoactivos' },
   ];
   detailGroups: DetailGroup[] = [];
@@ -295,7 +300,7 @@ export class InversionComponent implements OnInit {
     return false;
   }
 
-  get chartCategoriesInData(): { key: BenchmarkClasificacion; label: string }[] {
+  get chartCategoriesInData(): { key: UiClasificacion; label: string }[] {
     const withKeys = this.chartCategoryDefs.filter((d) => this.keysForCategory(d.key).length > 0);
     return withKeys;
   }
@@ -882,7 +887,7 @@ export class InversionComponent implements OnInit {
     return InversionComponent.computeAnnualizedVolatilityPct(row.points);
   }
 
-  categoryChipState(cat: BenchmarkClasificacion): 'all' | 'none' | 'partial' {
+  categoryChipState(cat: UiClasificacion): 'all' | 'none' | 'partial' {
     const keys = this.keysForCategory(cat);
     if (keys.length === 0) return 'none';
     let vis = 0;
@@ -894,7 +899,7 @@ export class InversionComponent implements OnInit {
     return 'partial';
   }
 
-  toggleCategoryVisibility(cat: BenchmarkClasificacion): void {
+  toggleCategoryVisibility(cat: UiClasificacion): void {
     const keys = this.keysForCategory(cat);
     if (keys.length === 0) return;
     const keySet = new Set(keys);
@@ -1097,10 +1102,21 @@ export class InversionComponent implements OnInit {
     this.rebuildDetailGroups();
   }
 
-  private effectiveClasificacion(row: BenchmarkItem): BenchmarkClasificacion {
+  private isSpecificSectorFund(row: BenchmarkItem): boolean {
+    const name = (row.name || '').toLowerCase();
+    return (
+      name.includes('uranium') ||
+      name.includes('nuclear technologies') ||
+      name.includes('defense etf') ||
+      name.includes('nasdaq 100')
+    );
+  }
+
+  private effectiveClasificacion(row: BenchmarkItem): UiClasificacion {
+    if (this.isSpecificSectorFund(row)) return 'sectores_especificos';
     const raw = row.clasificacion;
     if (raw && this.fundClasificacionKeys.has(raw as string)) {
-      return raw as BenchmarkClasificacion;
+      return raw as UiClasificacion;
     }
     return 'renta_variable';
   }
@@ -1203,7 +1219,7 @@ export class InversionComponent implements OnInit {
     return `+${v}%`;
   }
 
-  private keysForCategory(cat: BenchmarkClasificacion): string[] {
+  private keysForCategory(cat: UiClasificacion): string[] {
     if (cat === 'criptoactivos') {
       return this.cryptoItems.map((it) => this.seriesKeyFor(it));
     }
@@ -1232,7 +1248,7 @@ export class InversionComponent implements OnInit {
   }
 
   private rebuildDetailGroups(): void {
-    const buckets = new Map<BenchmarkClasificacion, BenchmarkItem[]>();
+    const buckets = new Map<UiClasificacion, BenchmarkItem[]>();
     for (const s of this.detailSectionOrder) {
       buckets.set(s.key, []);
     }
@@ -1417,7 +1433,7 @@ export class InversionComponent implements OnInit {
     this.syncCrosshairLegendPanel();
   }
 
-  openFundDetail(row: BenchmarkItem, grpKey: BenchmarkClasificacion): void {
+  openFundDetail(row: BenchmarkItem, grpKey: UiClasificacion): void {
     const isCrypto = grpKey === 'criptoactivos';
     const isin = !isCrypto && row.isin?.trim() ? row.isin.trim().toUpperCase() : undefined;
     const sym = isCrypto && row.symbol?.trim() ? row.symbol.trim() : undefined;

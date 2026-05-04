@@ -44,21 +44,24 @@
             [class.chart-filter-bar--no-tipo]="chartCategoriesInData.length === 0"
           >
             <div class="chart-filter-bar__cell chart-filter-bar__cell--period">
-              <label class="chart-filter-bar__face chart-filter-bar__face--period">
-                <span class="visually-hidden">Ventana temporal del gráfico</span>
-                <select
-                  class="chart-filter-bar__select"
-                  [ngModel]="period"
-                  (ngModelChange)="setPeriod($event)"
-                  [disabled]="loading"
-                  [attr.title]="'Rango de fechas mostrado'"
-                >
+              <details class="chart-dd chart-dd--period" name="inv-chart-toolbar">
+                <summary class="chart-dd-summary chart-filter-bar__face chart-filter-bar__face--period">
+                  <span class="chart-filter-bar__face-text">{{ periodLabel }}</span>
+                  <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
+                </summary>
+                <div class="chart-dd-body chart-dd-body--period">
                   @for (p of periodPresets; track p.id) {
-                    <option [value]="p.id">{{ p.label }}</option>
+                    <button
+                      type="button"
+                      class="chart-dd-period-item"
+                      [class.chart-dd-period-item--active]="period === p.id"
+                      (click)="setPeriod(p.id)"
+                    >
+                      {{ p.label }}
+                    </button>
                   }
-                </select>
-                <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
-              </label>
+                </div>
+              </details>
             </div>
 
             @if (chartCategoriesInData.length > 0) {
