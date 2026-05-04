@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -47,6 +47,9 @@ _INFO_KEYS: frozenset[str] = frozenset(
         "exchangeTimezoneName",
     }
 )
+
+# Evita servir fichas antiguas durante semanas: si supera este umbral, se vuelve a consultar Yahoo.
+_FUND_DETAIL_CACHE_MAX_AGE = timedelta(hours=24)
 
 
 def _json_safe(obj: Any, depth: int = 0) -> Any:
@@ -147,6 +150,28 @@ def _fund_detail_cache_needs_refetch(isin_norm: str, payload: Dict[str, Any], *,
         or comp.get("sector_weightings")
         or comp.get("fund_overview")
     )
+
+
+def _cache_row_is_fresh(updated_at_raw: Any) -> bool:
+    if not updated_at_raw:
+        return False
+    dt: Optional[datetime] = None
+    if isinstance(updated_at_raw, datetime):
+        dt = updated_at_raw
+    elif isinstance(updated_at_raw, str):
+        txt = updated_at_raw.strip()
+        if txt.endswith("Z"):
+            txt = txt[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(txt)
+        except Exception:
+            dt = None
+    if dt is None:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+    return age <= _FUND_DETAIL_CACHE_MAX_AGE
 
 
 def warm_fund_detail_cache_force_sync(isin: str) -> None:
@@ -256,7 +281,9 @@ async def get_or_build_fund_detail(isin: Optional[str], symbol: Optional[str]) -
             payload = row["payload"]
             for_crypto = bool(symbol and not isin)
             key_for_name = normalize_isin(isin) if isin else ck
-            if not _fund_detail_cache_needs_refetch(key_for_name, payload, for_crypto=for_crypto):
+            if _cache_row_is_fresh(row.get("updated_at")) and not _fund_detail_cache_needs_refetch(
+                key_for_name, payload, for_crypto=for_crypto
+            ):
                 return {
                     "success": True,
                     "cached": True,
