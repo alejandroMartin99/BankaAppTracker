@@ -605,6 +605,128 @@
   color: var(--color-text-muted);
 }
 
+.charts-card--balance-history {
+  margin-top: 8px;
+}
+
+.charts-balance-account-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px 0;
+}
+
+.charts-balance-account-pill {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.charts-balance-account-pill--active {
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-bg);
+}
+
+.charts-balance-history-svg {
+  width: 100%;
+  height: 180px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.charts-balance-history-line {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.charts-balance-trend-line {
+  fill: none;
+  stroke: #6b7280;
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+}
+
+.charts-balance-legend {
+  margin-bottom: 6px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.charts-balance-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+  background: #2563eb;
+}
+
+.charts-balance-grid {
+  stroke: #b6bcc8;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.charts-balance-grid-base {
+  stroke: #98a1b2;
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.charts-balance-y-tick {
+  font-size: 8px;
+  fill: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.charts-balance-x-tick {
+  font-size: 8px;
+  fill: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.charts-balance-x-grid {
+  stroke: #c3c8d3;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.charts-balance-marker {
+  fill: #fff;
+  stroke: #2563eb;
+  stroke-width: 1.4;
+}
+
+.charts-balance-month-table-wrap {
+  margin-top: 12px;
+}
+
+.charts-balance-month-table-title {
+  margin: 0 0 6px 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.charts-balance-month-table {
+  font-size: 10px;
+}
+
 /* Toggle excluir gastos > 5000 € */
 .charts-exclude-row {
   margin-bottom: 16px;

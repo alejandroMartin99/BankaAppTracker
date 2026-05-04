@@ -147,10 +147,12 @@ export class ChartsComponent implements OnInit, OnDestroy {
   categoryDetailViewMode: 'categoria' | 'subcategoria' = 'categoria';
   /** Diagrama de líneas mes × subcategoría (mismo período que la evolución de la categoría) */
   categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
+  selectedBalanceChartAccount = '';
 
   private static readonly SUB_LINE_VB = { vw: 340, vh: 172, padL: 52, padR: 10, padT: 10, padB: 40 } as const;
   /** Expuesto para el SVG del drill de subcategorías */
   readonly subLinePadLeft = ChartsComponent.SUB_LINE_VB.padL;
+  private static readonly BALANCE_VB = { w: 360, h: 180, padL: 48, padR: 14, padT: 12, padB: 30 } as const;
 
   constructor(
     private transactionService: TransactionService,
@@ -196,6 +198,8 @@ export class ChartsComponent implements OnInit, OnDestroy {
           id: t.id,
           dt_date: t.dt_date || t.transaction_date || '',
           importe: typeof t.importe === 'number' ? t.importe : parseFloat(t.importe) || 0,
+          saldo: t.saldo != null ? (typeof t.saldo === 'number' ? t.saldo : parseFloat(t.saldo)) : undefined,
+          cuenta: t.cuenta || t.account_number || '',
           categoria: (t.categoria || t.category || '').trim(),
           subcategoria: t.subcategoria || '',
           descripcion: t.descripcion || t.description || ''
@@ -203,6 +207,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.showLoader = false;
         this.buildAnalysis();
+        this.ensureBalanceChartAccount();
       },
       error: (err) => {
         this.error = err.error?.detail || 'Error al cargar datos';
@@ -405,6 +410,274 @@ export class ChartsComponent implements OnInit, OnDestroy {
       });
     }
     this.categoryAnalysisIncome = incomeCatRows.sort((a, b) => b.total - a.total);
+  }
+
+  get balanceChartAccounts(): string[] {
+    const set = new Set<string>();
+    for (const t of this.transactions) {
+      const account = (t.cuenta || '').toString().trim();
+      if (account) set.add(account);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }
+
+  private ensureBalanceChartAccount(): void {
+    const accounts = this.balanceChartAccounts;
+    if (!accounts.length) {
+      this.selectedBalanceChartAccount = '';
+      return;
+    }
+    if (!accounts.includes(this.selectedBalanceChartAccount)) {
+      this.selectedBalanceChartAccount = accounts[0];
+    }
+  }
+
+  selectBalanceChartAccount(account: string): void {
+    this.selectedBalanceChartAccount = account;
+  }
+
+  get balanceHistorySeries(): { dateKey: string; label: string; saldo: number }[] {
+    if (!this.selectedBalanceChartAccount) return [];
+    const currentYear = new Date().getFullYear();
+    const lastByDay = new Map<string, { dt: string; saldo: number }>();
+    for (const t of this.transactions) {
+      if ((t.cuenta || '') !== this.selectedBalanceChartAccount) continue;
+      if (this.shouldExclude(t)) continue;
+      if (t.saldo == null || Number.isNaN(t.saldo)) continue;
+      const dt = (t.dt_date || '').trim();
+      const dateKey = dt.slice(0, 10);
+      if (!dateKey) continue;
+      const year = Number(dateKey.slice(0, 4));
+      if (year !== currentYear) continue;
+      const prev = lastByDay.get(dateKey);
+      if (!prev || dt.localeCompare(prev.dt) >= 0) {
+        lastByDay.set(dateKey, { dt, saldo: t.saldo });
+      }
+    }
+    return Array.from(lastByDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dateKey, row]) => ({
+        dateKey,
+        label: this.formatBalanceChartDay(dateKey),
+        saldo: row.saldo
+      }));
+  }
+
+  get balanceHistoryMin(): number {
+    const vals = this.balanceHistorySeries.map(x => x.saldo);
+    return vals.length ? Math.min(...vals) : 0;
+  }
+
+  get balanceHistoryMax(): number {
+    const vals = this.balanceHistorySeries.map(x => x.saldo);
+    return vals.length ? Math.max(...vals) : 1;
+  }
+
+  get balanceAxisMin(): number {
+    return Math.floor(this.balanceHistoryMin / 500) * 500;
+  }
+
+  get balanceAxisMax(): number {
+    return Math.ceil(this.balanceHistoryMax / 500) * 500;
+  }
+
+  get balanceHistoryValues(): number[] {
+    return this.balanceHistorySeries.map(x => x.saldo);
+  }
+
+  get balanceHistoryPath(): string {
+    const points = this.balanceHistoryPoints;
+    if (!points.length) return '';
+    return 'M ' + points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' L ');
+  }
+
+  get balanceHistoryPoints(): { x: number; y: number; label: string; saldo: number; key: string }[] {
+    const series = this.balanceHistorySeries;
+    const n = series.length;
+    if (!n) return [];
+    const min = this.balanceAxisMin;
+    const max = this.balanceAxisMax;
+    const { w, padL, padR } = ChartsComponent.BALANCE_VB;
+    const plotW = w - padL - padR;
+    return series.map((row, i) => {
+      const x = n <= 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW;
+      return {
+        x,
+        y: this.balanceY(row.saldo, min, max),
+        label: row.label,
+        saldo: row.saldo,
+        key: row.dateKey
+      };
+    });
+  }
+
+  get balanceChartViewBox(): string {
+    const { w, h } = ChartsComponent.BALANCE_VB;
+    return `0 0 ${w} ${h}`;
+  }
+
+  private balanceY(value: number, min: number, max: number): number {
+    const { h, padT, padB } = ChartsComponent.BALANCE_VB;
+    const plotH = h - padT - padB;
+    const span = Math.max(1, max - min);
+    return padT + plotH - ((value - min) / span) * plotH;
+  }
+
+  balanceChartLeft(): number {
+    return ChartsComponent.BALANCE_VB.padL;
+  }
+
+  balanceChartRight(): number {
+    const { w, padR } = ChartsComponent.BALANCE_VB;
+    return w - padR;
+  }
+
+  get balanceHistoryYTicks(): { y: number; value: number; base: boolean }[] {
+    const min = this.balanceAxisMin;
+    const max = this.balanceAxisMax;
+    const step = 1000;
+    const out: { y: number; value: number; base: boolean }[] = [];
+    for (let value = max; value >= min; value -= step) {
+      out.push({ y: this.balanceY(value, min, max), value, base: value === min });
+    }
+    return out;
+  }
+
+  get balanceHistoryXTicks(): { x: number; label: string; key: string }[] {
+    const points = this.balanceHistoryPoints;
+    if (!points.length) return [];
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const firstDate = points[0]!.key;
+    const lastDate = points[points.length - 1]!.key;
+    const firstMonth = firstDate.slice(0, 7);
+    const lastMonth = lastDate.slice(0, 7);
+    const months: string[] = [];
+    {
+      let y = Number(firstMonth.slice(0, 4));
+      let m = Number(firstMonth.slice(5, 7));
+      const endY = Number(lastMonth.slice(0, 4));
+      const endM = Number(lastMonth.slice(5, 7));
+      while (y < endY || (y === endY && m <= endM)) {
+        months.push(`${y}-${String(m).padStart(2, '0')}`);
+        m++;
+        if (m > 12) {
+          m = 1;
+          y++;
+        }
+      }
+    }
+
+    const ticks: { x: number; label: string; key: string }[] = [];
+    for (const month of months) {
+      for (const day of [1, 15]) {
+        const target = `${month}-${String(day).padStart(2, '0')}`;
+        if (target > todayKey) continue;
+        if (target < firstDate || target > lastDate) continue;
+        const nearest = points.reduce((best, p) => {
+          const bestDist = Math.abs(new Date(best.key + 'T12:00:00').getTime() - new Date(target + 'T12:00:00').getTime());
+          const currDist = Math.abs(new Date(p.key + 'T12:00:00').getTime() - new Date(target + 'T12:00:00').getTime());
+          return currDist < bestDist ? p : best;
+        }, points[0]!);
+        ticks.push({
+          x: nearest.x,
+          label: `${String(day).padStart(2, '0')}-${month.slice(5, 7)}`,
+          key: `${month}-${String(day).padStart(2, '0')}`
+        });
+      }
+    }
+    return ticks;
+  }
+
+  get monthStartBalanceRows(): {
+    monthKey: string;
+    monthLabel: string;
+    saldoDia1: number;
+    saldoDia30: number;
+    fechaInicio: string;
+    fechaFin: string;
+    ahorroMes: number;
+  }[] {
+    const byMonth = new Map<string, { dateKey: string; saldo: number }[]>();
+    for (const row of this.balanceHistorySeries) {
+      const monthKey = row.dateKey.slice(0, 7);
+      if (!monthKey) continue;
+      if (!byMonth.has(monthKey)) byMonth.set(monthKey, []);
+      byMonth.get(monthKey)!.push({ dateKey: row.dateKey, saldo: row.saldo });
+    }
+
+    const starts = Array.from(byMonth.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([monthKey, rows]) => {
+        const ordered = [...rows].sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+        const first = ordered[0]!;
+        const last = ordered[ordered.length - 1]!;
+        return {
+          monthKey,
+          monthLabel: this.formatMonthKey(monthKey),
+          saldoDia1: first.saldo,
+          saldoDia30: last.saldo,
+          fechaInicio: first.dateKey,
+          fechaFin: last.dateKey
+        };
+      });
+
+    return starts.map((row, idx) => {
+      const saldoInicio = idx === 0 ? row.saldoDia1 : starts[idx - 1]!.saldoDia30;
+      const fechaInicio = idx === 0 ? row.fechaInicio : starts[idx - 1]!.fechaFin;
+      return {
+        ...row,
+        saldoDia1: saldoInicio,
+        fechaInicio,
+        ahorroMes: row.saldoDia30 - saldoInicio
+      };
+    });
+  }
+
+  private formatMonthKey(monthKey: string): string {
+    const [y, m] = monthKey.split('-').map(Number);
+    if (!y || !m) return monthKey;
+    return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' });
+  }
+
+  formatBalanceYAxis(value: number): string {
+    if (this.privacy.hideBalances()) return '***';
+    const abs = Math.abs(value);
+    if (abs >= 1000) {
+      const k = abs / 1000;
+      const text = k >= 10 ? k.toFixed(0) : k.toFixed(1);
+      return `${value < 0 ? '-' : ''}${text}k €`;
+    }
+    return `${Math.round(value)} €`;
+  }
+
+  formatShortDayMonth(dateKey: string): string {
+    if (!dateKey) return '--';
+    const d = dateKey.slice(8, 10);
+    const m = dateKey.slice(5, 7);
+    return `${d}-${m}`;
+  }
+
+  get balanceTrendPath(): string {
+    const pts = this.balanceHistoryPoints;
+    if (pts.length < 2) return '';
+    const first = pts[0]!;
+    const last = pts[pts.length - 1]!;
+    return `M ${first.x.toFixed(2)},${first.y.toFixed(2)} L ${last.x.toFixed(2)},${last.y.toFixed(2)}`;
+  }
+
+  monthlySavingsLabel(value: number | null): string {
+    if (value == null) return '—';
+    if (this.privacy.hideBalances()) return '***';
+    if (value > 0) return `Ahorras ${this.formatAmount(value)}`;
+    if (value < 0) return `Pierdes ${this.formatAmount(Math.abs(value))}`;
+    return 'Sin cambio';
+  }
+
+  formatBalanceChartDay(dateKey: string): string {
+    if (!dateKey) return '';
+    const d = new Date(dateKey + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
   }
 
   formatAmount(value: number): string {

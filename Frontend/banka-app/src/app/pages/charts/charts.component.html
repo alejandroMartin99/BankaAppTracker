@@ -14,8 +14,7 @@
   }
 
   <header class="charts-header">
-    <h1 class="charts-title">Gastos e ingresos</h1>
-    <p class="charts-subtitle">Últimos 12 meses · Por mes y por categoría, comparativa frente a la media</p>
+    <h1 class="charts-title">Gastos | Ingresos | Saldo</h1>
   </header>
 
   @if (error) {
@@ -199,6 +198,103 @@
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="charts-card charts-card--chart charts-card--balance-history">
+      <h3 class="charts-subtitle">Evolución histórica de saldo por cuenta</h3>
+      @if (balanceChartAccounts.length > 0) {
+        <div class="charts-balance-account-list">
+          @for (acc of balanceChartAccounts; track acc) {
+            <button
+              type="button"
+              class="charts-balance-account-pill"
+              [class.charts-balance-account-pill--active]="selectedBalanceChartAccount === acc"
+              (click)="selectBalanceChartAccount(acc)"
+            >
+              {{ acc }}
+            </button>
+          }
+        </div>
+        @if (balanceHistorySeries.length > 1) {
+          <div class="charts-balance-legend">
+            <span><i class="charts-balance-legend-dot"></i>Último saldo de cada día</span>
+          </div>
+          <svg class="charts-balance-history-svg" [attr.viewBox]="balanceChartViewBox" preserveAspectRatio="none">
+            @for (tick of balanceHistoryYTicks; track tick.y) {
+              <line
+                [class.charts-balance-grid]="!tick.base"
+                [class.charts-balance-grid-base]="tick.base"
+                [attr.x1]="balanceChartLeft()"
+                [attr.x2]="balanceChartRight()"
+                [attr.y1]="tick.y"
+                [attr.y2]="tick.y"
+              />
+              <text class="charts-balance-y-tick" x="12" [attr.y]="tick.y" dominant-baseline="middle">
+                {{ formatBalanceYAxis(tick.value) }}
+              </text>
+            }
+            <path class="charts-balance-history-line" [attr.d]="balanceHistoryPath" />
+            <path class="charts-balance-trend-line" [attr.d]="balanceTrendPath" />
+            @for (point of balanceHistoryPoints; track point.key) {
+              <circle class="charts-balance-marker" [attr.cx]="point.x" [attr.cy]="point.y" r="2.8" />
+            }
+            @for (tick of balanceHistoryXTicks; track tick.key) {
+              <line
+                class="charts-balance-x-grid"
+                [attr.x1]="tick.x"
+                [attr.x2]="tick.x"
+                y1="12"
+                y2="150"
+              />
+              <text
+                class="charts-balance-x-tick"
+                [attr.x]="tick.x"
+                y="156"
+                text-anchor="end"
+                [attr.transform]="'rotate(-45 ' + tick.x + ' 156)'"
+              >
+                {{ tick.label }}
+              </text>
+            }
+          </svg>
+          @if (monthStartBalanceRows.length > 0) {
+            <div class="charts-balance-month-table-wrap">
+              <h4 class="charts-balance-month-table-title">Análisis mensual (día 1)</h4>
+              <table class="charts-table charts-balance-month-table">
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <th class="charts-th-num">Inicio mes</th>
+                    <th class="charts-th-num">Fin mes</th>
+                    <th class="charts-th-num">Ahorro del mes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of monthStartBalanceRows; track row.monthKey) {
+                    <tr>
+                      <td class="charts-td-cat">{{ row.monthLabel }}</td>
+                      <td class="charts-td-num">{{ formatAmount(row.saldoDia1) }} ({{ formatShortDayMonth(row.fechaInicio) }})</td>
+                      <td class="charts-td-num">{{ formatAmount(row.saldoDia30) }} ({{ formatShortDayMonth(row.fechaFin) }})</td>
+                      <td
+                        class="charts-td-num"
+                        [class.charts-vs-over]="(row.ahorroMes || 0) > 0"
+                        [class.charts-vs-under]="(row.ahorroMes || 0) < 0"
+                        [class.charts-vs-neutral]="row.ahorroMes === 0"
+                      >
+                        {{ monthlySavingsLabel(row.ahorroMes) }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else {
+          <p class="charts-modal-empty">No hay histórico suficiente de saldos para esta cuenta.</p>
+        }
+      } @else {
+        <p class="charts-modal-empty">No hay cuentas con saldo en el período.</p>
+      }
     </section>
   }
 
