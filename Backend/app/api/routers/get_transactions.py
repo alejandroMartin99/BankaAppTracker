@@ -222,10 +222,11 @@ async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]
     try:
         account_ids = supabase_service.get_user_account_ids(user.get("sub", ""))
         data = _fetch_for_balances(account_ids)
+        names = supabase_service.get_account_display_names(account_ids)
         seen = set()
         balances = {}
         for row in data:
-            cuenta = row.get("cuenta") or "Otra"
+            cuenta = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
             if cuenta and cuenta not in seen:
                 seen.add(cuenta)
                 saldo = row.get("saldo")

@@ -114,7 +114,8 @@ export class GastosComponent implements OnInit, OnDestroy {
           cuenta: t.cuenta || t.account_number,
           descripcion: t.descripcion || t.description || '',
           categoria: t.categoria || t.category,
-          subcategoria: t.subcategoria
+          subcategoria: t.subcategoria,
+          es_transferencia_interna: t.es_transferencia_interna === true
         }));
         this.ngZone.run(() => {
           this.transactions = mapped;
@@ -223,9 +224,9 @@ export class GastosComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** Transacciones para calcular gastos/ingresos/saldo del periodo = solo rango de fechas */
+  /** Transacciones para calcular gastos/ingresos/saldo del periodo = solo rango de fechas, sin transferencias internas */
   get transactionsForBalances(): Transaction[] {
-    return this.transactionsInRange;
+    return this.transactionsInRange.filter(t => !t.es_transferencia_interna);
   }
 
   /** Agrupado por fecha. Orden viene del API (dt_date desc). */
