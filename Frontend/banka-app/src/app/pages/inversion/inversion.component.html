@@ -552,16 +552,20 @@
           maxlength="12"
           placeholder="Ej. IE00BYX5P602"
           (keydown.enter)="submitNewFund()"
+          [disabled]="fundSubmitting"
         />
         <button
           type="button"
           class="btn-add-isin"
-          [disabled]="watchlistRows.length >= maxFunds"
+          [disabled]="watchlistRows.length >= maxFunds || fundSubmitting"
           (click)="submitNewFund()"
         >
-          Añadir ISIN
+          {{ fundSubmitting ? 'Añadiendo...' : 'Añadir ISIN' }}
         </button>
       </div>
+      @if (fundSubmitting) {
+        <p class="watchlist-loading">Procesando ISIN y actualizando datos...</p>
+      }
       @if (fundError) {
         <p class="fund-error">{{ fundError }}</p>
       }

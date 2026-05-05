@@ -259,6 +259,7 @@ export class InversionComponent implements OnInit {
   maxFunds = 40;
   newIsin = '';
   fundError: string | null = null;
+  fundSubmitting = false;
 
   /** Modal ficha ampliada (API + caché servidor). */
   fundDetailOpen = false;
@@ -990,6 +991,7 @@ export class InversionComponent implements OnInit {
   }
 
   submitNewFund(): void {
+    if (this.fundSubmitting) return;
     this.fundError = null;
     const raw = this.newIsin.trim().toUpperCase();
     if (raw.length !== 12) {
@@ -1000,13 +1002,17 @@ export class InversionComponent implements OnInit {
       this.fundError = 'Este ISIN ya está en la selección por defecto; no hace falta añadirlo.';
       return;
     }
+    this.fundSubmitting = true;
     this.investment.addFund(raw).subscribe({
       next: () => {
         this.newIsin = '';
-        this.refreshFundsAndBenchmarks();
+        this.refreshFundsAndBenchmarks(() => {
+          this.fundSubmitting = false;
+        });
       },
       error: (err) => {
         this.fundError = err.error?.detail || 'No se pudo añadir el ISIN.';
+        this.fundSubmitting = false;
       },
     });
   }
@@ -1050,7 +1056,7 @@ export class InversionComponent implements OnInit {
     });
   }
 
-  private refreshFundsAndBenchmarks(): void {
+  private refreshFundsAndBenchmarks(onDone?: () => void): void {
     forkJoin({
       funds: this.investment.getFunds(),
       bench: this.investment.getBenchmarks(),
@@ -1058,11 +1064,13 @@ export class InversionComponent implements OnInit {
       next: ({ funds, bench }) => {
         this.applyFundsResponse(funds);
         this.applyBenchmarkResponse(bench);
+        onDone?.();
       },
       error: (err) => {
         this.fundError = err.error?.detail || 'Error al actualizar la lista.';
         this.loading = false;
         this.showLoader = false;
+        onDone?.();
       },
     });
   }
@@ -1103,13 +1111,33 @@ export class InversionComponent implements OnInit {
   }
 
   private isSpecificSectorFund(row: BenchmarkItem): boolean {
-    const name = (row.name || '').toLowerCase();
-    return (
-      name.includes('uranium') ||
-      name.includes('nuclear technologies') ||
-      name.includes('defense etf') ||
-      name.includes('nasdaq 100')
-    );
+    const name = (row.name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    // Clasificación temática automática por palabras clave de nicho/sector.
+    const thematicKeywords = [
+      'healthcare',
+      'health care',
+      'biotech',
+      'biotechnology',
+      'medical',
+      'pharma',
+      'defense',
+      'defence',
+      'uranium',
+      'nuclear',
+      'clean energy',
+      'energy',
+      'renewable',
+      'robotics',
+      'artificial intelligence',
+      'ai ',
+      'cybersecurity',
+      'semiconductor',
+      'nasdaq 100',
+    ];
+    return thematicKeywords.some((k) => name.includes(k));
   }
 
   private effectiveClasificacion(row: BenchmarkItem): UiClasificacion {
