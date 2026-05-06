@@ -206,6 +206,12 @@ export class GastosComponent implements OnInit, OnDestroy {
     return this.getIconInfo(t).color || '#6b7280';
   }
 
+  getIconBackgroundColor(t: Transaction): string {
+    const info = this.getIconInfo(t);
+    if (info.isLogo) return '#ffffff';
+    return `${info.color || '#f3f4f6'}40`;
+  }
+
   /** Fallback local si falta un icono (ej. no se ejecutó download-all-icons) */
   onIconError(ev: Event) {
     const img = ev.target as HTMLImageElement;

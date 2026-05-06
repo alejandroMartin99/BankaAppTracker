@@ -115,7 +115,7 @@
             <div class="tx-day-header">{{ group.dateLabel }}</div>
             @for (tx of group.transactions; track tx.id || $index) {
               <div class="tx-row">
-                <div class="tx-icon" [style.background-color]="(getIconInfo(tx).color || '#f3f4f6') + '40'" [style.color]="getIconColor(tx)">
+                <div class="tx-icon" [style.background-color]="getIconBackgroundColor(tx)" [style.color]="getIconColor(tx)">
                   <img
                     [src]="getIconInfo(tx).url"
                     alt=""

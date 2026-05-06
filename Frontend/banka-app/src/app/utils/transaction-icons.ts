@@ -30,13 +30,27 @@ const BRAND_KEYS: Record<string, string> = {
   Ahorramas: 'ahorramas',
   Apple: 'apple',
   Druni: 'druni',
+  LEFTIES: 'lefties',
+  OYSHO: 'oysho',
+  Alcampo: 'alcampo',
+  'PULL&BEAR': 'pull-and-bear',
+  PULLANDBEAR: 'pull-and-bear',
+  BERSHKA: 'bershka',
+  'Centro Maderero Valdebernardo': 'cmb-bricolage',
+  CMB: 'cmb-bricolage',
+  MANGO: 'mango',
+  STRADIVARIUS: 'stradivarius',
+  ZARA: 'zara',
+  Metro: 'metro-madrid',
   'ALVARO MORENO': 'alvaro-moreno',
   MILFSHAKES: 'milfshakes',
   Singularu: 'singularu',
   'EL CORTE INGLES': 'el-corte-ingles',
   Booking: 'booking',
+  ASOS: 'asos',
   Aldi: 'aldi',
   Obramat: 'obramat',
+  INECO: 'ineco',
   INDRA: 'indra',
   'DELIKIA CAFE': 'delikia-cafe',
 };
@@ -111,6 +125,21 @@ const DESC_BRANDS: Record<string, string> = {
   AHORRAMAS: 'ahorramas',
   APPLE: 'apple',
   DRUNI: 'druni',
+  LEFTIES: 'lefties',
+  OYSHO: 'oysho',
+  ALCAMPO: 'alcampo',
+  'PULL&BEAR': 'pull-and-bear',
+  PULLANDBEAR: 'pull-and-bear',
+  'PULL AND BEAR': 'pull-and-bear',
+  BERSHKA: 'bershka',
+  CMB: 'cmb-bricolage',
+  'CENTRO MADERERO': 'cmb-bricolage',
+  MANGO: 'mango',
+  STRADIVARIUS: 'stradivarius',
+  ZARA: 'zara',
+  METRO: 'metro-madrid',
+  METROMADRID: 'metro-madrid',
+  'METRO MADRID': 'metro-madrid',
   DOUGLAS: 'douglas',
   PRIMOR: 'primor',
   NOTINO: 'notino',
@@ -132,8 +161,10 @@ const DESC_BRANDS: Record<string, string> = {
   'EL CORTE INGLES': 'el-corte-ingles',
   ELCORTEINGLES: 'el-corte-ingles',
   BOOKING: 'booking',
+  ASOS: 'asos',
   ALDI: 'aldi',
   OBRAMAT: 'obramat',
+  INECO: 'ineco',
   'OBRAMAT.ES': 'obramat',
   INDRA: 'indra',
   DELIKIA: 'delikia-cafe',
@@ -161,13 +192,20 @@ export function getTransactionIconInfo(
   t: { categoria?: string; subcategoria?: string; descripcion?: string }
 ): IconInfo {
   const sub = (t.subcategoria || '').trim();
+  const subUpper = sub.toUpperCase();
   const cat = (t.categoria || '').trim();
   const desc = (t.descripcion || '').toUpperCase();
 
   // 1. Logo por subcategoría
-  const brandKey = BRAND_KEYS[sub];
-  if (brandKey) {
-    return { url: logoUrl(brandKey), isLogo: true };
+  const subBrandKey = BRAND_KEYS[sub] || BRAND_KEYS[subUpper] || BRAND_KEYS[sub.toLowerCase()];
+  if (subBrandKey) {
+    return { url: logoUrl(subBrandKey), isLogo: true };
+  }
+  // 1b. Match parcial por subcategoría (ej: "INECO_nomina", "Pago INECO")
+  for (const [brandToken, key] of Object.entries(BRAND_KEYS)) {
+    if (subUpper.includes(brandToken.toUpperCase())) {
+      return { url: logoUrl(key), isLogo: true };
+    }
   }
 
   // 2. Logo por descripción (ej: "Amazon", "Mercadona")

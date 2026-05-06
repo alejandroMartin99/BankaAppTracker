@@ -73,6 +73,7 @@ CATEGORY_RULES = [
     (r'PARKING', 'Transporte', 'PARKING'),
     (r'AMOVENS', 'Transporte', 'Amovens_Alquiler_Furgo'),
     (r'METRO', 'Transporte', 'Metro'),
+    (r'APP CRTM', 'Transporte', 'Metro'),
     (r'SEITT', 'Transporte', 'Peaje'),
     (r'VIA-T', 'Transporte', 'Peaje'),
     (r'CASTELLANA DE AUTOPISTAS', 'Transporte', 'Peaje'),
@@ -130,6 +131,9 @@ CATEGORY_RULES = [
     (r'RTE NACIONES,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
     (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
     (r'GLOVO', 'Restaurantes', 'Glovo'),
+    (r'DELINAS INECO EGEO', 'Restaurantes', 'Ineco_Desayuno'),
+
+
 
     # Ropa
     (r'ZARA', 'Ropa', 'ZARA'),
@@ -148,6 +152,7 @@ CATEGORY_RULES = [
     (r'STRADIVARIUS', 'Ropa', 'STRADIVARIUS'),
     (r'PARFOIS', 'Ropa', 'PARFOIS'),
     (r'OYSHO', 'Ropa', 'OYSHO'),
+    (r'ASOS', 'Ropa', 'ASOS'),
 
 
     # Transferencias
