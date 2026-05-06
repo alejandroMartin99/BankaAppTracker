@@ -219,7 +219,7 @@
           <div class="charts-balance-legend">
             <span><i class="charts-balance-legend-dot"></i>Último saldo de cada día</span>
           </div>
-          <svg class="charts-balance-history-svg" [attr.viewBox]="balanceChartViewBox" preserveAspectRatio="none">
+          <svg class="charts-balance-history-svg" [attr.viewBox]="balanceChartViewBox" preserveAspectRatio="xMidYMid meet">
             @for (tick of balanceHistoryYTicks; track tick.y) {
               <line
                 [class.charts-balance-grid]="!tick.base"
@@ -249,9 +249,8 @@
               <text
                 class="charts-balance-x-tick"
                 [attr.x]="tick.x"
-                y="156"
-                text-anchor="end"
-                [attr.transform]="'rotate(-45 ' + tick.x + ' 156)'"
+                y="162"
+                text-anchor="middle"
               >
                 {{ tick.label }}
               </text>
