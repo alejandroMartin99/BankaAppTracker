@@ -53,6 +53,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-bg);
+    color: var(--color-text);
     font-family: inherit;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 
@@ -125,12 +126,22 @@
   text-align: center;
 
   a {
-    color: #000;
+    color: var(--color-text);
     font-weight: 500;
     text-decoration: none;
 
     &:hover {
       text-decoration: underline;
     }
+  }
+}
+
+:host-context(.theme-dark) {
+  .form-group input {
+    border-color: #3f3f46;
+  }
+
+  .form-group input::placeholder {
+    color: #cbd5e1;
   }
 }
