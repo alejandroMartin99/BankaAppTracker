@@ -494,6 +494,20 @@
   }
 }
 
+:host-context(.theme-dark) {
+  .btn-dark.outline {
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+  }
+
+  .btn-dark {
+    border-color: var(--color-text);
+    background: var(--color-text);
+    color: var(--color-bg);
+  }
+}
+
 .archived-block {
   margin-top: 10px;
   border-top: 1px dashed var(--color-border);

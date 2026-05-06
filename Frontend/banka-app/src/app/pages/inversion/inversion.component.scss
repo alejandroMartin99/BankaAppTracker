@@ -368,8 +368,8 @@
   position: relative;
   z-index: 5;
   margin-bottom: 2px;
-  padding: 0 14px;
-  padding-bottom: 0;
+  padding: 0 0px;
+  padding-bottom: 5px;
   border-bottom: none;
   overflow: visible;
 }
@@ -393,9 +393,9 @@
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border: 1px solid #e2e6ec;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   box-sizing: border-box;
 }
@@ -439,13 +439,13 @@
   display: flex;
   align-items: center;
   justify-content: stretch;
-  min-height: 36px;
+  min-height: 32px;
   min-width: 0;
   box-sizing: border-box;
 }
 
 .chart-filter-bar__cell + .chart-filter-bar__cell {
-  border-left: 1px solid var(--color-border);
+  border-left: none;
 }
 
 .chart-filter-bar__face {
@@ -458,13 +458,13 @@
   flex: 1 1 auto;
   align-self: stretch;
   width: 100%;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 0 10px;
   margin: 0;
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #000;
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -506,14 +506,14 @@
   gap: 8px;
   width: 100%;
   max-width: none;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 0 10px;
   margin: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   list-style: none;
-  color: #000;
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -539,8 +539,8 @@
 
 /* Desplegables del toolbar: mismo fondo blanco plano que Fondos (sin gris + tarjetas) */
 .chart-filter-bar .chart-dd .chart-dd-body {
-  background: #fff;
-  border-color: #e5e7eb;
+  background: var(--color-surface);
+  border-color: var(--color-border);
   padding: 0;
 }
 
@@ -556,12 +556,12 @@
 .chart-filter-bar .chart-dd-period-item {
   width: 100%;
   margin: 0;
-  min-height: 36px;
-  padding: 8px 12px;
+  min-height: 32px;
+  padding: 6px 10px;
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #000;
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -570,23 +570,23 @@
 }
 
 .chart-filter-bar .chart-dd-period-item + .chart-dd-period-item {
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-period-item:hover {
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-period-item--active {
-  background: rgba(15, 23, 42, 0.08);
+  background: var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-tipo-item {
   margin: 0;
-  min-height: 36px;
+  min-height: 32px;
   max-width: none;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -594,20 +594,20 @@
 }
 
 .chart-filter-bar .chart-dd-tipo-item + .chart-dd-tipo-item {
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-tipo-item:hover {
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-footer-btn {
   margin-top: 0;
   padding: 8px 12px;
   border: none;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed var(--color-border);
   border-radius: 0;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .chart-filter-bar__cell:focus-within {
@@ -703,12 +703,12 @@
   width: 100%;
   max-width: 100%;
   padding: 0;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background-color: #fff;
+  background-color: var(--color-surface);
   background-image: none;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  color: #000;
+  color: var(--color-text);
 }
 
 .chart-dd-body--scroll {
@@ -727,15 +727,15 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  background-color: #fff;
+  background-color: var(--color-surface);
   background-image: none;
 }
 
 /* Un solo bloque blanco: todo el texto va dentro; sin “tarjeta” por fila */
 .chart-fondos-list {
   padding: 10px 12px;
-  background-color: #fff;
-  color: #000;
+  background-color: var(--color-surface);
+  color: var(--color-text);
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
 }
@@ -874,7 +874,7 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   outline: none;
-  color: #000 !important;
+  color: var(--color-text) !important;
   opacity: 1 !important;
   font-size: 11px;
   font-weight: 500;
@@ -882,7 +882,7 @@
 
 .chart-dd--fondos .chart-dd-check.chart-dd-check--fondo-row:hover {
   background: transparent !important;
-  color: #000 !important;
+  color: var(--color-text) !important;
 }
 
 .chart-dd--fondos .chart-dd-check.chart-dd-check--fondo-row:focus-visible {
@@ -900,8 +900,8 @@
   word-break: break-word;
   line-height: 1.35;
   max-width: 100%;
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
+  color: var(--color-text) !important;
+  -webkit-text-fill-color: var(--color-text) !important;
   opacity: 1 !important;
   font-weight: 500;
 }
@@ -910,7 +910,7 @@
   align-self: center;
   margin: 0;
   opacity: 1;
-  accent-color: #111827;
+  accent-color: var(--color-text);
 }
 
 .chart-dd--fondos .chart-dd-check.chart-dd-check--fondo-row .chart-dd-swatch {
