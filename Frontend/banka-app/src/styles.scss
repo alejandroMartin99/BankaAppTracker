@@ -12,6 +12,11 @@
   --color-border: #e5e5e5;
   --color-border-light: #f0f0f0;
   --color-focus: rgba(10, 10, 10, 0.5);
+  --overlay-bg: rgba(255, 255, 255, 0.9);
+  --header-bg: #0a0a0a;
+  --header-text: #ffffff;
+  --danger-bg-soft: #fee2e2;
+  --danger-text: #b91c1c;
 
   /* — Typography ----------------------------------------------- */
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -42,6 +47,23 @@
   --nav-height: 58px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0);
   --content-max-width: 560px;
+}
+
+:root.theme-dark {
+  --color-bg: #000000;
+  --color-surface: #121212;
+  --color-surface-raised: #1a1a1a;
+  --color-text: #f3f4f6;
+  --color-text-secondary: #c2c5cb;
+  --color-text-muted: #9ca3af;
+  --color-border: #2a2a2a;
+  --color-border-light: #1e1e1e;
+  --color-focus: rgba(229, 231, 235, 0.55);
+  --overlay-bg: rgba(0, 0, 0, 0.88);
+  --header-bg: #000000;
+  --header-text: #f9fafb;
+  --danger-bg-soft: rgba(185, 28, 28, 0.2);
+  --danger-text: #f87171;
 }
 
 * {
@@ -93,7 +115,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--overlay-bg);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }

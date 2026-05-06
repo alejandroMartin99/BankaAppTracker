@@ -101,7 +101,7 @@
   color: var(--color-text);
 
   &.balance-gastos {
-    color: #1f2937;
+    color: #ef4444;
   }
   &.balance-ingresos {
     color: #16a34a;
@@ -345,6 +345,12 @@
       width: 18px;
       height: 18px;
     }
+  }
+}
+
+:root.theme-dark {
+  .tx-icon .tx-icon-img.tx-logo {
+    filter: brightness(0) invert(1);
   }
 }
 

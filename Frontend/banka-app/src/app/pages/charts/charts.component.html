@@ -239,13 +239,6 @@
               <circle class="charts-balance-marker" [attr.cx]="point.x" [attr.cy]="point.y" r="2.8" />
             }
             @for (tick of balanceHistoryXTicks; track tick.key) {
-              <line
-                class="charts-balance-x-grid"
-                [attr.x1]="tick.x"
-                [attr.x2]="tick.x"
-                y1="12"
-                y2="150"
-              />
               <text
                 class="charts-balance-x-tick"
                 [attr.x]="tick.x"

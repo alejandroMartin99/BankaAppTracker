@@ -8,6 +8,7 @@ import { TransactionService } from '../../services/transaction.service';
 import { Transaction } from '../../models/transaction.model';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
 import { PrivacyService } from '../../services/privacy.service';
+import { ThemeService } from '../../services/theme.service';
 
 type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
 
@@ -61,7 +62,8 @@ export class GastosComponent implements OnInit, OnDestroy {
     private transactionService: TransactionService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    public privacy: PrivacyService
+    public privacy: PrivacyService,
+    public theme: ThemeService
   ) {}
 
   ngOnInit() {
@@ -197,6 +199,11 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   getIconInfo(t: Transaction) {
     return getTransactionIconInfo(t);
+  }
+
+  getIconColor(t: Transaction): string {
+    if (this.theme.isDark()) return '#ffffff';
+    return this.getIconInfo(t).color || '#6b7280';
   }
 
   /** Fallback local si falta un icono (ej. no se ejecutó download-all-icons) */

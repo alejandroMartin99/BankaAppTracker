@@ -23,6 +23,11 @@ export class AuthService {
       || (u.email ? u.email.split('@')[0] : '');
   });
   readonly accessToken = computed(() => this.session()?.access_token ?? null);
+  readonly preferredTheme = computed<'light' | 'dark'>(() => {
+    const u = this.session()?.user;
+    const raw = (u?.user_metadata?.['theme'] ?? '').toString().trim().toLowerCase();
+    return raw === 'dark' ? 'dark' : 'light';
+  });
 
   constructor() {
     this.supabase = createClient(
@@ -74,7 +79,11 @@ export class AuthService {
     }
   }
 
-  async updateProfile(fullName: string, avatarUrl: string): Promise<{ error: Error | null }> {
+  async updateProfile(
+    fullName: string,
+    avatarUrl: string,
+    theme?: 'light' | 'dark'
+  ): Promise<{ error: Error | null }> {
     const data: Record<string, any> = {};
     const name = fullName.trim();
     const avatar = avatarUrl.trim();
@@ -83,6 +92,9 @@ export class AuthService {
     }
     if (avatar) {
       data['avatar_url'] = avatar;
+    }
+    if (theme === 'light' || theme === 'dark') {
+      data['theme'] = theme;
     }
     if (Object.keys(data).length === 0) {
       return { error: null };

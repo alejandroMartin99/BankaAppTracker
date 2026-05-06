@@ -228,7 +228,7 @@
   color: var(--color-text);
 
   &.totals-gastos {
-    color: #1f2937;
+    color: #ef4444;
   }
   &.totals-ingresos {
     color: #16a34a;
@@ -352,7 +352,7 @@
 .subcategory-amount {
   font-size: 11px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .category-detail {

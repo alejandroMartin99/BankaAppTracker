@@ -154,6 +154,17 @@
                 </div>
               </div>
               <div class="app-profile-accounts">
+                <div class="app-profile-theme-row">
+                  <span class="app-profile-theme-label">Modo oscuro</span>
+                  <button
+                    type="button"
+                    class="app-profile-theme-toggle"
+                    [class.app-profile-theme-toggle--active]="theme.isDark()"
+                    (click)="toggleTheme()"
+                  >
+                    {{ theme.isDark() ? 'Activado' : 'Desactivado' }}
+                  </button>
+                </div>
                 <div class="app-profile-accounts-title">Cuentas vinculadas</div>
                 @if (accountsLoading) {
                   <p class="app-profile-accounts-empty">Cargando cuentas…</p>

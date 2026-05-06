@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { Account } from '../models/transaction.model';
 import { BackendLoaderService } from '../services/backend-loader.service';
 import { PrivacyService } from '../services/privacy.service';
+import { ThemeService } from '../services/theme.service';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -69,7 +70,8 @@ export class LayoutComponent {
     private transactionService: TransactionService,
     public auth: AuthService,
     public backendLoader: BackendLoaderService,
-    public privacy: PrivacyService
+    public privacy: PrivacyService,
+    public theme: ThemeService
   ) {}
 
   get avatarDisplayName(): string {
@@ -388,6 +390,10 @@ export class LayoutComponent {
     this.closeProfileMenu();
     this.auth.signOut();
     void this.router.navigateByUrl('/login', { replaceUrl: true });
+  }
+
+  async toggleTheme(): Promise<void> {
+    await this.theme.toggleTheme();
   }
 
   onFileSelected(event: Event) {
