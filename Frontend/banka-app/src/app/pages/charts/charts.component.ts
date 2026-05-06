@@ -546,47 +546,24 @@ export class ChartsComponent implements OnInit, OnDestroy {
   get balanceHistoryXTicks(): { x: number; label: string; key: string }[] {
     const points = this.balanceHistoryPoints;
     if (!points.length) return [];
-    const today = new Date();
-    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const firstDate = points[0]!.key;
-    const lastDate = points[points.length - 1]!.key;
-    const firstMonth = firstDate.slice(0, 7);
-    const lastMonth = lastDate.slice(0, 7);
-    const months: string[] = [];
-    {
-      let y = Number(firstMonth.slice(0, 4));
-      let m = Number(firstMonth.slice(5, 7));
-      const endY = Number(lastMonth.slice(0, 4));
-      const endM = Number(lastMonth.slice(5, 7));
-      while (y < endY || (y === endY && m <= endM)) {
-        months.push(`${y}-${String(m).padStart(2, '0')}`);
-        m++;
-        if (m > 12) {
-          m = 1;
-          y++;
-        }
-      }
+    const maxTicks = 8;
+    if (points.length <= maxTicks) {
+      return points.map((p) => ({ x: p.x, label: this.formatBalanceChartDay(p.key), key: p.key }));
     }
-
-    const ticks: { x: number; label: string; key: string }[] = [];
-    for (const month of months) {
-      for (const day of [1, 15]) {
-        const target = `${month}-${String(day).padStart(2, '0')}`;
-        if (target > todayKey) continue;
-        if (target < firstDate || target > lastDate) continue;
-        const nearest = points.reduce((best, p) => {
-          const bestDist = Math.abs(new Date(best.key + 'T12:00:00').getTime() - new Date(target + 'T12:00:00').getTime());
-          const currDist = Math.abs(new Date(p.key + 'T12:00:00').getTime() - new Date(target + 'T12:00:00').getTime());
-          return currDist < bestDist ? p : best;
-        }, points[0]!);
-        ticks.push({
-          x: nearest.x,
-          label: `${String(day).padStart(2, '0')}-${month.slice(5, 7)}`,
-          key: `${month}-${String(day).padStart(2, '0')}`
-        });
-      }
+    const out: { x: number; label: string; key: string }[] = [];
+    const used = new Set<string>();
+    const step = Math.max(1, Math.round((points.length - 1) / (maxTicks - 1)));
+    for (let i = 0; i < points.length; i += step) {
+      const p = points[i]!;
+      if (used.has(p.key)) continue;
+      used.add(p.key);
+      out.push({ x: p.x, label: this.formatBalanceChartDay(p.key), key: p.key });
     }
-    return ticks;
+    const last = points[points.length - 1]!;
+    if (!used.has(last.key)) {
+      out.push({ x: last.x, label: this.formatBalanceChartDay(last.key), key: last.key });
+    }
+    return out.sort((a, b) => a.key.localeCompare(b.key));
   }
 
   get monthStartBalanceRows(): {
@@ -659,11 +636,35 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   get balanceTrendPath(): string {
-    const pts = this.balanceHistoryPoints;
-    if (pts.length < 2) return '';
-    const first = pts[0]!;
-    const last = pts[pts.length - 1]!;
-    return `M ${first.x.toFixed(2)},${first.y.toFixed(2)} L ${last.x.toFixed(2)},${last.y.toFixed(2)}`;
+    const series = this.balanceHistorySeries;
+    const n = series.length;
+    if (n < 2) return '';
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i < n; i++) {
+      xs.push(i);
+      ys.push(series[i]!.saldo);
+    }
+    const meanX = xs.reduce((a, b) => a + b, 0) / n;
+    const meanY = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = xs[i]! - meanX;
+      num += dx * (ys[i]! - meanY);
+      den += dx * dx;
+    }
+    const slope = den > 0 ? num / den : 0;
+    const intercept = meanY - slope * meanX;
+    const y0 = intercept;
+    const y1 = intercept + slope * (n - 1);
+    const min = this.balanceAxisMin;
+    const max = this.balanceAxisMax;
+    const leftX = this.balanceChartLeft();
+    const rightX = this.balanceChartRight();
+    const leftY = this.balanceY(y0, min, max);
+    const rightY = this.balanceY(y1, min, max);
+    return `M ${leftX.toFixed(2)},${leftY.toFixed(2)} L ${rightX.toFixed(2)},${rightY.toFixed(2)}`;
   }
 
   monthlySavingsLabel(value: number | null): string {
