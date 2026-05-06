@@ -348,10 +348,8 @@
   }
 }
 
-:root.theme-dark {
-  .tx-icon .tx-icon-img.tx-logo {
-    filter: brightness(0) invert(1);
-  }
+:host-context(.theme-dark) .tx-icon .tx-icon-img:not(.tx-logo--brand) {
+  filter: brightness(0) invert(1);
 }
 
 .tx-content {

@@ -116,7 +116,14 @@
             @for (tx of group.transactions; track tx.id || $index) {
               <div class="tx-row">
                 <div class="tx-icon" [style.background-color]="(getIconInfo(tx).color || '#f3f4f6') + '40'" [style.color]="getIconColor(tx)">
-                  <img [src]="getIconInfo(tx).url" alt="" class="tx-icon-img tx-logo" loading="lazy" (error)="onIconError($event)" />
+                  <img
+                    [src]="getIconInfo(tx).url"
+                    alt=""
+                    class="tx-icon-img tx-logo"
+                    [class.tx-logo--brand]="getIconInfo(tx).isLogo"
+                    loading="lazy"
+                    (error)="onIconError($event)"
+                  />
                 </div>
                 <div class="tx-content">
                   <div class="tx-main">

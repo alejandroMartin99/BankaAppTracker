@@ -600,11 +600,19 @@
       </div>
       <div class="help-chart-wrap" aria-hidden="true">
         <div class="help-chart-yaxis">
-          <span>300.000</span>
-          <span>225.000</span>
-          <span>150.000</span>
-          <span>75.000</span>
-          <span>0</span>
+          @if (privacy.hideBalances()) {
+            <span>***</span>
+            <span>***</span>
+            <span>***</span>
+            <span>***</span>
+            <span>0</span>
+          } @else {
+            <span>{{ simulationInterestMaxY | number:'1.0-0':'es' }}</span>
+            <span>{{ (simulationInterestMaxY * 0.75) | number:'1.0-0':'es' }}</span>
+            <span>{{ (simulationInterestMaxY * 0.5) | number:'1.0-0':'es' }}</span>
+            <span>{{ (simulationInterestMaxY * 0.25) | number:'1.0-0':'es' }}</span>
+            <span>0</span>
+          }
         </div>
         <svg class="help-chart" viewBox="0 0 100 50" preserveAspectRatio="none">
           <line x1="0" y1="50" x2="100" y2="50" class="help-grid-line"></line>
@@ -612,16 +620,16 @@
           <line x1="0" y1="25" x2="100" y2="25" class="help-grid-line"></line>
           <line x1="0" y1="12.5" x2="100" y2="12.5" class="help-grid-line"></line>
           <line x1="0" y1="0" x2="100" y2="0" class="help-grid-line"></line>
-          <polyline points="0,0 20,10 40,20 60,30 80,40 100,50" class="help-line help-line-plazo"></polyline>
-          <polyline points="0,0 20,14 40,28 60,40 80,47 100,50" class="help-line help-line-capital"></polyline>
+          <polyline [attr.points]="toSimulationPolyline(simulationInterestBasePoints)" class="help-line help-line-plazo"></polyline>
+          <polyline [attr.points]="toSimulationPolyline(simulationInterestExtraPoints)" class="help-line help-line-capital"></polyline>
         </svg>
         <div class="help-chart-xaxis">
           <span>Inicio</span>
-          <span>Meses</span>
+          <span>Tiempo (meses)</span>
         </div>
         <div class="help-chart-legend">
-          <span><i class="legend-dot legend-plazo"></i> Capital pendiente base</span>
-          <span><i class="legend-dot legend-capital"></i> Capital pendiente con extra</span>
+          <span><i class="legend-dot legend-plazo"></i> Interés acumulado base</span>
+          <span><i class="legend-dot legend-capital"></i> Interés acumulado con extra</span>
         </div>
       </div>
       <p class="section-desc">

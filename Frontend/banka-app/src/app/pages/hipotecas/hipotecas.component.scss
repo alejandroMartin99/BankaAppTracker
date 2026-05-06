@@ -225,11 +225,11 @@
   display: inline-block;
 }
 
-.dot-principal { background: #2563eb; }
-.dot-interest { background: #f97316; }
-.dot-paid { background: #16a34a; }
-.dot-extra { background: #7c3aed; }
-.dot-tax { background: #7c3aed; opacity: 0.5; }
+.dot-principal { background: #3b82ff; }
+.dot-interest { background: #ff7a1a; }
+.dot-paid { background: #00ff9c; }
+.dot-extra { background: #b026ff; }
+.dot-tax { background: #d946ef; opacity: 0.75; }
 
 .chart-mode-row {
   display: flex;
@@ -277,17 +277,17 @@
   vector-effect: non-scaling-stroke;
 }
 
-.line-principal { stroke: #2563eb; }
-.line-interest { stroke: #f97316; }
-.line-extra { stroke: #7c3aed; }
+.line-principal { stroke: #3b82ff; }
+.line-interest { stroke: #ff7a1a; }
+.line-extra { stroke: #b026ff; }
 .line-tax {
-  stroke: #7c3aed;
+  stroke: #d946ef;
   stroke-dasharray: 1.4 1.6;
-  opacity: 0.45;
+  opacity: 0.65;
 }
 
 .paid-boundary-line {
-  stroke: #16a34a;
+  stroke: #00ff9c;
   stroke-width: 0.35;
   stroke-dasharray: 0.8 1.2;
   opacity: 0.75;
@@ -409,8 +409,8 @@
   flex: 0 0 auto;
 }
 
-.amort-seg-principal { background: #2563eb; }
-.amort-seg-interest { background: #f59e0b; }
+.amort-seg-principal { background: #3b82ff; }
+.amort-seg-interest { background: #ff7a1a; }
 
 .receipt-row {
   display: flex;
@@ -640,6 +640,20 @@
   cursor: pointer;
 }
 
+:root.theme-dark {
+  .sim-disclaimer {
+    border-color: rgba(251, 191, 36, 0.5);
+    background: rgba(251, 191, 36, 0.14);
+    color: #fde68a;
+  }
+
+  .sim-disclaimer-plus {
+    border-color: rgba(253, 230, 138, 0.45);
+    background: rgba(10, 10, 10, 0.5);
+    color: #fef3c7;
+  }
+}
+
 .sim-metrics {
   margin-top: 8px;
   display: flex;
@@ -846,11 +860,11 @@
 }
 
 .bar-capital {
-  background: #2563eb;
+  background: #3b82ff;
 }
 
 .bar-plazo {
-  background: #f97316;
+  background: #ff7a1a;
 }
 
 .help-chart-wrap {
@@ -915,15 +929,15 @@
 
 .help-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 0.9;
 }
 
 .help-line-capital {
-  stroke: #2563eb;
+  stroke: #3b82ff;
 }
 
 .help-line-plazo {
-  stroke: #f97316;
+  stroke: #ff7a1a;
 }
 
 .help-chart-xaxis {
@@ -957,9 +971,9 @@
 }
 
 .legend-capital {
-  background: #2563eb;
+  background: #3b82ff;
 }
 
 .legend-plazo {
-  background: #f97316;
+  background: #ff7a1a;
 }
