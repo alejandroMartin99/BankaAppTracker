@@ -54,9 +54,9 @@ class Settings(BaseSettings):
         description="Intervalo en segundos entre pings keep-alive (default 12 min)",
     )
 
-    INVESTMENT_BENCHMARK_REFRESH_SECONDS: int = Field(
-        default=7200,
-        description="Intervalo entre refrescos de series de inversión en Supabase (default 2 h)",
+    INVESTMENT_BENCHMARK_REFRESH_HOUR: int = Field(
+        default=9,
+        description="Hora diaria del servidor para refrescar series de inversión en Supabase (0-23, default 9)",
     )
 
     # Si true, expone GET /test con detalles de diagnóstico (solo desarrollo)

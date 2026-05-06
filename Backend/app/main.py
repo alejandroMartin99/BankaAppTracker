@@ -7,7 +7,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 import httpx
 from fastapi import FastAPI
 
@@ -20,10 +20,17 @@ from app.core.config import settings
 
 
 async def _investment_benchmark_refresh_loop() -> None:
-    """Refresco periódico de series Inversión → Supabase (yfinance), sin depender de peticiones del cliente."""
-    await asyncio.sleep(60)
+    """Refresco diario de series Inversión → Supabase (yfinance) a una hora fija del servidor."""
+    hour = int(settings.INVESTMENT_BENCHMARK_REFRESH_HOUR) % 24
     while True:
+        now = datetime.now()
+        next_run = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run = next_run + timedelta(days=1)
+        wait_seconds = max(1.0, (next_run - now).total_seconds())
         try:
+            logger.info("[benchmark-cache] próximo refresco a las %02d:00 (en %.0f min)", hour, wait_seconds / 60.0)
+            await asyncio.sleep(wait_seconds)
             from app.api.services.investment_benchmarks import run_refresh_investment_benchmark_cache
 
             await asyncio.to_thread(run_refresh_investment_benchmark_cache)
@@ -32,8 +39,6 @@ async def _investment_benchmark_refresh_loop() -> None:
             break
         except Exception as e:
             logger.error("[benchmark-cache] error", exc_info=False)
-        interval = max(300.0, float(settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS))
-        await asyncio.sleep(interval)
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
 from app.api.routers.investment import router as investment_router
@@ -76,7 +81,7 @@ async def lifespan(app: FastAPI):
         logger.info("[keep-alive] iniciado cada %ds -> %s/health", settings.KEEP_ALIVE_INTERVAL_SECONDS, base_url)
     if supabase_service.is_connected():
         BENCHMARK_CACHE_TASK = asyncio.create_task(_investment_benchmark_refresh_loop())
-        logger.info("[benchmark-cache] bucle cada %ds (primer arranque tras 60s)", max(300, settings.INVESTMENT_BENCHMARK_REFRESH_SECONDS))
+        logger.info("[benchmark-cache] tarea diaria programada a las %02d:00 (hora del servidor)", int(settings.INVESTMENT_BENCHMARK_REFRESH_HOUR) % 24)
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()
