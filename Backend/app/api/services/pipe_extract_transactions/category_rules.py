@@ -29,7 +29,6 @@ CATEGORY_RULES = [
     (r'WELLHUB|DREAMFIT|DEPORTIVO', 'BienEstar', 'Gimnasio'),
     (r'BEARBERO EMBAJADORES', 'BienEstar', 'Peluquero'),
     (r'PELUQUER', 'BienEstar', 'Peluquero'),
-    (r'CURSOR', 'BienEstar', 'Cursor'),
     (r'DOUGLAS', 'BienEstar', 'Douglas'),
     (r'DRUNI', 'BienEstar', 'Druni'),
     (r'NOTINO', 'BienEstar', 'Notino'),
@@ -40,6 +39,9 @@ CATEGORY_RULES = [
     (r'FARMACIA', 'BienEstar', 'Farmacia'),
     (r'HIERBA EN FLOR', 'BienEstar', 'Flores_Lucia'),
     (r'BOOKING', 'BienEstar', 'Booking'),
+
+    # FORMACIÓN
+    (r'CURSOR', 'Formación', 'Cursor'),
 
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
@@ -124,7 +126,10 @@ CATEGORY_RULES = [
     (r'COFFEE', 'Restaurantes', 'Cafe'),
     (r'DOMINOS PIZZA', 'Restaurantes', 'Dominos Pizza'),
     (r'LA GRUTA', 'Restaurantes', 'La Gruta'),
+    (r'RESTAURANTE LA VENTA,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
+    (r'RTE NACIONES,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
     (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
+    (r'GLOVO', 'Restaurantes', 'Glovo'),
 
     # Ropa
     (r'ZARA', 'Ropa', 'ZARA'),
