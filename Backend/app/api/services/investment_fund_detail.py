@@ -5,6 +5,7 @@ Ficha ampliada de fondo/cripto vía yfinance, con caché en Supabase (JSONB por 
 from __future__ import annotations
 
 import asyncio
+import copy
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -12,8 +13,21 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import yfinance as yf
 
-from app.api.services.investment_benchmarks import YAHOO_SYMBOL_BY_ISIN, normalize_isin
+from app.api.services.investment_benchmarks import (
+    ISIN_CLASIFICACION,
+    ISIN_FALLBACK_LABEL,
+    YAHOO_SYMBOL_BY_ISIN,
+    normalize_isin,
+)
 from app.api.services.supabase.supabase_service import supabase_service
+from app.core.config import settings
+
+_CLAS_LABEL_ES: Dict[str, str] = {
+    "renta_variable": "Renta variable",
+    "renta_fija": "Renta fija",
+    "fondos_monetarios": "Fondo monetario",
+    "criptoactivos": "Criptoactivos",
+}
 
 
 _INFO_KEYS: frozenset[str] = frozenset(
@@ -94,6 +108,105 @@ def _filter_info(inf: Dict[str, Any]) -> Dict[str, Any]:
         if k not in _INFO_KEYS:
             continue
         out[k] = _json_safe(v)
+    return out
+
+
+def _info_value_is_weak(v: Any) -> bool:
+    if v is None:
+        return True
+    if isinstance(v, str) and not v.strip():
+        return True
+    return False
+
+
+def _composition_meaningful(comp: Any) -> bool:
+    if not isinstance(comp, dict):
+        return False
+    if str(comp.get("description") or "").strip():
+        return True
+    th = comp.get("top_holdings")
+    if isinstance(th, list) and len(th) > 0:
+        return True
+    sw = comp.get("sector_weightings")
+    if isinstance(sw, dict) and len(sw) > 0:
+        return True
+    if isinstance(sw, list) and len(sw) > 0:
+        return True
+    return False
+
+
+def _composition_score(comp: Any) -> int:
+    if not isinstance(comp, dict):
+        return 0
+    s = min(4000, len(str(comp.get("description") or "").strip()))
+    th = comp.get("top_holdings")
+    if isinstance(th, list):
+        s += len(th) * 25
+    sw = comp.get("sector_weightings")
+    if isinstance(sw, dict):
+        s += len(sw) * 8
+    elif isinstance(sw, list):
+        s += len(sw) * 8
+    fo = comp.get("fund_overview")
+    if isinstance(fo, dict) and len(fo) > 0:
+        s += 12
+    return s
+
+
+def _fund_detail_payload_score(detail: Dict[str, Any]) -> int:
+    inf = detail.get("info") if isinstance(detail.get("info"), dict) else {}
+    score = 0
+    for k in _INFO_KEYS:
+        if not _info_value_is_weak(inf.get(k)):
+            score += 2
+    score += _composition_score(detail.get("composition"))
+    return score
+
+
+def _enrich_detail_static_isin(detail: Dict[str, Any], cache_key: str) -> None:
+    """Rellena nombre/categoría desde catálogo interno si Yahoo no expone fundamentals (404 habituales)."""
+    if cache_key.startswith("CRYPTO:"):
+        return
+    try:
+        isin = normalize_isin(cache_key)
+    except ValueError:
+        return
+    inf = detail.get("info")
+    if not isinstance(inf, dict):
+        inf = {}
+        detail["info"] = inf
+    if _info_value_is_weak(inf.get("isin")):
+        inf["isin"] = isin
+    label = ISIN_FALLBACK_LABEL.get(isin)
+    if label:
+        if _info_value_is_weak(inf.get("longName")):
+            inf["longName"] = label
+        if _info_value_is_weak(inf.get("shortName")):
+            inf["shortName"] = label
+    clas = ISIN_CLASIFICACION.get(isin)
+    if clas and _info_value_is_weak(inf.get("category")):
+        inf["category"] = _CLAS_LABEL_ES.get(clas, clas)
+
+
+def _merge_fund_detail_payloads_prefer_richer(old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+    """Evita que un fetch vacío desde Yahoo (p. ej. datacenter en prod) borre una ficha buena ya guardada."""
+    out = copy.deepcopy(new)
+    old_inf = old.get("info") if isinstance(old.get("info"), dict) else {}
+    out_inf = out.get("info") if isinstance(out.get("info"), dict) else {}
+    merged_inf = dict(out_inf)
+    for k in _INFO_KEYS:
+        if _info_value_is_weak(merged_inf.get(k)) and not _info_value_is_weak(old_inf.get(k)):
+            merged_inf[k] = copy.deepcopy(old_inf[k])
+    out["info"] = merged_inf
+
+    ocs = _composition_score(old.get("composition"))
+    ncs = _composition_score(out.get("composition"))
+    if ocs > ncs:
+        out["composition"] = copy.deepcopy(old.get("composition"))
+        out["composition_error"] = old.get("composition_error")
+    comp = out.get("composition")
+    if isinstance(comp, dict) and _composition_meaningful(comp):
+        out["composition_error"] = None
     return out
 
 
@@ -264,6 +377,7 @@ def _fetch_fund_detail_sync(cache_key: str, yahoo_symbol: str) -> Dict[str, Any]
     except Exception:
         pass
 
+    _enrich_detail_static_isin(detail, cache_key)
     return detail
 
 
@@ -274,10 +388,12 @@ async def get_or_build_fund_detail(isin: Optional[str], symbol: Optional[str]) -
     """
     ck = _cache_key(isin, symbol)
     ysym = _resolve_yahoo_symbol(isin, symbol)
+    cached_row_for_fallback: Optional[Dict[str, Any]] = None
 
     if supabase_service.is_connected():
         row = await asyncio.to_thread(supabase_service.get_investment_fund_detail_cache, ck)
         if row and isinstance(row.get("payload"), dict):
+            cached_row_for_fallback = row
             payload = row["payload"]
             for_crypto = bool(symbol and not isin)
             key_for_name = normalize_isin(isin) if isin else ck
@@ -293,7 +409,32 @@ async def get_or_build_fund_detail(isin: Optional[str], symbol: Optional[str]) -
                     "detail": payload,
                 }, True, ck
 
-    detail = await asyncio.to_thread(_fetch_fund_detail_sync, ck, ysym)
+    timeout_s = max(5.0, min(120.0, float(settings.FUND_DETAIL_FETCH_TIMEOUT_SECONDS)))
+    try:
+        detail = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_fund_detail_sync, ck, ysym),
+            timeout=timeout_s,
+        )
+    except asyncio.TimeoutError:
+        if cached_row_for_fallback and isinstance(cached_row_for_fallback.get("payload"), dict):
+            pl = cached_row_for_fallback["payload"]
+            return {
+                "success": True,
+                "cached": True,
+                "cache_key": ck,
+                "yahoo_symbol": cached_row_for_fallback.get("yahoo_symbol") or ysym,
+                "updated_at": cached_row_for_fallback.get("updated_at"),
+                "detail": pl,
+                "serve_stale_reason": "yahoo_fetch_timeout",
+            }, True, ck
+        raise RuntimeError(
+            f"La ficha tardó más de {timeout_s:.0f}s (Yahoo/yfinance) y no hay caché previa."
+        ) from None
+
+    if cached_row_for_fallback and isinstance(cached_row_for_fallback.get("payload"), dict):
+        detail = _merge_fund_detail_payloads_prefer_richer(cached_row_for_fallback["payload"], detail)
+    _enrich_detail_static_isin(detail, ck)
+
     now_iso = datetime.now(timezone.utc).isoformat()
 
     if supabase_service.is_connected():

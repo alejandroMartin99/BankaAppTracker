@@ -1609,6 +1609,7 @@ export class InversionComponent implements OnInit {
   }
 
   private static readonly FUND_DETAIL_ESSENTIAL_FIELDS: ReadonlyArray<{ key: string; label: string }> = [
+    { key: 'longName', label: 'Nombre' },
     { key: 'category', label: 'Categoría' },
     { key: 'fundFamily', label: 'Familia del fondo' },
     { key: 'currency', label: 'Divisa' },

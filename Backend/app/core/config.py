@@ -59,6 +59,13 @@ class Settings(BaseSettings):
         description="Hora diaria del servidor para refrescar series de inversión en Supabase (0-23, default 9)",
     )
 
+    FUND_DETAIL_FETCH_TIMEOUT_SECONDS: float = Field(
+        default=25.0,
+        ge=5.0,
+        le=120.0,
+        description="Tope de tiempo para construir la ficha con yfinance (Render corta ~30s; sin tope el cliente ve carga infinita)",
+    )
+
     # Si true, expone GET /test con detalles de diagnóstico (solo desarrollo)
     ENABLE_DIAGNOSTIC_ENDPOINT: bool = Field(default=False)
 
