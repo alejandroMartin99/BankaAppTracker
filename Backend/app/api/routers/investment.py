@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.deps import get_current_user
@@ -189,11 +189,13 @@ async def remove_investment_fund(
     response_model=Dict[str, Any],
 )
 async def get_investment_fund_detail(
+    response: Response,
     isin: Optional[str] = Query(None, min_length=12, max_length=12),
     symbol: Optional[str] = Query(None, description="Par Yahoo p. ej. BTC-USD (cripto)"),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     _ = user
+    response.headers["Cache-Control"] = "no-store, private"
     if (isin is None or isin.strip() == "") == (symbol is None or symbol.strip() == ""):
         raise HTTPException(
             status_code=400,
