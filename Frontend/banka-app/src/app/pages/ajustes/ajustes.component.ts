@@ -648,6 +648,7 @@ export class AjustesComponent implements OnInit {
       const n = res.updated ?? updatedIds.length;
       this.bulkResultMessage = n === 1 ? '1 movimiento actualizado.' : `${n} movimientos actualizados.`;
       this.reconcileDraftSubcategories();
+      this.transactionService.dataRefresh$.next();
     } catch (err: any) {
       this.bulkBarError = err?.error?.detail || 'Error al actualizar categorías';
     } finally {
@@ -675,6 +676,7 @@ export class AjustesComponent implements OnInit {
       const n = res.deleted ?? deletedIds.length;
       this.bulkResultMessage =
         n === 0 ? 'Ningún movimiento eliminado.' : n === 1 ? '1 movimiento eliminado.' : `${n} movimientos eliminados.`;
+      if (n > 0) this.transactionService.dataRefresh$.next();
     } catch (err: any) {
       this.bulkBarError = err?.error?.detail || 'Error al eliminar';
     } finally {
@@ -818,6 +820,7 @@ export class AjustesComponent implements OnInit {
         delete this.draftSubcategoriaCustom[draftKey];
         this.lastSavedId = t.id || null;
         this.lastSaveMessage = 'Cambios guardados';
+        this.transactionService.dataRefresh$.next();
       },
       error: (err) => {
         console.error('[Ajustes] error saveCategory', err);
@@ -887,6 +890,7 @@ export class AjustesComponent implements OnInit {
         delete this.draftSubcategoria[key];
         this.deletingEdit = false;
         this.closeEditModal();
+        this.transactionService.dataRefresh$.next();
       },
       error: (err) => {
         this.editError = err.error?.detail || 'Error al eliminar';
@@ -920,6 +924,7 @@ export class AjustesComponent implements OnInit {
         if (descripcion !== undefined) tx.descripcion = descripcion;
         this.savingEdit = false;
         this.closeEditModal();
+        this.transactionService.dataRefresh$.next();
       },
       error: (err) => {
         this.editError = err.error?.detail || 'Error al guardar';

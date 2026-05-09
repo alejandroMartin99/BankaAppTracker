@@ -388,6 +388,7 @@ export class LayoutComponent {
 
   logout() {
     this.closeProfileMenu();
+    this.transactionService.clearTransactionsCache();
     this.auth.signOut();
     void this.router.navigateByUrl('/login', { replaceUrl: true });
   }

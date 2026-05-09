@@ -1,8 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, Subject } from 'rxjs';
-import { Transaction, TransactionResponse, TransactionQueryParams, BalancesResponse, AccountsResponse } from '../models/transaction.model';
+import { Observable, Subject, of } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
+import {
+  Transaction,
+  TransactionResponse,
+  TransactionQueryParams,
+  BalancesResponse,
+  AccountsResponse,
+} from '../models/transaction.model';
 import { environment } from '../../environment';
+
+/** TTL caché en memoria de GET transactions y GET balances (ms); invalidación vía `dataRefresh$` y logout. */
+const TRANSACTIONS_CACHE_TTL_MS = 15 * 60 * 1000;
 
 /** Respuesta de GET /GET/category-catalog (transacciones del usuario en BD + reglas del importador). */
 export interface CategoryCatalogResponse {
@@ -62,7 +72,96 @@ export class TransactionService {
   /** Emitido tras subir archivo para refrescar datos */
   readonly dataRefresh$ = new Subject<void>();
 
-  constructor(private http: HttpClient) {}
+  /**
+   * Snapshot completo del GET /transactions (sin filtros). El backend devuelve hasta 10k filas recientes.
+   * Filtros por fecha y paginación se aplican en cliente sobre esta copia.
+   */
+  private transactionsSnapshot: { body: TransactionResponse; storedAt: number } | null = null;
+
+  /** Snapshot de GET /balances (saldos por cuenta mostrados en Gastos). */
+  private balancesSnapshot: { body: BalancesResponse; storedAt: number } | null = null;
+
+  constructor(private http: HttpClient) {
+    this.dataRefresh$.subscribe(() => this.clearTransactionsCache());
+  }
+
+  /** Vacía caché de transacciones y saldos (logout, invalidación explícita). */
+  clearTransactionsCache(): void {
+    this.transactionsSnapshot = null;
+    this.balancesSnapshot = null;
+  }
+
+  private cloneTransactionResponse(r: TransactionResponse): TransactionResponse {
+    return structuredClone(r);
+  }
+
+  private cloneBalancesResponse(r: BalancesResponse): BalancesResponse {
+    return structuredClone(r);
+  }
+
+  private txDay(dt: string | undefined | null): string {
+    const s = (dt ?? '').toString().trim();
+    if (!s) return '';
+    return s.length >= 10 ? s.slice(0, 10) : s;
+  }
+
+  private rowInDateRange(row: Transaction, from?: string, to?: string): boolean {
+    const d = this.txDay(row.dt_date ?? (row as { transaction_date?: string }).transaction_date);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  }
+
+  /**
+   * Aplica from/to, luego limit/offset sobre el snapshot ya ordenado (desc. como el API).
+   */
+  private applyFiltersOnSnapshot(
+    fullResponse: TransactionResponse,
+    params?: TransactionQueryParams,
+  ): TransactionResponse {
+    const rows = Array.isArray(fullResponse.data) ? fullResponse.data : [];
+    const from = params?.from_date?.trim();
+    const to = params?.to_date?.trim();
+    const filtered =
+      from || to ? rows.filter((r) => this.rowInDateRange(r as Transaction, from, to)) : [...rows];
+    const total = filtered.length;
+    const limit = params?.limit;
+    const offset = params?.offset ?? 0;
+    let page = filtered;
+    if (limit != null && limit > 0) {
+      page = filtered.slice(offset, offset + limit);
+    } else if (offset > 0) {
+      page = filtered.slice(offset);
+    }
+    const out: TransactionResponse = {
+      success: fullResponse.success,
+      count: total,
+      data: page,
+    };
+    if (params?.limit != null) out.limit = params.limit;
+    if (params?.offset !== undefined) out.offset = params.offset;
+    return out;
+  }
+
+  /** Una sola petición HTTP sin query (histórico reciente hasta tope del servidor). */
+  private ensureFullTransactionsSnapshot(): Observable<TransactionResponse> {
+    const now = Date.now();
+    if (
+      this.transactionsSnapshot &&
+      now - this.transactionsSnapshot.storedAt < TRANSACTIONS_CACHE_TTL_MS
+    ) {
+      return of(this.cloneTransactionResponse(this.transactionsSnapshot.body));
+    }
+    return this.http.get<TransactionResponse>(this.transactionsUrl).pipe(
+      tap((body) => {
+        this.transactionsSnapshot = {
+          body: this.cloneTransactionResponse(body),
+          storedAt: Date.now(),
+        };
+      }),
+    );
+  }
 
   /**
    * Sube archivo de extracto (Excel o CSV) para importar transacciones
@@ -74,7 +173,21 @@ export class TransactionService {
   }
 
   getBalances(): Observable<BalancesResponse> {
-    return this.http.get<BalancesResponse>(this.balancesUrl);
+    const now = Date.now();
+    if (
+      this.balancesSnapshot &&
+      now - this.balancesSnapshot.storedAt < TRANSACTIONS_CACHE_TTL_MS
+    ) {
+      return of(this.cloneBalancesResponse(this.balancesSnapshot.body));
+    }
+    return this.http.get<BalancesResponse>(this.balancesUrl).pipe(
+      tap((body) => {
+        this.balancesSnapshot = {
+          body: this.cloneBalancesResponse(body),
+          storedAt: Date.now(),
+        };
+      }),
+    );
   }
 
   /**
@@ -92,28 +205,13 @@ export class TransactionService {
   }
 
   /**
-   * Obtiene transacciones con filtros opcionales
-   * @param params Parámetros de consulta (from_date, to_date, limit, offset)
+   * Lista de transacciones: una petición al backend sin filtros (caché TTL), luego filtro por fechas
+   * y paginación en memoria. Los parámetros limit/offset del backend no existen; solo afectan al cliente.
    */
   getTransactions(params?: TransactionQueryParams): Observable<TransactionResponse> {
-    let httpParams = new HttpParams();
-
-    if (params) {
-      if (params.from_date) {
-        httpParams = httpParams.set('from_date', params.from_date);
-      }
-      if (params.to_date) {
-        httpParams = httpParams.set('to_date', params.to_date);
-      }
-      if (params.limit) {
-        httpParams = httpParams.set('limit', params.limit.toString());
-      }
-      if (params.offset !== undefined) {
-        httpParams = httpParams.set('offset', params.offset.toString());
-      }
-    }
-
-    return this.http.get<TransactionResponse>(this.transactionsUrl, { params: httpParams });
+    return this.ensureFullTransactionsSnapshot().pipe(
+      map((full) => this.applyFiltersOnSnapshot(full, params)),
+    );
   }
 
   /**

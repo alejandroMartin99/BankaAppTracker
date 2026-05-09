@@ -1030,7 +1030,7 @@ export class HipotecasComponent implements OnInit {
   private loadTransactions(): void {
     this.loading = true;
     this.error = null;
-    this.transactionService.getTransactions({ limit: 5000, offset: 0 }).subscribe({
+    this.transactionService.getTransactions().subscribe({
       next: (res) => {
         this.transactions = Array.isArray(res?.data) ? res.data : [];
         this.loading = false;

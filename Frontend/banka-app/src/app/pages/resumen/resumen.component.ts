@@ -202,8 +202,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
     this.transactionService.getTransactions({
       from_date: this.fromDate || undefined,
       to_date: this.toDate || undefined,
-      limit: 1000,
-      offset: 0
     }).subscribe({
       next: (res) => {
         const raw = res?.data;

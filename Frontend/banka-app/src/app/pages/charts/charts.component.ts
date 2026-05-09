@@ -187,9 +187,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     const { from, to } = this.getDateRange();
     this.transactionService.getTransactions({
       from_date: from,
-      to_date: to,
-      limit: 5000,
-      offset: 0
+      to_date: to
     }).subscribe({
       next: (res) => {
         const raw = res?.data;
