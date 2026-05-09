@@ -15,12 +15,15 @@ export class ThemeService {
     if (cached) this.themeState.set(cached);
     this.applyThemeClass(this.themeState());
 
-    effect(() => {
-      const user = this.auth.user();
-      if (!user) return;
-      const preferred = this.auth.preferredTheme();
-      this.setTheme(preferred, false);
-    });
+    effect(
+      () => {
+        const user = this.auth.user();
+        if (!user) return;
+        const preferred = this.auth.preferredTheme();
+        this.setTheme(preferred, false);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   async toggleTheme(): Promise<void> {

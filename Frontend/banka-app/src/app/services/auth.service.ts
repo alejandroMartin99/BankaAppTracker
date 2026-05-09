@@ -30,10 +30,12 @@ export class AuthService {
   });
 
   constructor() {
-    this.supabase = createClient(
-      environment.supabaseUrl,
-      environment.supabaseAnonKey
-    );
+    this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: {
+        // Evita NavigatorLockAcquireTimeoutError cuando LockManager falla o compite (Chrome/ varias pestañas).
+        lock: async <R,>(_name: string, _acquireTimeout: number, fn: () => Promise<R>) => fn(),
+      },
+    });
     this.sessionReady = this.supabase.auth.getSession().then(({ data: { session } }) => {
       this.session.set(session);
     });
