@@ -38,6 +38,10 @@ const CHART_COLORS = [
   '#4b5563',
 ];
 
+const CHART_COLOR_OVERRIDES_BY_KEY = new Map<string, string>([
+  ['FR0000989626', '#38bdf8'],
+]);
+
 interface ChartSeriesRow {
   seriesKey: string;
   isin: string;
@@ -1268,7 +1272,7 @@ export class InversionComponent implements OnInit {
     for (const it of order) {
       const k = this.seriesKeyFor(it);
       if (!next.has(k)) {
-        next.set(k, CHART_COLORS[colorIdx % CHART_COLORS.length]);
+        next.set(k, CHART_COLOR_OVERRIDES_BY_KEY.get(k) ?? CHART_COLORS[colorIdx % CHART_COLORS.length]);
         colorIdx++;
       }
     }
