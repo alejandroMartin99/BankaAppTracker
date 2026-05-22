@@ -1,27 +1,45 @@
 """
-Detección automática de pagos mensuales recurrentes a partir del histórico de gastos.
+Detección automática de cargos e ingresos mensuales recurrentes.
 """
 
 from __future__ import annotations
 
 import re
 import statistics
+from collections import Counter
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from app.api.services.pipe_extract_transactions.internal_transfer_detection import (
     detect_internal_transfer_ids,
 )
 from app.api.services.supabase.supabase_service import supabase_service
 
-MIN_OCCURRENCES = 3
+MIN_OCCURRENCES = 2
 LOOKBACK_MONTHS = 14
-MIN_INTERVAL_DAYS = 25
-MAX_INTERVAL_DAYS = 38
-MAX_AMOUNT_CV = 0.25
+MAX_AMOUNT_CV_DEFAULT = 0.40
+MAX_AMOUNT_CV_VARIABLE = 0.60
+MAX_AMOUNT_CV_SUBSCRIPTION = 0.80
 GENERIC_SUBS = frozenset({"", "sin subcategoría", "sin subcategoria", "otros", "other", "n/a"})
-EXCLUDE_CATEGORIES = frozenset({"transferencia", "bizum", "nómina", "nomina", "ingresos"})
+STRUCTURED_CATEGORIES = frozenset({
+    "vivienda", "seguros", "suministros", "formación", "formacion", "banco",
+    "nómina", "nomina",
+})
+INCOME_CATEGORIES = frozenset({"nómina", "nomina"})
+VARIABLE_AMOUNT_CATEGORIES = frozenset({"suministros", "seguros", "formación", "formacion", "nómina", "nomina"})
+EXCLUDE_EXPENSE_CATEGORIES = frozenset({
+    "transferencia", "bizum", "nómina", "nomina", "ingresos",
+    "supermercado", "restaurantes", "ocio", "ropa", "transporte", "hogar",
+    "bienestar", "inversiones",
+})
+_HOGAR_DESC_RE = re.compile(
+    r"IKEA|JYSK|LEROY|AMAZON|ALIEXPRESS|OBRAMAT|HIPERHOGAR|HOGARDEXTER|"
+    r"CMB SUPERKIT|RESTANTE MESA",
+    re.IGNORECASE,
+)
+_AGUA_DESC_RE = re.compile(r"AGUA|CANAL DE ISABEL|AQUALIA|EMASESA", re.IGNORECASE)
+_LUZ_DESC_RE = re.compile(r"\bLUZ\b|COMERCIALIZADORA|ENERG", re.IGNORECASE)
 
 
 def _parse_date(raw: Any) -> Optional[date]:
@@ -50,108 +68,274 @@ def _normalize_desc(descripcion: str) -> str:
     return s[:80] if s else ""
 
 
+def _cat_slug(cat: str) -> str:
+    return re.sub(r"\s+", "_", (cat or "").strip().upper())[:40]
+
+
+def _cv_limit_for_category(cat_l: str) -> float:
+    if cat_l in ("formación", "formacion"):
+        return MAX_AMOUNT_CV_SUBSCRIPTION
+    if cat_l in VARIABLE_AMOUNT_CATEGORIES:
+        return MAX_AMOUNT_CV_VARIABLE
+    if cat_l == "vivienda":
+        return 0.15
+    return MAX_AMOUNT_CV_DEFAULT
+
+
+def _is_hipoteca_tx(tx: Dict[str, Any]) -> bool:
+    cat_l = str(tx.get("categoria") or "").strip().lower()
+    sub_l = str(tx.get("subcategoria") or "").strip().lower()
+    desc_u = str(tx.get("descripcion") or "").upper()
+    if cat_l == "vivienda" and (not sub_l or "hipoteca" in sub_l or "prestamo" in sub_l):
+        return True
+    return bool(re.search(r"HIPOTECA|PRESTAMO[\s-]*CREDITO|OPERACION PRESTAMO", desc_u, re.IGNORECASE))
+
+
+def _is_luz_tx(tx: Dict[str, Any]) -> bool:
+    cat_l = str(tx.get("categoria") or "").strip().lower()
+    sub_l = str(tx.get("subcategoria") or "").strip().lower()
+    blob = f"{tx.get('descripcion') or ''} {tx.get('subcategoria') or ''}"
+    if cat_l == "suministros" and (sub_l == "luz" or "luz" in sub_l):
+        return True
+    return bool(_LUZ_DESC_RE.search(blob))
+
+
+CORE_PATTERN_SPECS: List[Tuple[str, str, str, Callable[[Dict[str, Any]], bool]]] = [
+    ("VIVIENDA|HIPOTECA", "Hipoteca", "Vivienda", _is_hipoteca_tx),
+    ("SUMINISTROS|LUZ", "Luz", "Suministros", _is_luz_tx),
+]
+
+
+def _is_income_candidate(tx: Dict[str, Any]) -> bool:
+    if float(tx.get("importe") or 0) <= 0:
+        return False
+    cat_l = str(tx.get("categoria") or "").strip().lower()
+    if cat_l in INCOME_CATEGORIES:
+        return True
+    sub_u = str(tx.get("subcategoria") or "").upper()
+    desc_u = str(tx.get("descripcion") or "").upper()
+    return "INDRA" in sub_u or "PLUXEE" in sub_u or "NOMINA" in desc_u or "NÓMINA" in desc_u
+
+
 def _pattern_key_for_tx(tx: Dict[str, Any]) -> Tuple[str, str]:
-    """Devuelve (pattern_key, label)."""
+    if _is_hipoteca_tx(tx):
+        return "VIVIENDA|HIPOTECA", "Hipoteca"
+    if _is_luz_tx(tx):
+        return "SUMINISTROS|LUZ", "Luz"
+
     imp = float(tx.get("importe") or 0)
-    amount_bucket = round(abs(imp))
+    cat = str(tx.get("categoria") or ("Nómina" if imp > 0 else "")).strip()
+    cat_l = cat.lower()
     sub = str(tx.get("subcategoria") or "").strip()
     sub_l = sub.lower()
+    cat_part = _cat_slug(cat) or ("NOMINA" if imp > 0 else "GASTO")
+
     if sub and sub_l not in GENERIC_SUBS:
-        base = re.sub(r"\s+", "_", sub.upper())[:60]
-        return f"{base}|{amount_bucket}", sub
-    desc = _normalize_desc(str(tx.get("descripcion") or ""))
+        sub_part = re.sub(r"\s+", "_", sub.upper())[:50]
+        return f"{cat_part}|{sub_part}", sub
+
+    desc_raw = str(tx.get("descripcion") or "")
+    if cat_l in STRUCTURED_CATEGORIES or _AGUA_DESC_RE.search(desc_raw):
+        desc = _normalize_desc(desc_raw)
+        if _AGUA_DESC_RE.search(desc_raw) and "AGUA" not in (desc or ""):
+            return f"{cat_part}|AGUA", "Agua"
+        if len(desc) >= 4:
+            words = desc.split()[:3]
+            return f"{cat_part}|{'_'.join(words)}", desc.title()[:80]
+        return f"{cat_part}|GENERAL", cat or ("Nómina" if imp > 0 else "Gasto")
+
+    desc = _normalize_desc(desc_raw)
     if len(desc) >= 4:
-        base = re.sub(r"\s+", "_", desc)[:60]
-        label = desc.title()[:80]
-        return f"{base}|{amount_bucket}", label
-    cat = str(tx.get("categoria") or "Gasto").strip()
-    return f"{cat}|{amount_bucket}", cat
+        words = desc.split()[:3]
+        return f"{cat_part}|{'_'.join(words)}", desc.title()[:80]
+    return f"{cat_part}|GENERAL", cat or ("Nómina" if imp > 0 else "Gasto")
 
 
-def _should_exclude_tx(tx: Dict[str, Any], internal_ids: Set[str]) -> bool:
+def _tx_matches_pattern_key(tx: Dict[str, Any], pattern_key: str) -> bool:
+    return _pattern_key_for_tx(tx)[0] == pattern_key.strip()
+
+
+def _is_hogar_purchase(tx: Dict[str, Any]) -> bool:
+    cat_l = str(tx.get("categoria") or "").strip().lower()
+    if cat_l in ("seguros", "suministros", "vivienda", "formación", "formacion", "nómina", "nomina"):
+        return False
+    if cat_l == "hogar":
+        return True
+    blob = f"{tx.get('descripcion') or ''} {tx.get('subcategoria') or ''}"
+    return bool(_HOGAR_DESC_RE.search(blob))
+
+
+def _should_exclude_expense_tx(tx: Dict[str, Any], internal_ids: Set[str]) -> bool:
+    tid = str(tx.get("transaction_id") or tx.get("id") or "")
+    if tid and tid in internal_ids and not _is_hipoteca_tx(tx):
+        return True
+    if float(tx.get("importe") or 0) >= 0:
+        return True
+    cat = str(tx.get("categoria") or "").strip().lower()
+    if cat in EXCLUDE_EXPENSE_CATEGORIES:
+        return True
+    return _is_hogar_purchase(tx)
+
+
+def _should_exclude_income_tx(tx: Dict[str, Any], internal_ids: Set[str]) -> bool:
+    if not _is_income_candidate(tx):
+        return True
     tid = str(tx.get("transaction_id") or tx.get("id") or "")
     if tid and tid in internal_ids:
         return True
-    imp = float(tx.get("importe") or 0)
-    if imp >= 0:
-        return True
     cat = str(tx.get("categoria") or "").strip().lower()
-    if cat in EXCLUDE_CATEGORIES:
+    if cat in ("transferencia", "bizum"):
         return True
-    if cat == "vivienda":
-        sub = str(tx.get("subcategoria") or "").lower()
-        if "hipoteca" in sub or "hipoteca" in str(tx.get("descripcion") or "").lower():
-            return True
     return False
+
+
+def _drop_amount_outliers(txs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if len(txs) < 3:
+        return txs
+    amounts = [abs(float(t.get("importe") or 0)) for t in txs]
+    med = statistics.median(amounts)
+    if med <= 0:
+        return txs
+    return [t for t in txs if abs(float(t.get("importe") or 0)) >= med * 0.22]
+
+
+def _dedupe_one_per_month(txs: List[Dict[str, Any]], pick_largest: bool = True) -> List[Dict[str, Any]]:
+    by_month: Dict[Tuple[int, int], Dict[str, Any]] = {}
+    for tx in txs:
+        d = _parse_date(tx.get("dt_date"))
+        if not d:
+            continue
+        k = (d.year, d.month)
+        cur = by_month.get(k)
+        imp = abs(float(tx.get("importe") or 0))
+        if cur is None:
+            by_month[k] = tx
+            continue
+        cur_imp = abs(float(cur.get("importe") or 0))
+        if (pick_largest and imp > cur_imp) or (not pick_largest and imp < cur_imp):
+            by_month[k] = tx
+    return list(by_month.values())
+
+
+def _distinct_month_count(dates: List[date]) -> int:
+    return len({(d.year, d.month) for d in dates})
+
+
+def _is_monthly_cluster(dates: List[date], cat_l: str = "") -> bool:
+    if len(dates) < MIN_OCCURRENCES:
+        return False
+    if _distinct_month_count(dates) < MIN_OCCURRENCES:
+        return False
+    if cat_l in STRUCTURED_CATEGORIES or cat_l in ("vivienda", "suministros", "seguros"):
+        return True
+    if len(dates) >= 3:
+        ordered = sorted(dates)
+        gaps = [(ordered[i] - ordered[i - 1]).days for i in range(1, len(ordered))]
+        med = float(statistics.median(gaps))
+        if 18 <= med <= 50:
+            return True
+    return _distinct_month_count(dates) >= MIN_OCCURRENCES
 
 
 def _amounts_match(a: float, b: float, cv: float) -> bool:
     aa, bb = abs(a), abs(b)
     if aa <= 0 or bb <= 0:
         return False
-    tol = 0.12 if cv < 0.12 else 0.25
+    tol = 0.15 if cv < 0.15 else (0.30 if cv < 0.45 else 0.45)
     return abs(aa - bb) <= max(aa, bb) * tol
 
 
-def _median_interval_days(dates: List[date]) -> Optional[float]:
-    if len(dates) < 2:
+def _build_pattern_record(
+    key: str,
+    label: str,
+    categoria: str,
+    txs: List[Dict[str, Any]],
+    is_income: bool,
+) -> Optional[Dict[str, Any]]:
+    txs = _dedupe_one_per_month(_drop_amount_outliers(txs), pick_largest=True)
+    if len(txs) < MIN_OCCURRENCES:
         return None
-    ordered = sorted(dates)
-    gaps = [(ordered[i] - ordered[i - 1]).days for i in range(1, len(ordered))]
-    return float(statistics.median(gaps))
+    dates = [_parse_date(t.get("dt_date")) for t in txs]
+    dates = [d for d in dates if d]
+    cat_l = categoria.lower()
+    if not _is_monthly_cluster(dates, cat_l):
+        return None
+    amounts = [abs(float(t.get("importe") or 0)) for t in txs]
+    if not amounts:
+        return None
+    mean_a = statistics.mean(amounts)
+    if mean_a <= 0:
+        return None
+    cv = (statistics.pstdev(amounts) / mean_a) if len(amounts) > 1 else 0.0
+    if cv > _cv_limit_for_category(cat_l):
+        return None
+    days = sorted(d.day for d in dates)
+    expected_day = max(1, min(28, int(statistics.median(days))))
+    signed_amount = round(mean_a, 2) if is_income else round(-mean_a, 2)
+    return {
+        "pattern_key": key,
+        "label": label,
+        "categoria": categoria,
+        "typical_amount": signed_amount,
+        "expected_day_of_month": expected_day,
+        "amount_cv": round(cv, 4),
+        "occurrence_count": len(txs),
+        "transactions": txs,
+        "is_income": is_income,
+    }
 
 
-def _detect_patterns(expenses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Agrupa gastos y devuelve patrones mensuales válidos."""
+def _detect_patterns(transactions: List[Dict[str, Any]], is_income: bool = False) -> List[Dict[str, Any]]:
     by_key: Dict[str, List[Dict[str, Any]]] = {}
     labels: Dict[str, str] = {}
-    for tx in expenses:
+    for tx in transactions:
         key, label = _pattern_key_for_tx(tx)
         by_key.setdefault(key, []).append(tx)
-        if label and (key not in labels or len(label) > len(labels[key])):
+        if label and (key not in labels or len(label) > len(labels.get(key, ""))):
             labels[key] = label
 
     patterns: List[Dict[str, Any]] = []
-    for key, txs in by_key.items():
-        if len(txs) < MIN_OCCURRENCES:
+    for key, raw_txs in by_key.items():
+        if not is_income and any(_is_hogar_purchase(t) for t in raw_txs):
             continue
-        dates = [_parse_date(t.get("dt_date")) for t in txs]
-        dates = [d for d in dates if d]
-        if len(dates) < MIN_OCCURRENCES:
-            continue
-        median_gap = _median_interval_days(dates)
-        if median_gap is None or not (MIN_INTERVAL_DAYS <= median_gap <= MAX_INTERVAL_DAYS):
-            continue
-        amounts = [abs(float(t.get("importe") or 0)) for t in txs]
-        if not amounts:
-            continue
-        mean_a = statistics.mean(amounts)
-        if mean_a <= 0:
-            continue
-        cv = (statistics.pstdev(amounts) / mean_a) if len(amounts) > 1 else 0.0
-        if cv > MAX_AMOUNT_CV:
-            continue
-        days = sorted(d.day for d in dates)
-        expected_day = int(statistics.median(days))
-        expected_day = max(1, min(28, expected_day))
-        last_tx = max(txs, key=lambda t: _parse_date(t.get("dt_date")) or date.min)
-        patterns.append(
-            {
-                "pattern_key": key,
-                "label": labels.get(key, key),
-                "typical_amount": round(-mean_a, 2),
-                "expected_day_of_month": expected_day,
-                "amount_cv": round(cv, 4),
-                "occurrence_count": len(txs),
-                "transactions": txs,
-            }
-        )
-    patterns.sort(key=lambda p: p["label"].lower())
+        label = labels.get(key, key)
+        cat = str(raw_txs[0].get("categoria") or ("Nómina" if is_income else ""))
+        if key == "VIVIENDA|HIPOTECA":
+            label, cat = "Hipoteca", "Vivienda"
+        elif key == "SUMINISTROS|LUZ":
+            label, cat = "Luz", "Suministros"
+        rec = _build_pattern_record(key, label, cat, raw_txs, is_income)
+        if rec:
+            patterns.append(rec)
+    patterns.sort(key=lambda p: (p.get("categoria") or "", p["label"].lower()))
     return patterns
 
 
+def _ensure_core_patterns(
+    pool: List[Dict[str, Any]],
+    patterns: List[Dict[str, Any]],
+    dismissed: Set[str],
+    is_income: bool,
+) -> List[Dict[str, Any]]:
+    if is_income:
+        return patterns
+    existing = {p["pattern_key"] for p in patterns}
+    out = list(patterns)
+    for key, label, categoria, matcher in CORE_PATTERN_SPECS:
+        if key in dismissed or key in existing:
+            continue
+        txs = [t for t in pool if matcher(t)]
+        if not txs:
+            continue
+        rec = _build_pattern_record(key, label, categoria, txs, is_income=False)
+        if rec:
+            out.append(rec)
+            existing.add(key)
+    out.sort(key=lambda p: (p.get("categoria") or "", p["label"].lower()))
+    return out
+
+
 def _month_bounds(month: str) -> Tuple[date, date, str]:
-    """month YYYY-MM -> (first day, last day, today iso month)."""
     parts = month.strip().split("-")
     if len(parts) != 2:
         raise ValueError("month debe ser YYYY-MM")
@@ -169,19 +353,28 @@ def _status_for_month(
     month_last: date,
     today: date,
 ) -> Dict[str, Any]:
+    is_income = bool(pattern.get("is_income"))
     cv = float(pattern.get("amount_cv") or 0)
     expected_day = int(pattern["expected_day_of_month"])
     y, m = month_first.year, month_first.month
-    last_dom = monthrange(y, m)[1]
-    dom = min(expected_day, last_dom)
+    dom = min(expected_day, monthrange(y, m)[1])
     expected_date = date(y, m, dom)
 
     paid_tx: Optional[Dict[str, Any]] = None
+    typical = float(pattern["typical_amount"])
     for tx in pattern.get("transactions") or []:
         d = _parse_date(tx.get("dt_date"))
         if not d or d < month_first or d > month_last:
             continue
-        if _amounts_match(float(tx.get("importe") or 0), float(pattern["typical_amount"]), cv):
+        imp = float(tx.get("importe") or 0)
+        if is_income and imp <= 0:
+            continue
+        if not is_income and imp >= 0:
+            continue
+        if _amounts_match(imp, typical, cv):
+            if paid_tx is None or d > (_parse_date(paid_tx.get("dt_date")) or date.min):
+                paid_tx = tx
+        elif abs(imp) > 0 and abs(abs(imp) - abs(typical)) <= abs(typical) * (0.45 if cv >= 0.4 else 0.2):
             if paid_tx is None or d > (_parse_date(paid_tx.get("dt_date")) or date.min):
                 paid_tx = tx
 
@@ -193,21 +386,80 @@ def _status_for_month(
             "paid_transaction_id": paid_tx.get("id"),
             "paid_date": pd.isoformat() if pd else None,
             "paid_amount": float(paid_tx.get("importe") or 0),
+            "paid_cuenta": str(paid_tx.get("cuenta") or "") or None,
         }
 
-    if today > month_last:
-        status = "overdue" if today > expected_date else "pending"
-    elif today <= expected_date:
-        status = "pending"
-    else:
-        status = "overdue"
-
     return {
-        "status": status,
+        "status": "pending",
         "expected_date": expected_date.isoformat(),
         "paid_transaction_id": None,
         "paid_date": None,
         "paid_amount": None,
+    }
+
+
+def _usual_cuenta(txs: List[Dict[str, Any]]) -> Optional[str]:
+    names = [str(t.get("cuenta") or "").strip() for t in txs if str(t.get("cuenta") or "").strip()]
+    if not names:
+        return None
+    return Counter(names).most_common(1)[0][0]
+
+
+def _load_transaction_pools(user_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    today = datetime.now(timezone.utc).date()
+    from_d = today - timedelta(days=LOOKBACK_MONTHS * 31)
+    raw = supabase_service.list_user_transactions(user_id, from_date=from_d.isoformat())
+    internal_ids = detect_internal_transfer_ids(raw)
+    expenses = [t for t in raw if not _should_exclude_expense_tx(t, internal_ids)]
+    incomes = [t for t in raw if not _should_exclude_income_tx(t, internal_ids)]
+    return expenses, incomes
+
+
+def _pool_for_pattern(user_id: str) -> List[Dict[str, Any]]:
+    expenses, incomes = _load_transaction_pools(user_id)
+    return expenses + incomes
+
+
+def build_recurring_payment_history_payload(user_id: str, pattern_key: str) -> Dict[str, Any]:
+    pool = _pool_for_pattern(user_id)
+    key = pattern_key.strip()
+    raw_txs = [t for t in pool if _tx_matches_pattern_key(t, key)]
+    if not raw_txs:
+        raise ValueError("Patrón no encontrado")
+    is_income = float(raw_txs[0].get("importe") or 0) > 0
+    txs = sorted(
+        _dedupe_one_per_month(_drop_amount_outliers(raw_txs)),
+        key=lambda t: _parse_date(t.get("dt_date")) or date.min,
+    )
+    label = _pattern_key_for_tx(txs[0])[1]
+    if key == "VIVIENDA|HIPOTECA":
+        label = "Hipoteca"
+    elif key == "SUMINISTROS|LUZ":
+        label = "Luz"
+    categoria = str(txs[0].get("categoria") or "")
+    if key == "VIVIENDA|HIPOTECA":
+        categoria = "Vivienda"
+    elif key == "SUMINISTROS|LUZ":
+        categoria = "Suministros"
+    history: List[Dict[str, Any]] = []
+    for t in txs:
+        d = _parse_date(t.get("dt_date"))
+        history.append(
+            {
+                "date": d.isoformat() if d else None,
+                "amount": float(t.get("importe") or 0),
+                "cuenta": str(t.get("cuenta") or ""),
+                "transaction_id": t.get("id"),
+            }
+        )
+    return {
+        "success": True,
+        "pattern_key": key,
+        "label": label,
+        "categoria": categoria,
+        "usual_cuenta": _usual_cuenta(txs),
+        "is_income": is_income,
+        "history": history,
     }
 
 
@@ -220,13 +472,13 @@ def build_recurring_payments_payload(user_id: str, month: Optional[str] = None) 
         month_first = date(today.year, today.month, 1)
         month_last = date(today.year, today.month, monthrange(today.year, today.month)[1])
 
-    from_d = today - timedelta(days=LOOKBACK_MONTHS * 31)
-    raw = supabase_service.list_user_transactions(user_id, from_date=from_d.isoformat())
-    internal_ids = detect_internal_transfer_ids(raw)
-    expenses = [t for t in raw if not _should_exclude_tx(t, internal_ids)]
-
+    expenses, incomes = _load_transaction_pools(user_id)
     dismissed = supabase_service.list_dismissed_recurring_pattern_keys(user_id)
-    patterns = [p for p in _detect_patterns(expenses) if p["pattern_key"] not in dismissed]
+
+    patterns = _detect_patterns(expenses, is_income=False)
+    patterns = _ensure_core_patterns(expenses, patterns, dismissed, is_income=False)
+    patterns += _detect_patterns(incomes, is_income=True)
+    patterns = [p for p in patterns if p["pattern_key"] not in dismissed]
 
     items: List[Dict[str, Any]] = []
     for p in patterns:
@@ -235,17 +487,22 @@ def build_recurring_payments_payload(user_id: str, month: Optional[str] = None) 
             {
                 "pattern_key": p["pattern_key"],
                 "label": p["label"],
+                "categoria": p.get("categoria"),
+                "kind": "income" if p.get("is_income") else "expense",
                 "typical_amount": p["typical_amount"],
                 "expected_day_of_month": p["expected_day_of_month"],
                 "amount_cv": p["amount_cv"],
                 "occurrence_count": p["occurrence_count"],
-                **st,
+                "usual_cuenta": _usual_cuenta(p.get("transactions") or []),
+                "paid_cuenta": st.get("paid_cuenta"),
+                **{k: v for k, v in st.items() if k != "paid_cuenta"},
             }
         )
 
-    def sort_key(it: Dict[str, Any]) -> Tuple[int, str]:
-        order = {"overdue": 0, "pending": 1, "paid": 2}
-        return (order.get(it.get("status", ""), 9), it.get("label", ""))
+    def sort_key(it: Dict[str, Any]) -> Tuple[int, str, str]:
+        kind_order = 0 if it.get("kind") == "income" else 1
+        status_order = {"pending": 0, "paid": 1}
+        return (kind_order, status_order.get(it.get("status", ""), 9), it.get("label", ""))
 
     items.sort(key=sort_key)
 
@@ -256,7 +513,7 @@ def build_recurring_payments_payload(user_id: str, month: Optional[str] = None) 
         "summary": {
             "paid": sum(1 for i in items if i["status"] == "paid"),
             "pending": sum(1 for i in items if i["status"] == "pending"),
-            "overdue": sum(1 for i in items if i["status"] == "overdue"),
+            "overdue": 0,
             "total": len(items),
         },
     }

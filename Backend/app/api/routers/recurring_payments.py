@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
 from app.api.errors import internal_server_error
-from app.api.services.recurring_payments import build_recurring_payments_payload
+from app.api.services.recurring_payments import (
+    build_recurring_payment_history_payload,
+    build_recurring_payments_payload,
+)
 from app.api.services.supabase.supabase_service import supabase_service
 
 router = APIRouter(prefix="/GET", tags=["GET"])
@@ -34,6 +37,29 @@ async def get_recurring_payments(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise internal_server_error(e, "get_recurring_payments")
+
+
+@router.get(
+    "/recurring-payments/history",
+    summary="Histórico mensual de un patrón recurrente",
+    response_model=Dict[str, Any],
+)
+async def get_recurring_payment_history(
+    pattern_key: str,
+    user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
+    uid = user.get("sub", "")
+    key = (pattern_key or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="pattern_key vacío")
+    try:
+        return build_recurring_payment_history_payload(uid, key)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise internal_server_error(e, "get_recurring_payment_history")
 
 
 @router.patch(

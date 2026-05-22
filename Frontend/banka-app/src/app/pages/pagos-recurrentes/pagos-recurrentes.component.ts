@@ -1,10 +1,24 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
+  RecurringPaymentHistoryPoint,
   RecurringPaymentItem,
   RecurringPaymentsService,
 } from '../../services/recurring-payments.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
+import { PrivacyService } from '../../services/privacy.service';
+
+interface RecurringCategoryGroup {
+  categoria: string;
+  items: RecurringPaymentItem[];
+}
+
+interface ChartDot {
+  x: number;
+  y: number;
+}
+
+const CATEGORY_ORDER = ['Nómina', 'Nomina', 'Vivienda', 'Seguros', 'Suministros', 'Formación', 'Formacion'];
 
 @Component({
   selector: 'app-pagos-recurrentes',
@@ -19,15 +33,43 @@ export class PagosRecurrentesComponent implements OnInit {
   monthYm = '';
   monthLabel = '';
   items: RecurringPaymentItem[] = [];
-  summary = { paid: 0, pending: 0, overdue: 0, total: 0 };
-  dismissingKey: string | null = null;
 
-  constructor(private recurring: RecurringPaymentsService) {}
+  detailOpen = false;
+  detailLoading = false;
+  detailError: string | null = null;
+  detailItem: RecurringPaymentItem | null = null;
+  detailHistory: RecurringPaymentHistoryPoint[] = [];
+  detailUsualCuenta: string | null = null;
+
+  constructor(
+    private recurring: RecurringPaymentsService,
+    public privacy: PrivacyService,
+  ) {}
 
   ngOnInit(): void {
     const now = new Date();
     this.monthYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    this.monthLabel = this.formatMonthLabel(this.monthYm);
     this.load();
+  }
+
+  get groupedByCategory(): RecurringCategoryGroup[] {
+    const map = new Map<string, RecurringPaymentItem[]>();
+    for (const item of this.items) {
+      const cat = item.categoria?.trim() || 'Otros';
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(item);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => {
+        const ia = CATEGORY_ORDER.indexOf(a);
+        const ib = CATEGORY_ORDER.indexOf(b);
+        const ra = ia >= 0 ? ia : 99;
+        const rb = ib >= 0 ? ib : 99;
+        if (ra !== rb) return ra - rb;
+        return a.localeCompare(b, 'es');
+      })
+      .map(([categoria, items]) => ({ categoria, items }));
   }
 
   load(): void {
@@ -35,9 +77,10 @@ export class PagosRecurrentesComponent implements OnInit {
     this.error = null;
     this.recurring.getRecurringPayments(this.monthYm).subscribe({
       next: (res) => {
-        this.items = res.items ?? [];
-        this.summary = res.summary ?? { paid: 0, pending: 0, overdue: 0, total: 0 };
-        this.monthLabel = this.formatMonthLabel(res.month || this.monthYm);
+        this.items = (res.items ?? []).map((i) => ({
+          ...i,
+          status: i.status === 'overdue' ? 'pending' : i.status,
+        }));
         this.loading = false;
       },
       error: (err) => {
@@ -47,44 +90,51 @@ export class PagosRecurrentesComponent implements OnInit {
     });
   }
 
-  prevMonth(): void {
-    this.shiftMonth(-1);
-  }
-
-  nextMonth(): void {
-    this.shiftMonth(1);
-  }
-
-  private shiftMonth(delta: number): void {
-    const [y, m] = this.monthYm.split('-').map(Number);
-    const d = new Date(y, m - 1 + delta, 1);
-    this.monthYm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    this.load();
-  }
-
-  dismiss(item: RecurringPaymentItem): void {
-    if (this.dismissingKey) return;
-    this.dismissingKey = item.pattern_key;
-    this.recurring.dismissPattern(item.pattern_key, item.label).subscribe({
-      next: () => {
-        this.items = this.items.filter((i) => i.pattern_key !== item.pattern_key);
-        this.refreshSummary();
-        this.dismissingKey = null;
+  openDetail(item: RecurringPaymentItem): void {
+    this.detailItem = item;
+    this.detailOpen = true;
+    this.detailLoading = true;
+    this.detailError = null;
+    this.detailHistory = [];
+    this.detailUsualCuenta = item.usual_cuenta ?? null;
+    this.recurring.getHistory(item.pattern_key).subscribe({
+      next: (res) => {
+        this.detailHistory = res.history ?? [];
+        this.detailUsualCuenta = res.usual_cuenta ?? item.usual_cuenta ?? null;
+        this.detailLoading = false;
       },
-      error: () => {
-        this.error = 'No se pudo ocultar este patrón.';
-        this.dismissingKey = null;
+      error: (err) => {
+        this.detailError = err.error?.detail || 'No se pudo cargar el histórico.';
+        this.detailLoading = false;
       },
     });
   }
 
-  iconFor(item: RecurringPaymentItem) {
-    return getTransactionIconInfo({ subcategoria: item.label, descripcion: item.label });
+  closeDetail(): void {
+    this.detailOpen = false;
+    this.detailItem = null;
+    this.detailHistory = [];
+    this.detailError = null;
   }
 
-  statusLabel(status: string): string {
-    if (status === 'paid') return 'Pagado';
-    if (status === 'overdue') return 'Vencido';
+  iconFor(item: RecurringPaymentItem) {
+    return getTransactionIconInfo({
+      categoria: item.categoria ?? undefined,
+      subcategoria: item.label,
+      descripcion: item.label,
+    });
+  }
+
+  isIncome(item: RecurringPaymentItem): boolean {
+    return item.kind === 'income' || item.typical_amount > 0;
+  }
+
+  isPending(item: RecurringPaymentItem): boolean {
+    return item.status !== 'paid';
+  }
+
+  statusLabel(item: RecurringPaymentItem): string {
+    if (item.status === 'paid') return this.isIncome(item) ? 'Cobrado' : 'Pagado';
     return 'Pendiente';
   }
 
@@ -93,10 +143,70 @@ export class PagosRecurrentesComponent implements OnInit {
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   }
 
-  paidLabel(iso: string | null | undefined): string {
-    if (!iso) return '';
+  amountLabel(item: RecurringPaymentItem): string {
+    const abs = Math.abs(item.typical_amount).toLocaleString('es-ES', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const v = this.privacy.hideBalances()
+      ? '***'
+      : `${this.isIncome(item) ? '+' : '-'}${abs} €`;
+    return this.isPending(item) ? `aprox. ${v}` : v;
+  }
+
+  dateLabel(item: RecurringPaymentItem): string {
+    const d = this.expectedLabel(item.expected_date);
+    return this.isPending(item) ? `aprox. ${d}` : d;
+  }
+
+  historyMonthLabel(iso: string | null): string {
+    if (!iso) return '—';
     const d = new Date(iso.includes('T') ? iso : iso + 'T12:00:00');
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
+  }
+
+  cuentaLabel(item: RecurringPaymentItem): string | null {
+    if (item.status === 'paid' && item.paid_cuenta) return item.paid_cuenta;
+    return item.usual_cuenta ?? null;
+  }
+
+  private chartCoords(): ChartDot[] {
+    const pts = this.detailHistory.filter((p) => p.date);
+    if (!pts.length) return [];
+    const vals = pts.map((p) => Math.abs(p.amount));
+    const max = Math.max(...vals, 1) * 1.08;
+    const n = Math.max(pts.length - 1, 1);
+    return pts.map((p, i) => ({
+      x: (i / n) * 100,
+      y: 38 - (Math.abs(p.amount) / max) * 34,
+    }));
+  }
+
+  get chartPolyline(): string {
+    return this.chartCoords()
+      .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+      .join(' ');
+  }
+
+  get chartDots(): ChartDot[] {
+    return this.chartCoords();
+  }
+
+  get chartAreaPoints(): string {
+    const line = this.chartPolyline;
+    if (!line) return '';
+    return `0,40 ${line} 100,40`;
+  }
+
+  get chartYTicks(): number[] {
+    const pts = this.detailHistory;
+    if (!pts.length) return [];
+    const max = Math.max(...pts.map((p) => Math.abs(p.amount)), 1);
+    return [max, max * 0.5, 0].map((v) => Math.round(v));
+  }
+
+  get chartXLabels(): string[] {
+    return this.detailHistory.filter((p) => p.date).map((p) => this.historyMonthLabel(p.date));
   }
 
   private formatMonthLabel(ym: string): string {
@@ -104,14 +214,5 @@ export class PagosRecurrentesComponent implements OnInit {
     const d = new Date(y, m - 1, 1);
     const s = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     return s.charAt(0).toUpperCase() + s.slice(1);
-  }
-
-  private refreshSummary(): void {
-    this.summary = {
-      paid: this.items.filter((i) => i.status === 'paid').length,
-      pending: this.items.filter((i) => i.status === 'pending').length,
-      overdue: this.items.filter((i) => i.status === 'overdue').length,
-      total: this.items.length,
-    };
   }
 }

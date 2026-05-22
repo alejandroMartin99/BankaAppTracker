@@ -1,22 +1,5 @@
 <div class="rec-page">
-  <header class="rec-head">
-    <h1 class="rec-title">Pagos recurrentes</h1>
-    <p class="rec-hint">Detectados automáticamente desde tus gastos mensuales habituales.</p>
-  </header>
-
-  <div class="rec-month-bar">
-    <button type="button" class="rec-month-btn" (click)="prevMonth()" aria-label="Mes anterior">‹</button>
-    <span class="rec-month-label">{{ monthLabel }}</span>
-    <button type="button" class="rec-month-btn" (click)="nextMonth()" aria-label="Mes siguiente">›</button>
-  </div>
-
-  @if (!loading && !error) {
-    <div class="rec-summary">
-      <span class="rec-pill rec-pill--paid">{{ summary.paid }} pagados</span>
-      <span class="rec-pill rec-pill--pending">{{ summary.pending }} pendientes</span>
-      <span class="rec-pill rec-pill--overdue">{{ summary.overdue }} vencidos</span>
-    </div>
-  }
+  <p class="rec-month-label">{{ monthLabel }}</p>
 
   @if (loading) {
     <p class="rec-status">Cargando…</p>
@@ -28,47 +11,133 @@
   }
 
   @if (!loading && !error && items.length === 0) {
-    <p class="rec-empty">No hay pagos mensuales habituales detectados para este mes (o están todos ocultos).</p>
+    <p class="rec-empty">Sin pagos habituales este mes.</p>
   }
 
   @if (!loading && !error) {
-    <ul class="rec-list">
-      @for (item of items; track item.pattern_key) {
-        <li class="rec-card" [class.rec-card--paid]="item.status === 'paid'" [class.rec-card--overdue]="item.status === 'overdue'">
-          <div class="rec-card-icon">
-            <img [src]="iconFor(item).url" alt="" />
-          </div>
-          <div class="rec-card-body">
-            <div class="rec-card-top">
-              <span class="rec-card-name">{{ item.label }}</span>
-              <span class="rec-badge" [class.rec-badge--paid]="item.status === 'paid'" [class.rec-badge--overdue]="item.status === 'overdue'">
-                @if (item.status === 'paid') {
-                  <span class="rec-tick" aria-hidden="true">✓</span>
-                }
-                {{ statusLabel(item.status) }}
-              </span>
-            </div>
-            <div class="rec-card-meta">
-              <span class="rec-amount">{{ item.typical_amount | number: '1.2-2' }} €</span>
-              <span class="rec-sep">·</span>
-              <span>Esperado: {{ expectedLabel(item.expected_date) }}</span>
-            </div>
-            @if (item.status === 'paid' && item.paid_date) {
-              <p class="rec-paid-on">Cobrado el {{ paidLabel(item.paid_date) }}</p>
-            }
-          </div>
-          <button
-            type="button"
-            class="rec-dismiss"
-            (click)="dismiss(item)"
-            [disabled]="dismissingKey === item.pattern_key"
-            title="Ocultar (falso positivo)"
-            aria-label="Ocultar patrón"
-          >
-            ×
-          </button>
-        </li>
-      }
-    </ul>
+    @for (group of groupedByCategory; track group.categoria) {
+      <section class="rec-category-block">
+        <h2 class="rec-section-title">{{ group.categoria }}</h2>
+        <ul class="rec-list">
+          @for (item of group.items; track item.pattern_key) {
+            <li>
+              <button
+                type="button"
+                class="rec-row"
+                [class.rec-row--paid]="item.status === 'paid'"
+                [class.rec-row--income]="isIncome(item)"
+                (click)="openDetail(item)"
+              >
+                <span class="rec-row-icon">
+                  <img
+                    class="rec-row-icon-img"
+                    [class.rec-row-icon-img--brand]="iconFor(item).isLogo"
+                    [src]="iconFor(item).url"
+                    alt=""
+                  />
+                </span>
+                <span class="rec-row-body">
+                  <span class="rec-row-top">
+                    <span class="rec-row-name">{{ item.label }}</span>
+                    <span class="rec-badge" [class.rec-badge--paid]="item.status === 'paid'">
+                      @if (item.status === 'paid') {
+                        <span class="rec-tick" aria-hidden="true">✓</span>
+                      }
+                      {{ statusLabel(item) }}
+                    </span>
+                  </span>
+                  <span class="rec-row-meta">
+                    <span class="rec-amount">{{ amountLabel(item) }}</span>
+                    <span class="rec-sep">·</span>
+                    <span>{{ dateLabel(item) }}</span>
+                    @if (cuentaLabel(item); as cuenta) {
+                      <span class="rec-sep">·</span>
+                      <span class="rec-cuenta">{{ cuenta }}</span>
+                    }
+                  </span>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
   }
 </div>
+
+@if (detailOpen) {
+  <div class="rec-modal-overlay" (click)="closeDetail()"></div>
+  <div class="rec-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="rec-modal-head">
+      <div>
+        <h3 class="rec-modal-title">{{ detailItem?.label }}</h3>
+        @if (detailItem?.categoria) {
+          <p class="rec-modal-sub">{{ detailItem?.categoria }}</p>
+        }
+      </div>
+      <button type="button" class="rec-modal-close" (click)="closeDetail()" aria-label="Cerrar">×</button>
+    </div>
+
+    @if (detailUsualCuenta) {
+      <p class="rec-modal-cuenta">
+        Cuenta habitual:
+        <strong>{{ detailUsualCuenta }}</strong>
+      </p>
+    }
+
+    @if (detailLoading) {
+      <p class="rec-status">Cargando histórico…</p>
+    }
+
+    @if (detailError) {
+      <p class="rec-err">{{ detailError }}</p>
+    }
+
+    @if (!detailLoading && !detailError && detailHistory.length > 0) {
+      <div class="rec-chart-block">
+        <div class="rec-chart-y">
+          @for (t of chartYTicks; track $index) {
+            <span>{{ privacy.hideBalances() ? '***' : (t | number: '1.0-0') }}</span>
+          }
+        </div>
+        <div class="rec-chart-main">
+          <svg class="rec-chart-svg" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+            @if (chartAreaPoints) {
+              <polygon class="rec-chart-area" [attr.points]="chartAreaPoints" />
+            }
+            @if (chartPolyline) {
+              <polyline class="rec-chart-line" [attr.points]="chartPolyline" />
+            }
+            @for (dot of chartDots; track $index) {
+              <circle
+                class="rec-chart-dot"
+                [attr.cx]="dot.x"
+                [attr.cy]="dot.y"
+                r="2.2"
+              />
+            }
+          </svg>
+          <div class="rec-chart-x">
+            @for (lbl of chartXLabels; track $index) {
+              <span>{{ lbl }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <ul class="rec-history-list">
+        @for (h of detailHistory; track h.date) {
+          <li class="rec-history-row">
+            <span class="rec-history-date">{{ historyMonthLabel(h.date) }}</span>
+            <span class="rec-history-amount">{{
+              privacy.hideBalances() ? '***' : (h.amount | number: '1.2-2') + ' €'
+            }}</span>
+            @if (h.cuenta) {
+              <span class="rec-history-cuenta">{{ h.cuenta }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}
