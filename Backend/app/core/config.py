@@ -60,7 +60,12 @@ class Settings(BaseSettings):
     )
     INVESTMENT_BENCHMARK_REFRESH_IN_APP: bool = Field(
         default=True,
-        description="Si false, no programa el refresco en uvicorn (p. ej. Render cron cada 8h)",
+        description="Si false, no programa el refresco en uvicorn (usar endpoint cron o cron externo)",
+    )
+
+    BENCHMARK_CACHE_CRON_SECRET: str = Field(
+        default="",
+        description="Secreto para POST /GET/investment/refresh-benchmark-cache (header X-Cron-Secret)",
     )
 
     @field_validator("INVESTMENT_BENCHMARK_REFRESH_IN_APP", mode="before")

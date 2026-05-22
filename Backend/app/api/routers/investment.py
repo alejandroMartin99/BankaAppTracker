@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from pydantic import BaseModel, Field, field_validator
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, verify_benchmark_cache_cron_secret
 from app.api.services.investment_benchmarks import (
     DEFAULT_AUTHOR_ISINS,
     build_benchmarks_payload,
@@ -12,6 +12,7 @@ from app.api.services.investment_benchmarks import (
     max_user_isins,
     normalize_isin,
     refresh_instrument_keys_sync,
+    run_refresh_investment_benchmark_cache,
 )
 from app.api.services.investment_fund_detail import get_or_build_fund_detail, warm_fund_detail_cache_force_sync
 from app.api.services.supabase.supabase_service import supabase_service
@@ -182,6 +183,32 @@ async def remove_investment_fund(
     if not ok:
         raise HTTPException(status_code=404, detail="ISIN no estaba en tu lista")
     return {"success": True, "isin": isin_n}
+
+
+@router.post(
+    "/investment/refresh-benchmark-cache",
+    summary="Refresco global de series de fondos (cron externo; requiere X-Cron-Secret)",
+    response_model=Dict[str, Any],
+)
+async def refresh_benchmark_cache_cron(
+    full_rebuild: bool = Query(
+        False,
+        description="Si true, vacía la tabla de caché antes de volver a descargar (como --full-rebuild)",
+    ),
+    _: None = Depends(verify_benchmark_cache_cron_secret),
+) -> Dict[str, Any]:
+    if not supabase_service.is_connected():
+        raise HTTPException(status_code=503, detail="Supabase no disponible")
+    cleared = 0
+    if full_rebuild:
+        cleared = await asyncio.to_thread(supabase_service.clear_investment_benchmark_series_cache)
+    await asyncio.to_thread(run_refresh_investment_benchmark_cache)
+    return {
+        "success": True,
+        "full_rebuild": full_rebuild,
+        "rows_cleared": cleared,
+        "message": "Caché de benchmarks actualizada",
+    }
 
 
 @router.get(

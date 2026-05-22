@@ -79,7 +79,8 @@ API en `http://localhost:8000`.
 En `app/main.py`:
 
 - Bucle keep-alive (si hay `APP_URL`).
-- Refresco de caché de benchmarks en app (si `INVESTMENT_BENCHMARK_REFRESH_IN_APP=true`), diario según `INVESTMENT_BENCHMARK_REFRESH_HOUR`. En Render, un **cron** ejecuta el script cada 8h (`render.yaml`).
+- Refresco en app (opcional): `INVESTMENT_BENCHMARK_REFRESH_IN_APP` + `INVESTMENT_BENCHMARK_REFRESH_HOUR`.
+- Refresco por API (gratis): `POST /GET/investment/refresh-benchmark-cache` con header `X-Cron-Secret` (= `BENCHMARK_CACHE_CRON_SECRET`). Programable con [cron-job.org](https://cron-job.org) o `.github/workflows/refresh-benchmark-cache.yml`.
 
 ## Scripts útiles
 
