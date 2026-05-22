@@ -2,7 +2,7 @@
 
 Fuente de verdad del modelo de datos PostgreSQL de BankaAppTracker. Los scripts se ejecutan manualmente en **Supabase → SQL Editor** (no hay migrador automático en CI).
 
-**Relacionado:** [Backend](../README.md) · [README raíz](../../README.md)
+**Relacionado:** [Backend](../README.md) · [Arquitectura (diagramas)](../../docs/ARCHITECTURE.md) · [README raíz](../../README.md)
 
 ---
 

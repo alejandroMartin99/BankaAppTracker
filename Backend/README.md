@@ -2,7 +2,7 @@
 
 API REST de BankaAppTracker. Autentica con JWT de Supabase, persiste en PostgreSQL y orquesta importación de extractos, consultas financieras e inversión (yfinance).
 
-**Relacionado:** [README raíz](../README.md) · [Esquema Supabase](supabase/README.md) · [Frontend](../Frontend/README.md)
+**Relacionado:** [README raíz](../README.md) · [Arquitectura (diagramas)](../docs/ARCHITECTURE.md) · [Esquema Supabase](supabase/README.md) · [Frontend](../Frontend/README.md)
 
 ---
 

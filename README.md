@@ -9,6 +9,8 @@ Aplicación web de finanzas personales: centraliza extractos bancarios, analiza 
 | Documento | Audiencia | Contenido |
 |-----------|-----------|-----------|
 | **Este archivo** | Producto / onboarding | Visión, capacidades, arquitectura global |
+| [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) | Arquitectura | Diagramas C4, flujos E2E, matriz trazabilidad |
+| [`docs/README.md`](docs/README.md) | Índice | Carpeta `docs/` y capturas |
 | [`Backend/README.md`](Backend/README.md) | Backend | API, servicios, procesos en background, despliegue |
 | [`Backend/supabase/README.md`](Backend/supabase/README.md) | Datos | Esquema PostgreSQL, migraciones, RLS |
 | [`Frontend/README.md`](Frontend/README.md) | Frontend | Angular, rutas, servicios, build Vercel |
@@ -171,7 +173,13 @@ Diagrama y variables: [`Backend/README.md`](Backend/README.md#procesos-en-backgr
 
 ---
 
+## Capturas de producto
+
+Guarda PNG/WebP en [`docs/screenshots/`](docs/screenshots/) (`gastos.png`, `resumen.png`, `charts.png`, `inversion.png`, `hipotecas.png`) y enlázalas aquí cuando las tengas.
+
+Diagramas técnicos: [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md).
+
 ## Contribuir / ampliar docs
 
-- Capturas de producto: carpeta sugerida `docs/screenshots/`.
-- Cambios de esquema: nuevo archivo en `Backend/supabase/sql/migrations/` + entrada en [`Backend/supabase/README.md`](Backend/supabase/README.md).
+- Nuevas pantallas: actualizar [`Frontend/README.md`](Frontend/README.md) y fila en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#10-matriz-de-trazabilidad-completa).
+- Cambios de esquema: migración en `Backend/supabase/sql/migrations/` + [`Backend/supabase/README.md`](Backend/supabase/README.md).

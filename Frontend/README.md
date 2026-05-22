@@ -2,7 +2,7 @@
 
 SPA de BankaAppTracker (`Frontend/banka-app`). Componentes standalone, autenticación Supabase y consumo de la API FastAPI con JWT en cada petición.
 
-**Relacionado:** [README raíz](../README.md) · [Backend](../Backend/README.md)
+**Relacionado:** [README raíz](../README.md) · [Arquitectura (diagramas)](../docs/ARCHITECTURE.md) · [Backend](../Backend/README.md)
 
 ---
 
