@@ -7,11 +7,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import math
 import re
 import time
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+_benchmark_refresh_lock = asyncio.Lock()
 
 import pandas as pd
 import yfinance as yf
@@ -735,6 +742,43 @@ def refresh_instrument_keys_sync(keys: List[str]) -> None:
 
 def run_refresh_investment_benchmark_cache() -> None:
     refresh_instrument_keys_sync(collect_refresh_instrument_keys())
+
+
+def should_refresh_investment_benchmark_cache() -> bool:
+    """True si la caché está vacía o el último refresco en Supabase fue hace >= intervalo configurado."""
+    if not supabase_service.is_connected():
+        return False
+    latest = supabase_service.get_latest_benchmark_cache_updated_at()
+    if latest is None:
+        return True
+    interval = timedelta(hours=float(settings.INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS))
+    return datetime.now(timezone.utc) - latest >= interval
+
+
+async def maybe_refresh_investment_benchmark_cache(reason: str, *, force: bool = False) -> bool:
+    """
+    Refresco al despertar/arranque: solo si pasaron >= N horas desde el último updated_at en Supabase.
+    `force=True` ignora el intervalo (p. ej. endpoint manual con secreto).
+    """
+    if not settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP and not force:
+        return False
+    if not supabase_service.is_connected():
+        logger.info("[benchmark-cache] omitido (%s): Supabase no conectado", reason)
+        return False
+    async with _benchmark_refresh_lock:
+        if not force and not should_refresh_investment_benchmark_cache():
+            latest = supabase_service.get_latest_benchmark_cache_updated_at()
+            logger.info(
+                "[benchmark-cache] omitido (%s): último refresco %s (intervalo %.1fh)",
+                reason,
+                latest.isoformat() if latest else "nunca",
+                settings.INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS,
+            )
+            return False
+        logger.info("[benchmark-cache] iniciando (%s)", reason)
+        await asyncio.to_thread(run_refresh_investment_benchmark_cache)
+        logger.info("[benchmark-cache] terminado (%s)", reason)
+        return True
 
 
 def _nav_bars_from_cached_payload(pl: Any) -> Optional[List[Any]]:

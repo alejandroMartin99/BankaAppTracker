@@ -3,9 +3,8 @@ Dependencies for API endpoints (auth, etc.)
 """
 
 import logging
-import secrets
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
@@ -46,21 +45,4 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",
-        )
-
-
-def verify_benchmark_cache_cron_secret(
-    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
-) -> None:
-    """Protege el refresco programado de caché (sin JWT; solo quien conoce el secreto)."""
-    expected = (settings.BENCHMARK_CACHE_CRON_SECRET or "").strip()
-    if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Refresco por API no configurado (falta BENCHMARK_CACHE_CRON_SECRET en el servidor).",
-        )
-    if not x_cron_secret or not secrets.compare_digest(x_cron_secret.strip(), expected):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="X-Cron-Secret inválido",
         )

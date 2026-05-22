@@ -7,7 +7,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 import httpx
 from fastapi import FastAPI
 
@@ -17,35 +17,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from app.core.config import settings
-
-
-async def _investment_benchmark_refresh_loop() -> None:
-    """Refresco diario de series Inversión → Supabase (yfinance) a una hora fija del servidor."""
-    hour = int(settings.INVESTMENT_BENCHMARK_REFRESH_HOUR) % 24
-    while True:
-        now = datetime.now()
-        next_run = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run = next_run + timedelta(days=1)
-        wait_seconds = max(1.0, (next_run - now).total_seconds())
-        try:
-            logger.info("[benchmark-cache] próximo refresco a las %02d:00 (en %.0f min)", hour, wait_seconds / 60.0)
-            await asyncio.sleep(wait_seconds)
-            from app.api.services.investment_benchmarks import run_refresh_investment_benchmark_cache
-
-            await asyncio.to_thread(run_refresh_investment_benchmark_cache)
-        except asyncio.CancelledError:
-            logger.info("[benchmark-cache] detenido")
-            break
-        except Exception as e:
-            logger.error("[benchmark-cache] error", exc_info=False)
+from app.api.services.investment_benchmarks import maybe_refresh_investment_benchmark_cache
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
 from app.api.routers.investment import router as investment_router
 from app.api.services.supabase.supabase_service import supabase_service
 
 KEEP_ALIVE_TASK: asyncio.Task | None = None
-BENCHMARK_CACHE_TASK: asyncio.Task | None = None
+BENCHMARK_WAKE_TASK: asyncio.Task | None = None
 
 
 async def _keep_alive_loop() -> None:
@@ -65,6 +44,8 @@ async def _keep_alive_loop() -> None:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url)
                 logger.debug("[keep-alive] %02dh GET %s -> %s", now_hour, url, resp.status_code)
+                if resp.status_code == 200:
+                    await maybe_refresh_investment_benchmark_cache("keep-alive")
         except asyncio.CancelledError:
             logger.info("[keep-alive] detenido")
             break
@@ -72,18 +53,31 @@ async def _keep_alive_loop() -> None:
             logger.error("[keep-alive] error", exc_info=False)
 
 
+async def _benchmark_refresh_on_startup() -> None:
+    """Al arrancar/despertar la instancia (p. ej. Render tras inactividad)."""
+    try:
+        await maybe_refresh_investment_benchmark_cache("startup")
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.error("[benchmark-cache] error en startup", exc_info=False)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global KEEP_ALIVE_TASK, BENCHMARK_CACHE_TASK
+    global KEEP_ALIVE_TASK, BENCHMARK_WAKE_TASK
     base_url = settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL")
     if base_url:
         KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
         logger.info("[keep-alive] iniciado cada %ds -> %s/health", settings.KEEP_ALIVE_INTERVAL_SECONDS, base_url)
     if supabase_service.is_connected() and settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP:
-        BENCHMARK_CACHE_TASK = asyncio.create_task(_investment_benchmark_refresh_loop())
-        logger.info("[benchmark-cache] tarea diaria programada a las %02d:00 (hora del servidor)", int(settings.INVESTMENT_BENCHMARK_REFRESH_HOUR) % 24)
+        BENCHMARK_WAKE_TASK = asyncio.create_task(_benchmark_refresh_on_startup())
+        logger.info(
+            "[benchmark-cache] al despertar, refresco si pasaron >= %.1fh desde el último en Supabase",
+            settings.INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS,
+        )
     elif supabase_service.is_connected():
-        logger.info("[benchmark-cache] refresco en app desactivado (INVESTMENT_BENCHMARK_REFRESH_IN_APP=false)")
+        logger.info("[benchmark-cache] refresco automático desactivado (INVESTMENT_BENCHMARK_REFRESH_IN_APP=false)")
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()
@@ -91,10 +85,10 @@ async def lifespan(app: FastAPI):
             await KEEP_ALIVE_TASK
         except asyncio.CancelledError:
             pass
-    if BENCHMARK_CACHE_TASK and not BENCHMARK_CACHE_TASK.done():
-        BENCHMARK_CACHE_TASK.cancel()
+    if BENCHMARK_WAKE_TASK and not BENCHMARK_WAKE_TASK.done():
+        BENCHMARK_WAKE_TASK.cancel()
         try:
-            await BENCHMARK_CACHE_TASK
+            await BENCHMARK_WAKE_TASK
         except asyncio.CancelledError:
             pass
 

@@ -5,7 +5,7 @@ Uso (desde la carpeta Backend):
   .\\venv\\Scripts\\python.exe scripts\\rebuild_investment_benchmark_series_cache.py
   .\\venv\\Scripts\\python.exe scripts\\rebuild_investment_benchmark_series_cache.py --full-rebuild
 
-Por defecto solo actualiza/upsert (cron cada 8h en Render). --full-rebuild vacía la tabla antes.
+Por defecto solo actualiza/upsert. --full-rebuild vacía la tabla antes.
 
 Requiere SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_KEY) en el entorno / .env.
 """

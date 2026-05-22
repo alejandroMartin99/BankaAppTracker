@@ -1,83 +1,177 @@
 # BankaAppTracker
 
-Gestión financiera personal avanzada para centralizar cuentas, analizar gastos, seguir inversiones y simular hipoteca en una sola app.
+Aplicación web de finanzas personales: centraliza extractos bancarios, analiza gastos, compara fondos de inversión y simula estrategias hipotecarias.
 
-## Qué es BankaAppTracker
+---
 
-BankaAppTracker es una app web pensada para tener una visión completa de tu dinero:
-- Importas movimientos desde extractos (Ibercaja, Revolut, Pluxee y otros formatos compatibles).
-- Obtienes análisis por categorías, subcategorías y cuentas.
-- Visualizas evolución histórica de saldos y tendencias.
-- Gestionas cartera de inversión y comparativas de rentabilidad.
-- Simulas estrategias hipotecarias (amortizar capital vs invertir el extra).
-- Trabajas con modo claro/oscuro y opciones de privacidad de saldos.
+## Mapa de documentación
 
-## Lo que puedes hacer en la app
+| Documento | Audiencia | Contenido |
+|-----------|-----------|-----------|
+| **Este archivo** | Producto / onboarding | Visión, capacidades, arquitectura global |
+| [`Backend/README.md`](Backend/README.md) | Backend | API, servicios, procesos en background, despliegue |
+| [`Backend/supabase/README.md`](Backend/supabase/README.md) | Datos | Esquema PostgreSQL, migraciones, RLS |
+| [`Frontend/README.md`](Frontend/README.md) | Frontend | Angular, rutas, servicios, build Vercel |
 
-### Resumen financiero inmediato
-- Totales de gastos, ingresos y balance por periodo.
-- Desglose por categorías y subcategorías con detalle de movimientos.
-- Edición rápida de movimientos (fecha, descripción, categoría, subcategoría).
+---
 
-### Vista de movimientos (`Gastos`)
-- Filtros temporales rápidos y rango personalizado.
-- Saldo y métricas por cuenta.
-- Lista de transacciones agrupadas por día.
-- Badges por cuenta y soporte de iconos por categoría/subcategoría/marca.
+## Arquitectura del sistema
 
-### Analítica avanzada (`Charts`)
-- Gastos e ingresos por mes.
-- Evolución histórica de saldo por cuenta con línea de tendencia.
-- Drill-down por categoría y subcategoría.
-- Tablas analíticas para comparar último mes vs media.
+```mermaid
+flowchart TB
+  subgraph Cliente["Cliente (navegador)"]
+    UI["Angular SPA<br/>Frontend/banka-app"]
+  end
 
-### Gestión de inversión (`Inversión`)
-- Curvas de benchmark por fondos/activos.
-- Métricas clave: rentabilidad, volatilidad, drawdown.
-- Seguimiento por clasificación (renta fija, variable, monetarios, sectores, cripto).
-- Caché de series para rendimiento y estabilidad.
+  subgraph Auth["Supabase Auth"]
+    JWT["JWT sesión"]
+  end
 
-### Hipoteca y simulaciones (`Hipotecas`)
-- Cuadro de amortización y curva de capital/intereses.
-- Simulación de aportaciones extra a capital.
-- Simulación alternativa invirtiendo el extra en fondo.
-- Comparativas de tiempo total, intereses y coste final.
+  subgraph Render["Render (Free)"]
+    API["FastAPI<br/>Backend/app"]
+    BG["Keep-alive + refresco caché inversión"]
+  end
 
-### Perfil y experiencia
-- Renombrado de cuentas vinculadas.
-- Control de privacidad para ocultar importes.
-- Modo oscuro persistido por usuario.
+  subgraph Supabase["Supabase"]
+    PG[(PostgreSQL)]
+    RLS["RLS políticas"]
+  end
 
-## Capturas (opcional)
+  subgraph Externo["Fuentes externas"]
+    YF["Yahoo Finance<br/>vía yfinance"]
+  end
 
-Si quieres convertir este README en una landing completa, puedes añadir capturas en `docs/screenshots/` y referenciarlas aquí:
-
-```md
-![Resumen](docs/screenshots/resumen.png)
-![Charts](docs/screenshots/charts.png)
-![Inversión](docs/screenshots/inversion.png)
-![Hipotecas](docs/screenshots/hipotecas.png)
+  UI -->|"HTTPS + Bearer JWT"| API
+  UI -->|"Login / registro"| Auth
+  Auth --> JWT
+  API -->|"Service role"| PG
+  PG --- RLS
+  API --> YF
+  BG --> API
 ```
 
-## Arquitectura del proyecto
+### Flujo de una petición autenticada
+
+```mermaid
+sequenceDiagram
+  participant U as Usuario
+  participant F as Angular
+  participant A as Supabase Auth
+  participant B as FastAPI
+  participant D as PostgreSQL
+
+  U->>F: Acción en la app
+  F->>A: getSession() / JWT
+  F->>B: HTTP + Authorization Bearer
+  B->>A: Validar JWT (service role)
+  B->>D: Consulta / escritura
+  D-->>B: Filas
+  B-->>F: JSON
+  F-->>U: UI actualizada
+```
+
+---
+
+## Repositorio
 
 ```text
 BankaAppTracker/
-├── Backend/                # API FastAPI + lógica de negocio + Supabase
-├── Frontend/
-│   └── banka-app/          # App Angular (SPA)
-├── render.yaml             # Deploy backend en Render
-└── README.md
+├── README.md                 ← Este documento
+├── render.yaml               ← Deploy backend (Render)
+├── Backend/                  ← API Python
+│   ├── app/
+│   ├── scripts/
+│   └── supabase/sql/         ← Migraciones SQL
+└── Frontend/
+    └── banka-app/            ← SPA Angular 18
 ```
 
-## Enlaces técnicos
+---
 
-- Backend técnico: [`Backend/README.md`](Backend/README.md)
-- Frontend técnico: [`Frontend/README.md`](Frontend/README.md)
+## Capacidades y trazabilidad
 
-## Stack
+| Área funcional | Ruta UI | API principal | Tablas / caché |
+|----------------|---------|---------------|----------------|
+| Movimientos y saldos | `/gastos`, `/resumen` | `GET /GET/transactions`, `GET /GET/balances` | `transactions`, `accounts` |
+| Analítica | `/charts` | `GET /GET/transactions` (filtros fecha) | `transactions` |
+| Gastos compartidos | `/gastos-compartidos` | `GET /GET/shared-transactions` | `user_shared_settings` |
+| Inversión | `/inversion` | `GET /GET/investment/benchmarks` | `investment_benchmark_series_cache`, `user_investment_funds` |
+| Hipotecas | `/hipotecas` | `GET/PATCH /GET/mortgage*` | `user_mortgage_settings`, `user_mortgage_receipts` |
+| Importar extracto | (upload en app) | `POST /upload/Transactions` | `transactions`, `accounts` |
+| Ajustes | `/ajustes` | `GET/PATCH /GET/accounts`, categorías | `accounts`, metadata usuario |
 
-- Frontend: Angular 18 + SCSS + Supabase Auth
-- Backend: FastAPI + Supabase + yfinance
-- Base de datos: Supabase (PostgreSQL + políticas)
-- Deploy: Vercel (frontend) + Render (backend)
+Detalle de endpoints: [`Backend/README.md`](Backend/README.md#catálogo-de-api).
+
+---
+
+## Stack y despliegue
+
+| Capa | Tecnología | Hosting |
+|------|------------|---------|
+| Frontend | Angular 18, SCSS, RxJS | [Vercel](https://vercel.com) — root `Frontend/banka-app` |
+| Backend | FastAPI, pandas, yfinance | [Render](https://render.com) — ver `render.yaml` |
+| Auth + BD | Supabase (Auth + PostgreSQL) | Proyecto Supabase |
+
+URLs de producción habituales:
+
+- Frontend: `https://banka-app-tracker.vercel.app`
+- Backend: `https://bankaapptracker.onrender.com`
+
+---
+
+## Inicio rápido (desarrollo)
+
+### 1. Base de datos
+
+Aplicar scripts en orden: [`Backend/supabase/README.md`](Backend/supabase/README.md).
+
+### 2. Backend
+
+```bash
+cd Backend
+python -m venv venv
+venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+copy .env.example .env         # Rellenar SUPABASE_*
+uvicorn app.main:app --reload
+```
+
+→ `http://localhost:8000` — OpenAPI: `/docs`
+
+### 3. Frontend
+
+```bash
+cd Frontend/banka-app
+npm install
+npm start
+```
+
+→ `http://localhost:4200` — `environment.ts` debe apuntar `apiUrl` a `http://localhost:8000`.
+
+---
+
+## Inversión: actualización de datos
+
+No se usa cron de pago en Render. El backend refresca la caché de fondos:
+
+1. Al **arrancar** la instancia (despertar tras inactividad).
+2. En cada ciclo de **keep-alive** (si `APP_URL` está configurada).
+3. Solo si en Supabase pasaron ≥ **8 horas** desde el último `updated_at` global de la caché.
+
+Diagrama y variables: [`Backend/README.md`](Backend/README.md#procesos-en-background).
+
+---
+
+## Seguridad (resumen)
+
+- El cliente nunca usa la **service role key** de Supabase; solo anon key + JWT.
+- El backend valida JWT en cada ruta protegida (`get_current_user`).
+- RLS en PostgreSQL limita acceso directo PostgREST; el backend escribe con service role de forma controlada.
+- CORS restringido a orígenes explícitos (`CORS_ORIGINS`).
+
+---
+
+## Contribuir / ampliar docs
+
+- Capturas de producto: carpeta sugerida `docs/screenshots/`.
+- Cambios de esquema: nuevo archivo en `Backend/supabase/sql/migrations/` + entrada en [`Backend/supabase/README.md`](Backend/supabase/README.md).

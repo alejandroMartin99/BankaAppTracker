@@ -518,6 +518,36 @@ class SupabaseService:
             print(f"[Supabase] clear_investment_benchmark_series_cache: {e}")
             return 0
 
+    def get_latest_benchmark_cache_updated_at(self) -> Optional[datetime]:
+        """Última escritura en la caché global de benchmarks (UTC). None si vacía o error."""
+        if not self.supabase:
+            return None
+        try:
+            r = (
+                self.supabase.table("investment_benchmark_series_cache")
+                .select("updated_at")
+                .order("updated_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            rows = r.data or []
+            if not rows:
+                return None
+            raw = rows[0].get("updated_at")
+            if not raw:
+                return None
+            if isinstance(raw, datetime):
+                dt = raw
+            else:
+                s = str(raw).strip().replace("Z", "+00:00")
+                dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception as e:
+            print(f"[Supabase] get_latest_benchmark_cache_updated_at: {e}")
+            return None
+
     def upsert_investment_benchmark_series(
         self, instrument_key: str, yahoo_symbol: str, payload: Dict[str, Any]
     ) -> None:

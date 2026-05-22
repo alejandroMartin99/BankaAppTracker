@@ -54,18 +54,15 @@ class Settings(BaseSettings):
         description="Intervalo en segundos entre pings keep-alive (default 12 min)",
     )
 
-    INVESTMENT_BENCHMARK_REFRESH_HOUR: int = Field(
-        default=9,
-        description="Hora diaria del servidor para refrescar series de inversión en Supabase (0-23, default 9)",
+    INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS: float = Field(
+        default=8.0,
+        ge=1.0,
+        le=168.0,
+        description="Mínimo de horas entre refrescos automáticos (arranque / keep-alive)",
     )
     INVESTMENT_BENCHMARK_REFRESH_IN_APP: bool = Field(
         default=True,
-        description="Si false, no programa el refresco en uvicorn (usar endpoint cron o cron externo)",
-    )
-
-    BENCHMARK_CACHE_CRON_SECRET: str = Field(
-        default="",
-        description="Secreto para POST /GET/investment/refresh-benchmark-cache (header X-Cron-Secret)",
+        description="Si false, no refresca automáticamente al despertar el servidor",
     )
 
     @field_validator("INVESTMENT_BENCHMARK_REFRESH_IN_APP", mode="before")

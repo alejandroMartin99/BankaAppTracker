@@ -1,5 +1,5 @@
 -- Serie histórica (nav / cierre) por ISIN o cripto para el gráfico de Inversión.
--- Se actualiza desde el backend (yfinance) cada ~2 h; el cliente recibe siempre el horizonte 5y y filtra el periodo en memoria.
+-- Se actualiza desde el backend (yfinance) al despertar/keep-alive (mín. cada N h); el cliente filtra el periodo en memoria.
 -- Ejecutar en Supabase SQL editor.
 
 CREATE TABLE IF NOT EXISTS public.investment_benchmark_series_cache (
