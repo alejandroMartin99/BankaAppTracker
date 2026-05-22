@@ -79,9 +79,11 @@ async def lifespan(app: FastAPI):
     if base_url:
         KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
         logger.info("[keep-alive] iniciado cada %ds -> %s/health", settings.KEEP_ALIVE_INTERVAL_SECONDS, base_url)
-    if supabase_service.is_connected():
+    if supabase_service.is_connected() and settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP:
         BENCHMARK_CACHE_TASK = asyncio.create_task(_investment_benchmark_refresh_loop())
         logger.info("[benchmark-cache] tarea diaria programada a las %02d:00 (hora del servidor)", int(settings.INVESTMENT_BENCHMARK_REFRESH_HOUR) % 24)
+    elif supabase_service.is_connected():
+        logger.info("[benchmark-cache] refresco en app desactivado (INVESTMENT_BENCHMARK_REFRESH_IN_APP=false)")
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()

@@ -45,6 +45,7 @@ ISIN_CLASIFICACION: Dict[str, str] = {
     "LU0625737910": "renta_variable",  # Pictet-China Index (RV)
     "LU1048684796": "renta_variable",  # Fidelity Emerging Markets
     "LU1623762843": "renta_fija",  # Carmignac Portfolio Credit
+    "IE00B4ND3602": "renta_variable",  # iShares Physical Gold ETC
 }
 
 # Nombres legibles si Yahoo no devuelve metadata (p. ej. IP de datacenter bloqueada en deploy).
@@ -60,6 +61,7 @@ ISIN_FALLBACK_LABEL: Dict[str, str] = {
     "LU1048684796": "Fidelity Emerging Markets",
     "LU1623762843": "Carmignac Portfolio Credit",
     "ES0165243025": "Myinvestor Value FI",
+    "IE00B4ND3602": "iShares Physical Gold ETC",
 }
 
 # Claves de periodo soportadas por la API (el servidor devuelve ~5y en caché; el cliente filtra la ventana).
@@ -91,6 +93,12 @@ _ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}\d$")
 YAHOO_SYMBOL_BY_ISIN: Dict[str, str] = {
     "IE00BYX5P602": "0P0001CJGV.F",  # Fidelity MSCI World Index (Frankfurt) vs FEPE.MU casi sin datos
     "LU0034353002": "0P00000N4I.F",  # DWS Floating Rate Notes LC vs DI4A.F casi sin datos
+    "IE00B4ND3602": "SGLN.L",  # iShares Physical Gold ETC (LSE); el ISIN solo suele dar poca historia
+}
+
+# Typos frecuentes (8/O, B/8) → ISIN canónico con caché Yahoo
+ISIN_CANONICAL_ALIASES: Dict[str, str] = {
+    "IE0084ND3602": "IE00B4ND3602",  # iShares Physical Gold: 084 vs B4ND
 }
 
 
@@ -103,6 +111,12 @@ def normalize_isin(raw: str) -> str:
     if len(s) != 12 or not _ISIN_RE.match(s):
         raise ValueError("ISIN inválido (12 caracteres: 2 letras país + 9 alfanuméricos + 1 dígito de control)")
     return s
+
+
+def canonical_isin(raw: str) -> str:
+    """ISIN normalizado; corrige alias conocidos (p. ej. oro IE0084… → IE00B4…)."""
+    n = normalize_isin(raw)
+    return ISIN_CANONICAL_ALIASES.get(n, n)
 
 
 def normalize_isin_list(raw: List[str]) -> List[str]:
@@ -624,6 +638,7 @@ def _build_isin_nav_cache_row_sync(
     isin: str, period_key: str = STORE_HORIZON_PERIOD
 ) -> Dict[str, Any]:
     """Serie de cierres para guardar en Supabase (no incluye `instrument_key` de fila)."""
+    isin = canonical_isin(isin)
     try:
         yahoo_sym = YAHOO_SYMBOL_BY_ISIN.get(isin, isin)
         t = yf.Ticker(yahoo_sym)
@@ -681,7 +696,7 @@ def collect_refresh_instrument_keys() -> List[str]:
     keys: set[str] = set(DEFAULT_AUTHOR_ISINS)
     if supabase_service.is_connected():
         for isin in supabase_service.list_distinct_investment_isins():
-            keys.add(isin)
+            keys.add(canonical_isin(isin))
     for t in DEFAULT_CRYPTO_TICKERS:
         keys.add(crypto_instrument_key(t))
     return sorted(keys)
@@ -709,12 +724,13 @@ def refresh_instrument_keys_sync(keys: List[str]) -> None:
             ysym = str(pl.get("symbol") or ticker)
             supabase_service.upsert_investment_benchmark_series(key, ysym, pl)
         else:
-            pl = _build_isin_nav_cache_row_sync(key, STORE_HORIZON_PERIOD)
+            ck = canonical_isin(key)
+            pl = _build_isin_nav_cache_row_sync(ck, STORE_HORIZON_PERIOD)
             if pl.get("error"):
                 print(f"[benchmark-cache] {key}: {pl.get('error')}")
                 continue
-            ysym = str(pl.get("symbol") or key)
-            supabase_service.upsert_investment_benchmark_series(key, ysym, pl)
+            ysym = str(pl.get("symbol") or ck)
+            supabase_service.upsert_investment_benchmark_series(ck, ysym, pl)
 
 
 def run_refresh_investment_benchmark_cache() -> None:
@@ -741,7 +757,7 @@ def _build_benchmarks_payload_from_supabase_sync(user_id: str, isins: List[str])
         raise RuntimeError("Supabase no disponible")
     keys_needed: List[str] = []
     for isin in isins:
-        keys_needed.append(str(isin).strip().upper())
+        keys_needed.append(canonical_isin(isin))
     for t in DEFAULT_CRYPTO_TICKERS:
         keys_needed.append(crypto_instrument_key(t))
     rows = supabase_service.get_investment_benchmark_series_batch(keys_needed)
@@ -751,30 +767,33 @@ def _build_benchmarks_payload_from_supabase_sync(user_id: str, isins: List[str])
     items: List[Dict[str, Any]] = []
     errors: List[Dict[str, str]] = []
     for isin in isins:
-        pl = rows.get(isin)
+        ck = canonical_isin(isin)
+        pl = rows.get(ck)
         nb_raw = _nav_bars_from_cached_payload(pl)
         if not nb_raw:
-            errors.append(
-                {
-                    "isin": isin,
-                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
-                }
-            )
+            detail = "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar."
+            if ck != str(isin).strip().upper():
+                detail = (
+                    f"Sin datos en caché para {isin}. El ISIN corregido es {ck}; "
+                    "quita el ISIN erróneo y añade el correcto, o espera al refresco automático."
+                )
+            errors.append({"isin": isin, "detail": detail})
             continue
         nb = _coerce_and_sanitize_cached_nav_bars(nb_raw)
         if not nb:
-            errors.append(
-                {
-                    "isin": isin,
-                    "detail": "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar.",
-                }
-            )
+            detail = "Sin datos en caché. El refresco automático puede tardar unos minutos tras desplegar."
+            if ck != str(isin).strip().upper():
+                detail = (
+                    f"Sin datos en caché para {isin}. El ISIN corregido es {ck}; "
+                    "quita el ISIN erróneo y añade el correcto, o espera al refresco automático."
+                )
+            errors.append({"isin": isin, "detail": detail})
             continue
         items.append(
             {
-                "isin": pl.get("isin") or isin,
+                "isin": pl.get("isin") or ck,
                 "symbol": pl.get("symbol") or "",
-                "name": _resolve_benchmark_display_name(isin, pl if isinstance(pl, dict) else {}),
+                "name": _resolve_benchmark_display_name(ck, pl if isinstance(pl, dict) else {}),
                 "clasificacion": pl.get("clasificacion") or "renta_variable",
                 "total_return_pct": None,
                 "points": [],

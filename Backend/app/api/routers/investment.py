@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.api.services.investment_benchmarks import (
     DEFAULT_AUTHOR_ISINS,
     build_benchmarks_payload,
+    canonical_isin,
     max_user_isins,
     normalize_isin,
     refresh_instrument_keys_sync,
@@ -34,7 +35,7 @@ def _isins_from_db_rows(rows: List[Dict[str, Any]]) -> List[str]:
         if not raw or not isinstance(raw, str):
             continue
         try:
-            out.append(normalize_isin(raw))
+            out.append(canonical_isin(raw))
         except ValueError:
             continue
     return out
@@ -135,7 +136,7 @@ async def add_investment_fund(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
     uid = user.get("sub", "")
     try:
-        isin = normalize_isin(body.isin)
+        isin = canonical_isin(body.isin)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if isin in DEFAULT_AUTHOR_ISINS:

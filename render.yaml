@@ -26,3 +26,23 @@ services:
       # Orígenes permitidos (coma). Añade previews de Vercel si los usas.
       - key: CORS_ORIGINS
         value: "https://banka-app-tracker.vercel.app,http://localhost:4200"
+      # El refresco de fondos lo hace el cron job (no el bucle en main.py)
+      - key: INVESTMENT_BENCHMARK_REFRESH_IN_APP
+        value: "false"
+
+  - type: cron
+    name: bankaapp-benchmark-cache
+    runtime: python
+    rootDir: Backend
+    schedule: "0 */8 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/rebuild_investment_benchmark_series_cache.py
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

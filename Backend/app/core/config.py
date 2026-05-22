@@ -58,6 +58,19 @@ class Settings(BaseSettings):
         default=9,
         description="Hora diaria del servidor para refrescar series de inversión en Supabase (0-23, default 9)",
     )
+    INVESTMENT_BENCHMARK_REFRESH_IN_APP: bool = Field(
+        default=True,
+        description="Si false, no programa el refresco en uvicorn (p. ej. Render cron cada 8h)",
+    )
+
+    @field_validator("INVESTMENT_BENCHMARK_REFRESH_IN_APP", mode="before")
+    @classmethod
+    def _parse_benchmark_refresh_in_app(cls, v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return True
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
 
     FUND_DETAIL_FETCH_TIMEOUT_SECONDS: float = Field(
         default=25.0,

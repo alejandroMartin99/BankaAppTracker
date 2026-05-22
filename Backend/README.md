@@ -79,7 +79,7 @@ API en `http://localhost:8000`.
 En `app/main.py`:
 
 - Bucle keep-alive (si hay `APP_URL`).
-- Refresco de caché de benchmarks (si Supabase está conectado), programado diariamente según `INVESTMENT_BENCHMARK_REFRESH_HOUR`.
+- Refresco de caché de benchmarks en app (si `INVESTMENT_BENCHMARK_REFRESH_IN_APP=true`), diario según `INVESTMENT_BENCHMARK_REFRESH_HOUR`. En Render, un **cron** ejecuta el script cada 8h (`render.yaml`).
 
 ## Scripts útiles
 
@@ -88,7 +88,10 @@ En `app/main.py`:
 ```bash
 cd Backend
 venv\Scripts\python.exe scripts\rebuild_investment_benchmark_series_cache.py
+venv\Scripts\python.exe scripts\rebuild_investment_benchmark_series_cache.py --full-rebuild
 ```
+
+Cron en Render (`0 */8 * * *`): actualización sin vaciar tabla. Reconstrucción completa: añadir `--full-rebuild` al `startCommand` o ejecutar manualmente.
 
 ## Deploy (Render)
 

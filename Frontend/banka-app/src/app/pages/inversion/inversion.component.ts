@@ -1089,7 +1089,14 @@ export class InversionComponent implements OnInit {
   private applyBenchmarkResponse(res: BenchmarksResponse): void {
     this.loadAttempted = true;
     this.benchmarksRaw = res;
-    this.errors = Array.isArray(res.errors) ? res.errors : [];
+    const itemIsins = new Set(
+      [...(res.items ?? []), ...(res.crypto_items ?? [])]
+        .map((it) => (it.isin || '').trim().toUpperCase())
+        .filter((x) => x.length === 12),
+    );
+    this.errors = (Array.isArray(res.errors) ? res.errors : []).filter(
+      (e) => !itemIsins.has((e.isin || '').trim().toUpperCase()),
+    );
     this.cryptoErrors = Array.isArray(res.crypto_errors) ? res.crypto_errors : [];
     this.usingDefaultWatchlist = res.using_default_watchlist ?? true;
     this.reapplyPeriodSlice();
