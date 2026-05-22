@@ -99,6 +99,8 @@ Prefijos montados en `main.py`: routers `upload` y `GET`.
 | POST | `/GET/investment/funds` | Sí | Añadir ISIN (+ warm caché) |
 | DELETE | `/GET/investment/funds/{isin}` | Sí | Quitar ISIN |
 | GET | `/GET/investment/fund-detail` | Sí | Ficha Yahoo (`isin` o `symbol` cripto) |
+| GET | `/GET/recurring-payments` | Sí | Pagos mensuales detectados (`?month=YYYY-MM`) |
+| PATCH | `/GET/recurring-payments/dismiss` | Sí | Ocultar patrón (falso positivo) |
 
 Documentación interactiva en local: `http://localhost:8000/docs`
 
@@ -253,6 +255,7 @@ Configurar en el panel de Render (no commitear): `SUPABASE_URL`, `SUPABASE_ANON_
 | `supabase_service` | `accounts`, `user_accounts`, `transactions` |
 | `investment_benchmarks` | `investment_benchmark_series_cache`, `user_investment_funds` |
 | `investment_fund_detail` | `investment_fund_detail_cache` (ver migración 32) |
+| `recurring_payments` | `transactions`, `user_recurring_payment_dismissed` |
 | Routers mortgage | `user_mortgage_settings`, `user_mortgage_receipts` |
 
 Esquema completo y orden de migraciones: [`supabase/README.md`](supabase/README.md).

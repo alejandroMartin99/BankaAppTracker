@@ -567,5 +567,66 @@ class SupabaseService:
         except Exception as e:
             print(f"[Supabase] upsert_investment_benchmark_series: {e}")
 
+    def list_user_transactions(
+        self, user_id: str, from_date: Optional[str] = None, to_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Transacciones de las cuentas del usuario (mismo criterio que GET /transactions)."""
+        if not self.supabase:
+            return []
+        account_ids = self.get_user_account_ids(user_id)
+        if not account_ids:
+            return []
+        try:
+            q = (
+                self.supabase.table("transactions")
+                .select("*")
+                .in_("account_id", account_ids)
+            )
+            if from_date:
+                q = q.gte("dt_date", from_date)
+            if to_date:
+                q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
+            response = q.order("dt_date", desc=False).limit(10000).execute()
+            data = list(response.data or [])
+            names = self.get_account_display_names(account_ids)
+            for row in data:
+                row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
+            return data
+        except Exception as e:
+            print(f"[Supabase] list_user_transactions: {e}")
+            return []
+
+    def list_dismissed_recurring_pattern_keys(self, user_id: str) -> Set[str]:
+        if not self.supabase:
+            return set()
+        try:
+            r = (
+                self.supabase.table("user_recurring_payment_dismissed")
+                .select("pattern_key")
+                .eq("user_id", _uuid_str(user_id))
+                .execute()
+            )
+            return {str(x["pattern_key"]).strip() for x in (r.data or []) if x.get("pattern_key")}
+        except Exception as e:
+            print(f"[Supabase] list_dismissed_recurring_pattern_keys: {e}")
+            return set()
+
+    def dismiss_recurring_pattern(self, user_id: str, pattern_key: str, label: str = "") -> None:
+        if not self.supabase:
+            return
+        try:
+            self.supabase.table("user_recurring_payment_dismissed").upsert(
+                {
+                    "user_id": _uuid_str(user_id),
+                    "pattern_key": pattern_key.strip(),
+                    "label": (label or pattern_key)[:200],
+                    "dismissed_at": datetime.now(timezone.utc).isoformat(),
+                },
+                on_conflict="user_id,pattern_key",
+            ).execute()
+        except Exception as e:
+            print(f"[Supabase] dismiss_recurring_pattern: {e}")
+            raise
+
 
 supabase_service = SupabaseService()

@@ -1,0 +1,239 @@
+.rec-page {
+  padding-bottom: 24px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.rec-head {
+  margin-bottom: 12px;
+}
+
+.rec-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--color-text);
+}
+
+.rec-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.rec-month-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.rec-month-btn {
+  border: 0;
+  background: var(--color-border-light);
+  color: var(--color-text);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rec-month-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-width: 140px;
+  text-align: center;
+}
+
+.rec-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.rec-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-border-light);
+  color: var(--color-text-secondary);
+}
+
+.rec-pill--paid {
+  background: color-mix(in srgb, var(--color-positive, #16a34a) 18%, transparent);
+  color: var(--color-positive, #16a34a);
+}
+
+.rec-pill--pending {
+  background: color-mix(in srgb, var(--color-warning, #ca8a04) 15%, transparent);
+  color: var(--color-warning, #ca8a04);
+}
+
+.rec-pill--overdue {
+  background: color-mix(in srgb, var(--color-negative, #dc2626) 15%, transparent);
+  color: var(--color-negative, #dc2626);
+}
+
+.rec-status,
+.rec-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.rec-err {
+  color: var(--color-negative, #dc2626);
+  font-size: 0.85rem;
+}
+
+.rec-retry {
+  margin-top: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.rec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rec-card {
+  display: grid;
+  grid-template-columns: 40px 1fr 32px;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.rec-card--paid {
+  border-color: color-mix(in srgb, var(--color-positive, #16a34a) 35%, var(--color-border-light));
+}
+
+.rec-card--overdue {
+  border-color: color-mix(in srgb, var(--color-negative, #dc2626) 40%, var(--color-border-light));
+}
+
+.rec-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+}
+
+.rec-card-emoji {
+  font-size: 1.25rem;
+}
+
+.rec-card-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.rec-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rec-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-warning, #ca8a04) 20%, transparent);
+  color: var(--color-warning, #ca8a04);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rec-badge--paid {
+  background: color-mix(in srgb, var(--color-positive, #16a34a) 22%, transparent);
+  color: var(--color-positive, #16a34a);
+}
+
+.rec-badge--overdue {
+  background: color-mix(in srgb, var(--color-negative, #dc2626) 20%, transparent);
+  color: var(--color-negative, #dc2626);
+}
+
+.rec-tick {
+  font-weight: 800;
+}
+
+.rec-card-meta {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.rec-amount {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.rec-sep {
+  margin: 0 4px;
+}
+
+.rec-paid-on {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--color-positive, #16a34a);
+}
+
+.rec-dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    background: var(--color-border-light);
+    color: var(--color-text);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+}

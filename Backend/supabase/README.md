@@ -140,7 +140,8 @@ Ejecutar en este orden. Si un script falla por objeto ya existente, revisar si e
 | 7 | `migrations/30_user_investment_funds.sql` | Watchlist ISIN |
 | 8 | `migrations/31_investment_benchmark_series_cache.sql` | Caché series inversión |
 | 9 | `migrations/32_investment_fund_detail_cache.sql` | Caché fichas fondo |
-| 10 | `02_rls_policies.sql` | Políticas RLS |
+| 10 | `migrations/33_user_recurring_payment_dismissed.sql` | Patrones recurrentes ocultos |
+| 11 | `02_rls_policies.sql` | Políticas RLS |
 
 ```mermaid
 flowchart LR
@@ -176,6 +177,7 @@ Ejecuta solo migraciones **pendientes** (11–32 y RLS si faltan). No repitas `0
 | `user_mortgage_settings` | 21 | `/hipotecas` |
 | `user_mortgage_receipts` | 21 | Confirmación recibos hipoteca |
 | `user_investment_funds` | 30 | Watchlist `/inversion` |
+| `user_recurring_payment_dismissed` | 33 | Ocultar falsos positivos en Pagos recurrentes |
 | `investment_benchmark_series_cache` | 31 | Gráfico benchmarks (global, por `instrument_key`) |
 | `investment_fund_detail_cache` | 32 | Modal ficha fondo |
 

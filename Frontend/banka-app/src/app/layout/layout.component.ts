@@ -168,7 +168,12 @@ export class LayoutComponent {
 
   isMoreOperationsActive(): boolean {
     const url = this.router.url || '';
-    return url.startsWith('/ajustes') || url.startsWith('/inversion') || url.startsWith('/hipotecas');
+    return (
+      url.startsWith('/ajustes') ||
+      url.startsWith('/inversion') ||
+      url.startsWith('/hipotecas') ||
+      url.startsWith('/pagos-recurrentes')
+    );
   }
 
   goToProfile(): void {

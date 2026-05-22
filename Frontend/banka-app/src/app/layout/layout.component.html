@@ -307,9 +307,22 @@
   @if (moreOpsOpen) {
     <div class="more-ops-overlay" (click)="closeMoreOpsMenu()"></div>
     <div class="more-ops-menu">
-      <button type="button" (click)="goToMoreOperation('/ajustes')">Ajustes</button>
-      <button type="button" (click)="goToMoreOperation('/inversion')">Inversión</button>
-      <button type="button" (click)="goToMoreOperation('/hipotecas')">Hipotecas</button>
+      <div class="more-ops-section more-ops-section--primary">
+        <button type="button" class="more-ops-item more-ops-item--featured" (click)="goToMoreOperation('/pagos-recurrentes')">
+          Pagos recurrentes
+        </button>
+      </div>
+      <div class="more-ops-section more-ops-section--tools">
+        <p class="more-ops-section-label">Herramientas</p>
+        <button type="button" class="more-ops-item" (click)="goToMoreOperation('/inversion')">Inversión</button>
+        <button type="button" class="more-ops-item" (click)="goToMoreOperation('/hipotecas')">Hipotecas</button>
+      </div>
+      <hr class="more-ops-divider" />
+      <div class="more-ops-section more-ops-section--settings">
+        <button type="button" class="more-ops-item more-ops-item--settings" (click)="goToMoreOperation('/ajustes')">
+          Ajustes
+        </button>
+      </div>
     </div>
   }
 

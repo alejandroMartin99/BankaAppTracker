@@ -98,6 +98,7 @@ BankaAppTracker/
 | Analítica | `/charts` | `GET /GET/transactions` (filtros fecha) | `transactions` |
 | Gastos compartidos | `/gastos-compartidos` | `GET /GET/shared-transactions` | `user_shared_settings` |
 | Inversión | `/inversion` | `GET /GET/investment/benchmarks` | `investment_benchmark_series_cache`, `user_investment_funds` |
+| Pagos recurrentes | `/pagos-recurrentes` | `GET/PATCH /GET/recurring-payments` | `transactions`, `user_recurring_payment_dismissed` |
 | Hipotecas | `/hipotecas` | `GET/PATCH /GET/mortgage*` | `user_mortgage_settings`, `user_mortgage_receipts` |
 | Importar extracto | (upload en app) | `POST /upload/Transactions` | `transactions`, `accounts` |
 | Ajustes | `/ajustes` | `GET/PATCH /GET/accounts`, categorías | `accounts`, metadata usuario |

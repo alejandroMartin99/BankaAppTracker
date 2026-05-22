@@ -75,6 +75,7 @@ flowchart TB
     UP["upload_extract_file"]
     GT["get_transactions"]
     INV["investment"]
+    RP["recurring_payments"]
   end
 
   subgraph Services["api/services"]
@@ -82,6 +83,7 @@ flowchart TB
     SB["supabase_service"]
     IB["investment_benchmarks"]
     IFD["investment_fund_detail"]
+    REC["recurring_payments"]
   end
 
   LIFE --> Routers
@@ -89,6 +91,7 @@ flowchart TB
   UP --> PIPE --> SB
   GT --> SB
   INV --> IB & IFD --> SB
+  RP --> REC --> SB
   LIFE --> IB
 ```
 
@@ -103,6 +106,7 @@ flowchart LR
     R["/resumen"]
     C["/charts"]
     I["/inversion"]
+    PR["/pagos-recurrentes"]
     H["/hipotecas"]
     SE["/gastos-compartidos"]
     A["/ajustes"]
@@ -111,11 +115,13 @@ flowchart LR
   subgraph Services
     TS["TransactionService"]
     IS["InvestmentService"]
+    RPS["RecurringPaymentsService"]
     AS["AuthService"]
   end
 
   G & R & C & SE & H --> TS
   I --> IS
+  PR --> RPS
   G & R & C & I & H & A --> AS
 ```
 
@@ -146,7 +152,31 @@ sequenceDiagram
 
 ---
 
-## 6. Flujo de datos — inversión (lectura)
+## 6. Flujo de datos — pagos recurrentes
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Usuario
+  participant FE as PagosRecurrentes
+  participant API as GET /recurring-payments
+  participant Det as recurring_payments.py
+  participant DB as transactions
+
+  U->>FE: Abre mes M
+  FE->>API: JWT + month=YYYY-MM
+  API->>DB: Últimos 14 meses gastos
+  Det->>Det: Agrupar · intervalo 25-38d · CV importe
+  Det->>Det: Estado paid/pending/overdue
+  API-->>FE: items + summary
+  FE-->>U: Lista con tick automático
+  U->>FE: Ocultar falso positivo
+  FE->>API: PATCH dismiss
+```
+
+---
+
+## 7. Flujo de datos — inversión (lectura)
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +202,7 @@ sequenceDiagram
 
 ---
 
-## 7. Refresco automático caché inversión
+## 8. Refresco automático caché inversión
 
 ```mermaid
 stateDiagram-v2
@@ -201,7 +231,7 @@ Variables: `INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS`, `INVESTMENT_BENCHMARK_
 
 ---
 
-## 8. Modelo de datos (resumen ER)
+## 9. Modelo de datos (resumen ER)
 
 ```mermaid
 erDiagram
@@ -230,7 +260,7 @@ Scripts y orden: [`Backend/supabase/README.md`](../Backend/supabase/README.md).
 
 ---
 
-## 9. Seguridad y confianza
+## 10. Seguridad y confianza
 
 ```mermaid
 flowchart LR
@@ -261,7 +291,7 @@ flowchart LR
 
 ---
 
-## 10. Matriz de trazabilidad completa
+## 11. Matriz de trazabilidad completa
 
 | # | Capacidad | UI | Servicio FE | Endpoint | Servicio BE | Tabla / caché |
 |---|-----------|-----|-------------|----------|-------------|---------------|
@@ -276,11 +306,12 @@ flowchart LR
 | 9 | Watchlist ISIN | `/inversion` | InvestmentService | `GET/POST/DELETE .../funds` | investment_* | `user_investment_funds` |
 | 10 | Ficha fondo | modal | InvestmentService | `GET .../fund-detail` | investment_fund_detail | `investment_fund_detail_cache` |
 | 11 | Hipoteca | `/hipotecas` | TransactionService | `GET/PATCH /GET/mortgage*` | supabase_service | `user_mortgage_*` |
-| 12 | Renombrar cuenta | `/ajustes` | TransactionService | `PATCH /GET/accounts/{id}` | supabase_service | `accounts` |
+| 12 | Pagos recurrentes | `/pagos-recurrentes` | RecurringPaymentsService | `GET/PATCH /GET/recurring-payments*` | recurring_payments | `transactions`, `user_recurring_payment_dismissed` |
+| 13 | Renombrar cuenta | `/ajustes` | TransactionService | `PATCH /GET/accounts/{id}` | supabase_service | `accounts` |
 
 ---
 
-## 11. Pipeline CI/CD (conceptual)
+## 12. Pipeline CI/CD (conceptual)
 
 ```mermaid
 flowchart LR
@@ -298,7 +329,7 @@ flowchart LR
 
 ---
 
-## 12. Capturas de producto
+## 13. Capturas de producto
 
 Carpeta reservada: [`screenshots/`](screenshots/). Añadir PNG/WebP y referenciar desde el [README raíz](../README.md#capturas-de-producto).
 

@@ -1,0 +1,74 @@
+<div class="rec-page">
+  <header class="rec-head">
+    <h1 class="rec-title">Pagos recurrentes</h1>
+    <p class="rec-hint">Detectados automáticamente desde tus gastos mensuales habituales.</p>
+  </header>
+
+  <div class="rec-month-bar">
+    <button type="button" class="rec-month-btn" (click)="prevMonth()" aria-label="Mes anterior">‹</button>
+    <span class="rec-month-label">{{ monthLabel }}</span>
+    <button type="button" class="rec-month-btn" (click)="nextMonth()" aria-label="Mes siguiente">›</button>
+  </div>
+
+  @if (!loading && !error) {
+    <div class="rec-summary">
+      <span class="rec-pill rec-pill--paid">{{ summary.paid }} pagados</span>
+      <span class="rec-pill rec-pill--pending">{{ summary.pending }} pendientes</span>
+      <span class="rec-pill rec-pill--overdue">{{ summary.overdue }} vencidos</span>
+    </div>
+  }
+
+  @if (loading) {
+    <p class="rec-status">Cargando…</p>
+  }
+
+  @if (error) {
+    <p class="rec-err">{{ error }}</p>
+    <button type="button" class="rec-retry" (click)="load()">Reintentar</button>
+  }
+
+  @if (!loading && !error && items.length === 0) {
+    <p class="rec-empty">No hay pagos mensuales habituales detectados para este mes (o están todos ocultos).</p>
+  }
+
+  @if (!loading && !error) {
+    <ul class="rec-list">
+      @for (item of items; track item.pattern_key) {
+        <li class="rec-card" [class.rec-card--paid]="item.status === 'paid'" [class.rec-card--overdue]="item.status === 'overdue'">
+          <div class="rec-card-icon">
+            <img [src]="iconFor(item).url" alt="" />
+          </div>
+          <div class="rec-card-body">
+            <div class="rec-card-top">
+              <span class="rec-card-name">{{ item.label }}</span>
+              <span class="rec-badge" [class.rec-badge--paid]="item.status === 'paid'" [class.rec-badge--overdue]="item.status === 'overdue'">
+                @if (item.status === 'paid') {
+                  <span class="rec-tick" aria-hidden="true">✓</span>
+                }
+                {{ statusLabel(item.status) }}
+              </span>
+            </div>
+            <div class="rec-card-meta">
+              <span class="rec-amount">{{ item.typical_amount | number: '1.2-2' }} €</span>
+              <span class="rec-sep">·</span>
+              <span>Esperado: {{ expectedLabel(item.expected_date) }}</span>
+            </div>
+            @if (item.status === 'paid' && item.paid_date) {
+              <p class="rec-paid-on">Cobrado el {{ paidLabel(item.paid_date) }}</p>
+            }
+          </div>
+          <button
+            type="button"
+            class="rec-dismiss"
+            (click)="dismiss(item)"
+            [disabled]="dismissingKey === item.pattern_key"
+            title="Ocultar (falso positivo)"
+            aria-label="Ocultar patrón"
+          >
+            ×
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

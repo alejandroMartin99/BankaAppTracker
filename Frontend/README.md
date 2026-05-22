@@ -69,6 +69,7 @@ Frontend/banka-app/
 │   │   │   ├── shared-expenses/    # Gastos compartidos
 │   │   │   ├── inversion/          # Benchmarks y fondos
 │   │   │   ├── hipotecas/          # Amortización y simulaciones
+│   │   │   ├── pagos-recurrentes/  # Pagos mensuales detectados
 │   │   │   ├── ajustes/            # Cuentas, tema, mantenimiento
 │   │   │   ├── login/ · register/
 │   │   ├── services/               # HTTP + Supabase
@@ -97,6 +98,7 @@ Definición: `src/app/app.routes.ts`.
 | `/gastos-compartidos` | `SharedExpensesComponent` | Cuentas vinculadas entre usuarios |
 | `/inversion` | `InversionComponent` | Curvas %, tabla métricas, watchlist ISIN |
 | `/hipotecas` | `HipotecasComponent` | Cuadro amortización y escenarios |
+| `/pagos-recurrentes` | `PagosRecurrentesComponent` | Pagos mensuales auto (pagado/pendiente/vencido) |
 | `/ajustes` | `AjustesComponent` | Cuentas, privacidad, tema |
 | `**` | — | Redirige a `/gastos` |
 
@@ -111,6 +113,7 @@ Rutas hijas viven bajo `LayoutComponent` (shell con menú).
 | `AuthService` | `auth.service.ts` | Supabase Auth (no FastAPI) |
 | `TransactionService` | `transaction.service.ts` | `transactions`, `balances`, `accounts`, `category-catalog`, mortgage, shared |
 | `InvestmentService` | `investment.service.ts` | `investment/benchmarks`, `funds`, `fund-detail` |
+| `RecurringPaymentsService` | `recurring-payments.service.ts` | `recurring-payments`, `recurring-payments/dismiss` |
 | `BackendLoaderService` | `backend-loader.service.ts` | Estados de carga global |
 | `ThemeService` | `theme.service.ts` | Tema claro/oscuro (metadata + local) |
 | `PrivacyService` | `privacy.service.ts` | Ocultar importes en UI |
@@ -205,6 +208,7 @@ Variables en Vercel: no suelen ser necesarias si `environment.prod.ts` está com
 | Shared expenses | `TransactionService` |
 | Inversión | `InvestmentService`, `investment-benchmark-slice` |
 | Hipotecas | `TransactionService` (mortgage endpoints) + lógica local amortización |
+| Pagos recurrentes | `RecurringPaymentsService` |
 | Ajustes | `TransactionService`, `ThemeService`, `PrivacyService` |
 
 ---
