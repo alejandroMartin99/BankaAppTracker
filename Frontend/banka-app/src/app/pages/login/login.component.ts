@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environment';
 
 @Component({
   selector: 'app-login',
@@ -11,9 +12,10 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   errorMessage = '';
   loading = false;
+  demoAvailable = false;
 
   form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -30,6 +32,19 @@ export class LoginComponent {
     }
   }
 
+  ngOnInit(): void {
+    const localDemo =
+      !environment.production &&
+      !!(environment.demoEmail && environment.demoPassword);
+    if (localDemo) {
+      this.demoAvailable = true;
+      return;
+    }
+    void this.auth.isDemoAvailable().then((ok) => {
+      this.demoAvailable = ok;
+    });
+  }
+
   async onSubmit() {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
@@ -40,6 +55,18 @@ export class LoginComponent {
     this.loading = false;
     if (error) {
       this.errorMessage = error.message || 'Error al iniciar sesión';
+      return;
+    }
+    this.router.navigate(['/gastos']);
+  }
+
+  async onDemo() {
+    this.errorMessage = '';
+    this.loading = true;
+    const { error } = await this.auth.signInAsDemo();
+    this.loading = false;
+    if (error) {
+      this.errorMessage = error.message || 'Modo demo no disponible';
       return;
     }
     this.router.navigate(['/gastos']);

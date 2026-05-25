@@ -25,6 +25,7 @@ const BRAND_KEYS: Record<string, string> = {
   EASYPARK: 'easypark',
   Amovens_Alquiler_Furgo: 'amovens',
   Revolut: 'revolut',
+  Santander: 'santander',
   Kraken: 'kraken',
   'Siemens CAFE': 'siemens',
   Ahorramas: 'ahorramas',
@@ -113,6 +114,12 @@ const CATEGORIA_ICONS: Record<string, { icon: string; color?: string }> = {
 
 const DEFAULT_ICON = { icon: 'mdi:credit-card', color: '#9e9e9e' };
 
+/** Cuenta bancaria -> logo (solo si no hay marca en sub/descripción) */
+const CUENTA_LOGOS: Record<string, string> = {
+  Santander: 'santander',
+  Revolut: 'revolut',
+};
+
 /** Descripción menciona marca -> key logo local */
 const DESC_BRANDS: Record<string, string> = {
   AMAZON: 'amazon',
@@ -122,6 +129,8 @@ const DESC_BRANDS: Record<string, string> = {
   IKEA: 'ikea',
   UBER: 'uber',
   REVOLUT: 'revolut',
+  SANTANDER: 'santander',
+  'BANCO SANTANDER': 'santander',
   AHORRAMAS: 'ahorramas',
   APPLE: 'apple',
   DRUNI: 'druni',
@@ -189,7 +198,7 @@ function logoUrl(key: string): string {
 
 /** Devuelve icono/logo local (sin peticiones externas) */
 export function getTransactionIconInfo(
-  t: { categoria?: string; subcategoria?: string; descripcion?: string }
+  t: { categoria?: string; subcategoria?: string; descripcion?: string; cuenta?: string }
 ): IconInfo {
   const sub = (t.subcategoria || '').trim();
   const subUpper = sub.toUpperCase();
@@ -232,6 +241,13 @@ export function getTransactionIconInfo(
   if (catInfo) {
     const [prefix, icon] = catInfo.icon.split(':');
     return { url: localIcon(prefix, icon), color: catInfo.color };
+  }
+
+  // 5b. Logo por cuenta (Santander, Revolut, …)
+  const cuenta = (t.cuenta || '').trim();
+  const cuentaLogo = cuenta && CUENTA_LOGOS[cuenta];
+  if (cuentaLogo) {
+    return { url: logoUrl(cuentaLogo), isLogo: true };
   }
 
   // 6. Default (placeholder local)

@@ -38,6 +38,16 @@
       </button>
     </form>
 
+    @if (demoAvailable) {
+      <div class="auth-divider" aria-hidden="true"><span>o</span></div>
+      <button type="button" class="auth-btn auth-btn--demo" [disabled]="loading" (click)="onDemo()">
+        {{ loading ? 'Entrando...' : 'Explorar modo demo' }}
+      </button>
+      <p class="auth-demo-hint">
+        Cuenta de demostración con datos de ejemplo. Puedes subir extractos y usar todas las secciones.
+      </p>
+    }
+
     <p class="auth-footer">
       ¿No tienes cuenta?
       <a routerLink="/register">Regístrate</a>

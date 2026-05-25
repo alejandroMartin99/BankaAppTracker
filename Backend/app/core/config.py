@@ -65,6 +65,15 @@ class Settings(BaseSettings):
         description="Si false, no refresca automáticamente al despertar el servidor",
     )
 
+    @field_validator("DEMO_LOGIN_ENABLED", mode="before")
+    @classmethod
+    def _parse_demo_login_enabled(cls, v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return False
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
+
     @field_validator("INVESTMENT_BENCHMARK_REFRESH_IN_APP", mode="before")
     @classmethod
     def _parse_benchmark_refresh_in_app(cls, v):
@@ -73,6 +82,13 @@ class Settings(BaseSettings):
         if v is None:
             return True
         return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+    DEMO_LOGIN_ENABLED: bool = Field(
+        default=False,
+        description="Permite POST /GET/auth/demo-session (cuenta demo compartida)",
+    )
+    DEMO_USER_EMAIL: str = Field(default="", description="Email del usuario demo en Supabase Auth")
+    DEMO_USER_PASSWORD: str = Field(default="", description="Contraseña del usuario demo (solo servidor)")
 
     FUND_DETAIL_FETCH_TIMEOUT_SECONDS: float = Field(
         default=25.0,

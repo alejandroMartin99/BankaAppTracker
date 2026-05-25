@@ -29,6 +29,7 @@ const BRANDS = [
   { key: 'easypark', domain: 'easypark.com' },
   { key: 'amovens', domain: 'amovens.com' },
   { key: 'revolut', domain: 'revolut.com' },
+  { key: 'santander', domain: 'bancosantander.es' },
   { key: 'kraken', domain: 'kraken.com' },
   { key: 'siemens', domain: 'siemens.com' },
   { key: 'ahorramas', domain: 'ahorramas.com' },

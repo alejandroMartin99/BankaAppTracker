@@ -182,6 +182,11 @@ Archivo plantilla: `.env.example`. Carga: `app/core/config.py` (`Settings`).
 | `INVESTMENT_BENCHMARK_REFRESH_IN_APP` | No | Default `true` |
 | `ENABLE_DIAGNOSTIC_ENDPOINT` | No | Default `false` — activa `GET /test` |
 | `ENVIRONMENT` | No | Metadato (`production` en Render) |
+| `DEMO_LOGIN_ENABLED` | No | `true` + email/password → botón «Explorar modo demo» en login |
+| `DEMO_USER_EMAIL` | Con demo | Usuario Supabase Auth solo para visitantes |
+| `DEMO_USER_PASSWORD` | Con demo | Contraseña (solo en servidor, no en el frontend) |
+
+**Modo demo:** crea un usuario en Supabase Auth, sube extractos y datos de ejemplo con esa cuenta, y activa las tres variables `DEMO_*` en `Backend/.env` (y en Render en producción). Endpoints: `GET /GET/auth/demo-available`, `POST /GET/auth/demo-session`.
 
 ---
 

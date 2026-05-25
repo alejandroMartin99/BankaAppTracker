@@ -1,4 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { createClient, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environment';
 
@@ -6,6 +8,7 @@ import { environment } from '../../environment';
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly http = inject(HttpClient);
   private supabase: SupabaseClient;
   private session = signal<Session | null>(null);
 
@@ -108,6 +111,49 @@ export class AuthService {
   async signIn(email: string, password: string): Promise<{ error: Error | null }> {
     const { error } = await this.supabase.auth.signInWithPassword({ email, password });
     return { error };
+  }
+
+  /** Comprueba si el backend tiene modo demo activado. */
+  async isDemoAvailable(): Promise<boolean> {
+    if (environment.demoEmail && environment.demoPassword) {
+      return true;
+    }
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ available: boolean }>(`${environment.apiUrl}/GET/auth/demo-available`)
+      );
+      return !!res.available;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Entra con la cuenta demo (misma sesión que un usuario real). */
+  async signInAsDemo(): Promise<{ error: Error | null }> {
+    if (environment.demoEmail && environment.demoPassword) {
+      return this.signIn(environment.demoEmail, environment.demoPassword);
+    }
+    try {
+      const res = await firstValueFrom(
+        this.http.post<{
+          success: boolean;
+          access_token: string;
+          refresh_token: string;
+        }>(`${environment.apiUrl}/GET/auth/demo-session`, {})
+      );
+      const { error } = await this.supabase.auth.setSession({
+        access_token: res.access_token,
+        refresh_token: res.refresh_token,
+      });
+      return { error: error as Error | null };
+    } catch (e: unknown) {
+      const err = e as { error?: { detail?: string }; message?: string };
+      const msg =
+        (typeof err?.error?.detail === 'string' && err.error.detail) ||
+        err?.message ||
+        'No se pudo entrar en modo demo';
+      return { error: new Error(msg) };
+    }
   }
 
   async signUp(email: string, password: string, fullName?: string): Promise<{ error: Error | null }> {
