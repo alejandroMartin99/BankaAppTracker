@@ -104,23 +104,50 @@ class SupabaseService:
         except Exception:
             return []
 
-    def get_user_ids_sharing_accounts_with(self, user_id: str) -> List[str]:
-        """Usuarios que comparten al menos una cuenta con este usuario (otros user_id en user_accounts con el mismo account_id)."""
+    def get_owned_account_ids(self, user_id: str) -> List[str]:
+        """Alias explícito para cuentas propias (owner directo en user_accounts)."""
+        return self.get_user_account_ids(user_id)
+
+    def get_shared_account_ids(self, user_id: str, permission: str = "view") -> List[str]:
+        """
+        Cuentas compartidas explícitamente hacia este usuario.
+        permission: view | edit | delete
+        """
         if not self.supabase:
             return []
-        my_accounts = self.get_user_account_ids(user_id)
-        if not my_accounts:
+        uid = _uuid_str(user_id)
+        perm_col = {
+            "view": "can_view",
+            "edit": "can_edit",
+            "delete": "can_delete",
+        }.get((permission or "view").strip().lower(), "can_view")
+        try:
+            r = (
+                self.supabase.table("user_account_shares")
+                .select("account_id")
+                .eq("viewer_user_id", uid)
+                .eq(perm_col, True)
+                .execute()
+            )
+            return list(dict.fromkeys([x["account_id"] for x in (r.data or []) if x.get("account_id")]))
+        except Exception:
+            return []
+
+    def get_user_ids_sharing_accounts_with(self, user_id: str) -> List[str]:
+        """Usuarios que comparten cuentas explícitamente con este usuario."""
+        if not self.supabase:
             return []
         uid = _uuid_str(user_id)
         try:
             r = (
-                self.supabase.table("user_accounts")
-                .select("user_id")
-                .in_("account_id", my_accounts)
+                self.supabase.table("user_account_shares")
+                .select("owner_user_id")
+                .eq("viewer_user_id", uid)
+                .eq("can_view", True)
                 .execute()
             )
-            other = [x["user_id"] for x in (r.data or []) if x.get("user_id") != uid]
-            return list(dict.fromkeys(other))
+            owners = [x.get("owner_user_id") for x in (r.data or []) if x.get("owner_user_id")]
+            return list(dict.fromkeys([o for o in owners if o != uid]))
         except Exception:
             return []
 
@@ -228,6 +255,32 @@ class SupabaseService:
             return list(dict.fromkeys([x["account_id"] for x in (r.data or [])]))
         except Exception:
             return []
+
+    def can_access_transaction(self, user_id: str, row_id: int, permission: str = "view") -> bool:
+        """Valida si el usuario puede operar sobre una transacción según ownership/compartición."""
+        if not self.supabase:
+            return False
+        try:
+            tx = (
+                self.supabase.table("transactions")
+                .select("id, account_id")
+                .eq("id", int(row_id))
+                .limit(1)
+                .execute()
+            )
+            rows = tx.data or []
+            if not rows:
+                return False
+            account_id = rows[0].get("account_id")
+            if not account_id:
+                return False
+            owned = set(self.get_owned_account_ids(user_id))
+            if account_id in owned:
+                return True
+            shared = set(self.get_shared_account_ids(user_id, permission=permission))
+            return account_id in shared
+        except Exception:
+            return False
 
     def get_account_display_names(self, account_ids: List[str]) -> Dict[str, str]:
         """Mapeo account_id -> display_name para mostrar en la UI."""

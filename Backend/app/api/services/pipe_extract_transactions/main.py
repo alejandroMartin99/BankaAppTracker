@@ -45,13 +45,18 @@ def generate_transaction_id(row: pd.Series) -> str:
     imp = _norm_val(row.get("Importe") or row.get("importe"), decimals=True)
     sal = _norm_val(row.get("Saldo") or row.get("saldo"), decimals=True)
     cuenta = _norm_val(row.get("Cuenta") or row.get("cuenta"))
+    account_identifier = _norm_val(row.get("AccountIdentifier") or row.get("account_identifier"))
 
-    unique_string = f"{date_part}|{desc}|{ref}|{imp}|{sal}|{cuenta}"
+    unique_string = f"{date_part}|{desc}|{ref}|{imp}|{sal}|{cuenta}|{account_identifier}"
     hash_object = hashlib.sha256(unique_string.encode("utf-8"))
     return hash_object.hexdigest()[:32]
 
 
-def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.DataFrame, str, str, str]:
+def main_file_parser(
+    file_content: bytes,
+    is_csv: bool = False,
+    user_id: str | None = None,
+) -> tuple[pd.DataFrame, str, str, str]:
     """
     Parsea el archivo y devuelve (DataFrame, tipo_origen, account_identifier, display_name).
     tipo_origen: 'Revolut' | 'Ibercaja'
@@ -100,7 +105,14 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
     else:
         raise ValueError("Formato de archivo no reconocido")
     
-    # Generar transaction_id para cada fila
+    # Aislar cuentas sin identificador fuerte por usuario (evita colisiones entre usuarios).
+    uid = (user_id or "").strip()
+    uid_part = uid.replace("-", "")[:12]
+    if uid and source_type in ("Revolut", "Pluxee"):
+        account_identifier = f"{account_identifier}__{uid_part}"
+
+    # Generar transaction_id para cada fila (incluye account_identifier).
+    df_transactions["AccountIdentifier"] = account_identifier
     df_transactions['transaction_id'] = df_transactions.apply(generate_transaction_id, axis=1)
 
     duplicated_mask = df_transactions["transaction_id"].duplicated(keep=False)
@@ -145,7 +157,11 @@ def main_file_parser(file_content: bytes, is_csv: bool = False) -> tuple[pd.Data
         "Categoria": "categoria",
         "Subcategoria": "subcategoria",
         "BizumMensaje": "bizum_mensaje",
-        "Referencia": "referencia"
+        "Referencia": "referencia",
+        "AccountIdentifier": "account_identifier",
     })
+
+    if "account_identifier" in df_transactions.columns:
+        df_transactions = df_transactions.drop(columns=["account_identifier"])
 
     return df_transactions, source_type, account_identifier, display_name

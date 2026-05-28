@@ -65,7 +65,7 @@ async def upload_transactions_file(
     
     try:
         df_transactions, source_type, account_identifier, display_name = main_file_parser(
-            file_bytes, is_csv=is_csv
+            file_bytes, is_csv=is_csv, user_id=_user.get("sub", "")
         )
     except Exception as e:
         logger.exception("upload parse failed: %s", e)

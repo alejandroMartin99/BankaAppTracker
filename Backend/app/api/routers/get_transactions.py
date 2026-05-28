@@ -295,14 +295,14 @@ async def get_shared_transactions(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     uid = user.get("sub", "")
-    my_account_ids = supabase_service.get_user_account_ids(uid)
+    my_account_ids = supabase_service.get_owned_account_ids(uid)
     shared_user_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
     shared_with_user_name = (
         supabase_service.get_user_display_name(shared_user_ids[0])
         if shared_user_ids else None
     )
     shared_enabled = _is_shared_balances_enabled(uid)
-    shared_account_ids = supabase_service.get_account_ids_for_users(shared_user_ids) if shared_enabled else []
+    shared_account_ids = supabase_service.get_shared_account_ids(uid, permission="view") if shared_enabled else []
     visible_account_ids = list(dict.fromkeys(my_account_ids + shared_account_ids))
     my_account_set = set(my_account_ids)
 
@@ -495,9 +495,6 @@ async def update_transaction_category(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
-        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
     try:
         # Comprobar que la transacción existe y pertenece a alguna de las cuentas del usuario
@@ -514,7 +511,7 @@ async def update_transaction_category(
             raise HTTPException(status_code=404, detail="Transacción no encontrada")
 
         tx = rows[0]
-        if tx.get("account_id") not in account_ids:
+        if not supabase_service.can_access_transaction(user_id, int(tx.get("id")), permission="edit"):
             raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta transacción")
 
         update_data: Dict[str, Any] = {}
@@ -549,9 +546,6 @@ async def update_transaction_details(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
-        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
     try:
         r = (
@@ -567,7 +561,7 @@ async def update_transaction_details(
             raise HTTPException(status_code=404, detail="Transacción no encontrada")
 
         tx = rows[0]
-        if tx.get("account_id") not in account_ids:
+        if not supabase_service.can_access_transaction(user_id, int(tx.get("id")), permission="edit"):
             raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta transacción")
 
         update_data: Dict[str, Any] = {}
@@ -610,11 +604,11 @@ async def update_account_display_name(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
+    owned_ids = set(supabase_service.get_owned_account_ids(user_id))
+    if not owned_ids:
         raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
-    if account_id not in account_ids:
+    if account_id not in owned_ids:
         raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta cuenta")
 
     try:
@@ -648,8 +642,10 @@ async def delete_transactions_batch(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
+    owned_ids = set(supabase_service.get_owned_account_ids(user_id))
+    shared_delete_ids = set(supabase_service.get_shared_account_ids(user_id, permission="delete"))
+    allowed_account_ids = owned_ids.union(shared_delete_ids)
+    if not allowed_account_ids:
         raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
     raw_ids = [i for i in (body.ids or []) if isinstance(i, int) and i > 0]
@@ -665,7 +661,7 @@ async def delete_transactions_batch(
         raise HTTPException(status_code=400, detail="Máximo 5000 ids por petición")
 
     try:
-        account_set = set(account_ids)
+        account_set = allowed_account_ids
         allowed_ids: list[int] = []
         q_chunk = 200
         for part in _chunked(ids, q_chunk):
@@ -706,8 +702,10 @@ async def update_transactions_category_batch(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
+    owned_ids = set(supabase_service.get_owned_account_ids(user_id))
+    shared_edit_ids = set(supabase_service.get_shared_account_ids(user_id, permission="edit"))
+    allowed_account_ids = owned_ids.union(shared_edit_ids)
+    if not allowed_account_ids:
         raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
     raw_ids = [i for i in (body.ids or []) if isinstance(i, int) and i > 0]
@@ -731,7 +729,7 @@ async def update_transactions_category_batch(
         return {"success": True, "updated": 0, "updated_ids": []}
 
     try:
-        account_set = set(account_ids)
+        account_set = allowed_account_ids
         allowed_ids: list[int] = []
         q_chunk = 200
         for part in _chunked(ids, q_chunk):
@@ -772,9 +770,6 @@ async def delete_transaction(
         raise HTTPException(status_code=503, detail="Servicio de base de datos no disponible")
 
     user_id = user.get("sub", "")
-    account_ids = supabase_service.get_user_account_ids(user_id)
-    if not account_ids:
-        raise HTTPException(status_code=404, detail="No se han encontrado cuentas para el usuario")
 
     try:
         r = (
@@ -790,7 +785,7 @@ async def delete_transaction(
             raise HTTPException(status_code=404, detail="Transacción no encontrada")
 
         tx = rows[0]
-        if tx.get("account_id") not in account_ids:
+        if not supabase_service.can_access_transaction(user_id, int(tx.get("id")), permission="delete"):
             raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta transacción")
 
         supabase_service.supabase.table("transactions").delete().eq("id", row_id).execute()
