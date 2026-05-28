@@ -173,12 +173,18 @@ export class PagosRecurrentesComponent implements OnInit {
   private chartCoords(): ChartDot[] {
     const pts = this.detailHistory.filter((p) => p.date);
     if (!pts.length) return [];
+    const minX = 4;
+    const maxX = 96;
+    const minY = 4;
+    const maxY = 36;
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
     const vals = pts.map((p) => Math.abs(p.amount));
     const max = Math.max(...vals, 1) * 1.08;
     const n = Math.max(pts.length - 1, 1);
     return pts.map((p, i) => ({
-      x: (i / n) * 100,
-      y: 38 - (Math.abs(p.amount) / max) * 34,
+      x: minX + (i / n) * spanX,
+      y: maxY - (Math.abs(p.amount) / max) * spanY,
     }));
   }
 
@@ -195,7 +201,7 @@ export class PagosRecurrentesComponent implements OnInit {
   get chartAreaPoints(): string {
     const line = this.chartPolyline;
     if (!line) return '';
-    return `0,40 ${line} 100,40`;
+    return `4,36 ${line} 96,36`;
   }
 
   get chartYTicks(): number[] {

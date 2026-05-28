@@ -185,9 +185,9 @@
   overflow-y: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
 }
 
 .rec-modal-head {
@@ -195,22 +195,38 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.rec-modal-head-main {
+  min-width: 0;
 }
 
 .rec-modal-title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .rec-modal-sub {
-  margin: 4px 0 0;
+  margin: 8px 0 0;
+}
+
+.rec-modal-sub-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary, #3b82f6) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #3b82f6) 28%, transparent);
+  color: var(--color-text-secondary);
   font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
 }
 
 .rec-modal-close {
@@ -224,24 +240,68 @@
 }
 
 .rec-modal-cuenta {
-  margin: 0 0 12px;
-  font-size: 11px;
-  color: var(--color-text-secondary);
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+}
 
-  strong {
-    color: var(--color-text);
-    font-weight: 600;
-  }
+.rec-modal-cuenta-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.rec-modal-cuenta-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .rec-chart-block {
   display: grid;
   grid-template-columns: 36px 1fr;
   gap: 6px;
-  margin-bottom: 12px;
-  padding: 10px 8px;
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  padding: 12px 10px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface) 92%, var(--color-text) 8%),
+    var(--color-bg)
+  );
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+}
+
+.rec-chart-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.rec-chart-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.rec-chart-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .rec-chart-y {
@@ -287,7 +347,23 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rec-history-header {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .rec-history-row {
@@ -295,7 +371,7 @@
   grid-template-columns: 52px 1fr auto;
   gap: 8px;
   align-items: center;
-  padding: 8px 0;
+  padding: 9px 10px;
   border-bottom: 1px solid var(--color-border-light);
   font-size: 11px;
 

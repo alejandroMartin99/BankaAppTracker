@@ -85,10 +85,14 @@ def _cv_limit_for_category(cat_l: str) -> float:
 def _is_hipoteca_tx(tx: Dict[str, Any]) -> bool:
     cat_l = str(tx.get("categoria") or "").strip().lower()
     sub_l = str(tx.get("subcategoria") or "").strip().lower()
-    desc_u = str(tx.get("descripcion") or "").upper()
-    if cat_l == "vivienda" and (not sub_l or "hipoteca" in sub_l or "prestamo" in sub_l):
-        return True
-    return bool(re.search(r"HIPOTECA|PRESTAMO[\s-]*CREDITO|OPERACION PRESTAMO", desc_u, re.IGNORECASE))
+    return cat_l == "vivienda" and sub_l == "hipoteca"
+
+
+def _is_hipoteca_fallback_tx(tx: Dict[str, Any]) -> bool:
+    """
+    Fallback estricto por categoría/subcategoría.
+    """
+    return _is_hipoteca_tx(tx)
 
 
 def _is_luz_tx(tx: Dict[str, Any]) -> bool:
@@ -104,6 +108,7 @@ CORE_PATTERN_SPECS: List[Tuple[str, str, str, Callable[[Dict[str, Any]], bool]]]
     ("VIVIENDA|HIPOTECA", "Hipoteca", "Vivienda", _is_hipoteca_tx),
     ("SUMINISTROS|LUZ", "Luz", "Suministros", _is_luz_tx),
 ]
+CORE_PATTERN_KEYS = {spec[0] for spec in CORE_PATTERN_SPECS}
 
 
 def _is_income_candidate(tx: Dict[str, Any]) -> bool:
@@ -166,6 +171,10 @@ def _is_hogar_purchase(tx: Dict[str, Any]) -> bool:
 
 
 def _should_exclude_expense_tx(tx: Dict[str, Any], internal_ids: Set[str]) -> bool:
+    # Hipoteca siempre se evalúa como candidata recurrente,
+    # incluso si viene con categoría atípica (p.ej. transferencia/banco).
+    if _is_hipoteca_tx(tx):
+        return False
     tid = str(tx.get("transaction_id") or tx.get("id") or "")
     if tid and tid in internal_ids and not _is_hipoteca_tx(tx):
         return True
@@ -251,14 +260,19 @@ def _build_pattern_record(
     categoria: str,
     txs: List[Dict[str, Any]],
     is_income: bool,
+    min_occurrences: int = MIN_OCCURRENCES,
+    pick_largest_per_month: bool = True,
 ) -> Optional[Dict[str, Any]]:
-    txs = _dedupe_one_per_month(_drop_amount_outliers(txs), pick_largest=True)
-    if len(txs) < MIN_OCCURRENCES:
+    txs = _dedupe_one_per_month(
+        _drop_amount_outliers(txs),
+        pick_largest=pick_largest_per_month,
+    )
+    if len(txs) < min_occurrences:
         return None
     dates = [_parse_date(t.get("dt_date")) for t in txs]
     dates = [d for d in dates if d]
     cat_l = categoria.lower()
-    if not _is_monthly_cluster(dates, cat_l):
+    if len(txs) >= MIN_OCCURRENCES and not _is_monthly_cluster(dates, cat_l):
         return None
     amounts = [abs(float(t.get("importe") or 0)) for t in txs]
     if not amounts:
@@ -325,12 +339,62 @@ def _ensure_core_patterns(
         if key in dismissed or key in existing:
             continue
         txs = [t for t in pool if matcher(t)]
+        if key == "VIVIENDA|HIPOTECA" and not txs:
+            txs = [t for t in pool if _is_hipoteca_fallback_tx(t)]
+        if key == "VIVIENDA|HIPOTECA":
+            # Para hipoteca nos interesan solo cargos (importe negativo) y cuota mensual,
+            # no transferencias/aportaciones grandes.
+            txs = [t for t in txs if float(t.get("importe") or 0) < 0]
         if not txs:
             continue
-        rec = _build_pattern_record(key, label, categoria, txs, is_income=False)
+        rec = _build_pattern_record(
+            key,
+            label,
+            categoria,
+            txs,
+            is_income=False,
+            pick_largest_per_month=(key != "VIVIENDA|HIPOTECA"),
+        )
+        if not rec and key == "VIVIENDA|HIPOTECA":
+            # Fallback: mantener Hipoteca visible aunque solo haya un registro reciente.
+            rec = _build_pattern_record(
+                key,
+                label,
+                categoria,
+                txs,
+                is_income=False,
+                min_occurrences=1,
+                pick_largest_per_month=False,
+            )
         if rec:
             out.append(rec)
             existing.add(key)
+    out.sort(key=lambda p: (p.get("categoria") or "", p["label"].lower()))
+    return out
+
+
+def _force_hipoteca_pattern_if_missing(
+    pool: List[Dict[str, Any]],
+    patterns: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    if any(p.get("pattern_key") == "VIVIENDA|HIPOTECA" for p in patterns):
+        return patterns
+    txs = [t for t in pool if _is_hipoteca_fallback_tx(t) and float(t.get("importe") or 0) < 0]
+    if not txs:
+        return patterns
+    rec = _build_pattern_record(
+        "VIVIENDA|HIPOTECA",
+        "Hipoteca",
+        "Vivienda",
+        txs,
+        is_income=False,
+        min_occurrences=1,
+        pick_largest_per_month=False,
+    )
+    if not rec:
+        return patterns
+    out = list(patterns)
+    out.append(rec)
     out.sort(key=lambda p: (p.get("categoria") or "", p["label"].lower()))
     return out
 
@@ -408,7 +472,30 @@ def _usual_cuenta(txs: List[Dict[str, Any]]) -> Optional[str]:
 def _load_transaction_pools(user_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     today = datetime.now(timezone.utc).date()
     from_d = today - timedelta(days=LOOKBACK_MONTHS * 31)
-    raw = supabase_service.list_user_transactions(user_id, from_date=from_d.isoformat())
+    own_ids = supabase_service.get_owned_account_ids(user_id)
+    shared_ids = supabase_service.get_shared_account_ids(user_id, permission="view")
+    visible_account_ids = list(dict.fromkeys(own_ids + shared_ids))
+    if not visible_account_ids:
+        return [], []
+
+    raw: List[Dict[str, Any]] = []
+    try:
+        q = (
+            supabase_service.supabase.table("transactions")
+            .select("*")
+            .in_("account_id", visible_account_ids)
+            .gte("dt_date", from_d.isoformat())
+            .order("dt_date", desc=False)
+            .limit(10000)
+        )
+        r = q.execute()
+        raw = list(r.data or [])
+        names = supabase_service.get_account_display_names(visible_account_ids)
+        for row in raw:
+            row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
+    except Exception:
+        raw = []
+
     internal_ids = detect_internal_transfer_ids(raw)
     expenses = [t for t in raw if not _should_exclude_expense_tx(t, internal_ids)]
     incomes = [t for t in raw if not _should_exclude_income_tx(t, internal_ids)]
@@ -474,9 +561,12 @@ def build_recurring_payments_payload(user_id: str, month: Optional[str] = None) 
 
     expenses, incomes = _load_transaction_pools(user_id)
     dismissed = supabase_service.list_dismissed_recurring_pattern_keys(user_id)
+    # Core patterns nunca deben desaparecer de la vista (Hipoteca/Luz).
+    dismissed = {k for k in dismissed if k not in CORE_PATTERN_KEYS}
 
     patterns = _detect_patterns(expenses, is_income=False)
     patterns = _ensure_core_patterns(expenses, patterns, dismissed, is_income=False)
+    patterns = _force_hipoteca_pattern_if_missing(expenses, patterns)
     patterns += _detect_patterns(incomes, is_income=True)
     patterns = [p for p in patterns if p["pattern_key"] not in dismissed]
 

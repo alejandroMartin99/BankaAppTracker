@@ -69,20 +69,22 @@
   <div class="rec-modal-overlay" (click)="closeDetail()"></div>
   <div class="rec-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     <div class="rec-modal-head">
-      <div>
+      <div class="rec-modal-head-main">
         <h3 class="rec-modal-title">{{ detailItem?.label }}</h3>
         @if (detailItem?.categoria) {
-          <p class="rec-modal-sub">{{ detailItem?.categoria }}</p>
+          <p class="rec-modal-sub">
+            <span class="rec-modal-sub-badge">{{ detailItem?.categoria }}</span>
+          </p>
         }
       </div>
       <button type="button" class="rec-modal-close" (click)="closeDetail()" aria-label="Cerrar">×</button>
     </div>
 
     @if (detailUsualCuenta) {
-      <p class="rec-modal-cuenta">
-        Cuenta habitual:
-        <strong>{{ detailUsualCuenta }}</strong>
-      </p>
+      <div class="rec-modal-cuenta">
+        <span class="rec-modal-cuenta-label">Cuenta habitual</span>
+        <strong class="rec-modal-cuenta-chip">{{ detailUsualCuenta }}</strong>
+      </div>
     }
 
     @if (detailLoading) {
@@ -95,13 +97,17 @@
 
     @if (!detailLoading && !detailError && detailHistory.length > 0) {
       <div class="rec-chart-block">
+        <div class="rec-chart-head">
+          <span class="rec-chart-title">Histórico de importe</span>
+          <span class="rec-chart-count">{{ detailHistory.length }} meses</span>
+        </div>
         <div class="rec-chart-y">
           @for (t of chartYTicks; track $index) {
             <span>{{ privacy.hideBalances() ? '***' : (t | number: '1.0-0') }}</span>
           }
         </div>
         <div class="rec-chart-main">
-          <svg class="rec-chart-svg" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+          <svg class="rec-chart-svg" viewBox="0 0 100 40" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
             @if (chartAreaPoints) {
               <polygon class="rec-chart-area" [attr.points]="chartAreaPoints" />
             }
@@ -126,6 +132,11 @@
       </div>
 
       <ul class="rec-history-list">
+        <li class="rec-history-header">
+          <span>Mes</span>
+          <span>Importe</span>
+          <span>Cuenta</span>
+        </li>
         @for (h of detailHistory; track h.date) {
           <li class="rec-history-row">
             <span class="rec-history-date">{{ historyMonthLabel(h.date) }}</span>
