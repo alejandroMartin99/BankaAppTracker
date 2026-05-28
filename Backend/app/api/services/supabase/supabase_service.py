@@ -108,6 +108,28 @@ class SupabaseService:
         """Alias explícito para cuentas propias (owner directo en user_accounts)."""
         return self.get_user_account_ids(user_id)
 
+    def _get_share_eligible_account_ids(self) -> Set[str]:
+        """
+        Cuentas elegibles para compartición: solo bancos con IBAN identificable.
+        Regla actual: source in ('ibercaja', 'santander').
+        """
+        if not self.supabase:
+            return set()
+        try:
+            r = (
+                self.supabase.table("accounts")
+                .select("id")
+                .in_("source", ["ibercaja", "santander"])
+                .execute()
+            )
+            return {str(x["id"]) for x in (r.data or []) if x.get("id")}
+        except Exception:
+            return set()
+
+    def get_share_eligible_account_ids(self) -> List[str]:
+        """Listado público de cuentas elegibles para lógica de compartidas (solo IBAN)."""
+        return sorted(self._get_share_eligible_account_ids())
+
     def get_shared_account_ids(self, user_id: str, permission: str = "view") -> List[str]:
         """
         Cuentas compartidas explícitamente hacia este usuario.
@@ -129,7 +151,11 @@ class SupabaseService:
                 .eq(perm_col, True)
                 .execute()
             )
-            return list(dict.fromkeys([x["account_id"] for x in (r.data or []) if x.get("account_id")]))
+            ids = [x["account_id"] for x in (r.data or []) if x.get("account_id")]
+            eligible = self._get_share_eligible_account_ids()
+            if not eligible:
+                return []
+            return list(dict.fromkeys([aid for aid in ids if aid in eligible]))
         except Exception:
             return []
 
@@ -141,12 +167,17 @@ class SupabaseService:
         try:
             r = (
                 self.supabase.table("user_account_shares")
-                .select("owner_user_id")
+                .select("owner_user_id, account_id")
                 .eq("viewer_user_id", uid)
                 .eq("can_view", True)
                 .execute()
             )
-            owners = [x.get("owner_user_id") for x in (r.data or []) if x.get("owner_user_id")]
+            eligible = self._get_share_eligible_account_ids()
+            owners = [
+                x.get("owner_user_id")
+                for x in (r.data or [])
+                if x.get("owner_user_id") and x.get("account_id") in eligible
+            ]
             return list(dict.fromkeys([o for o in owners if o != uid]))
         except Exception:
             return []

@@ -296,6 +296,8 @@ async def get_shared_transactions(
 
     uid = user.get("sub", "")
     my_account_ids = supabase_service.get_owned_account_ids(uid)
+    eligible_ids = set(supabase_service.get_share_eligible_account_ids())
+    my_eligible_account_ids = [aid for aid in my_account_ids if aid in eligible_ids]
     shared_user_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
     shared_with_user_name = (
         supabase_service.get_user_display_name(shared_user_ids[0])
@@ -303,8 +305,8 @@ async def get_shared_transactions(
     )
     shared_enabled = _is_shared_balances_enabled(uid)
     shared_account_ids = supabase_service.get_shared_account_ids(uid, permission="view") if shared_enabled else []
-    visible_account_ids = list(dict.fromkeys(my_account_ids + shared_account_ids))
-    my_account_set = set(my_account_ids)
+    visible_account_ids = list(dict.fromkeys(my_eligible_account_ids + shared_account_ids))
+    my_account_set = set(my_eligible_account_ids)
 
     if not visible_account_ids:
         return {"success": True, "count": 0, "data": []}

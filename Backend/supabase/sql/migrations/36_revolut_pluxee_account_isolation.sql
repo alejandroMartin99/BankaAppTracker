@@ -12,6 +12,9 @@ BEGIN
   JOIN public.user_accounts ua2
     ON ua1.account_id = ua2.account_id
    AND ua1.user_id <> ua2.user_id
+  JOIN public.accounts a
+    ON a.id = ua1.account_id
+  WHERE a.source IN ('ibercaja', 'santander')
   ON CONFLICT (owner_user_id, viewer_user_id, account_id) DO NOTHING;
 
   -- 2) Duplicar cuentas Revolut/Pluxee por usuario cuando la cuenta actual es global.
