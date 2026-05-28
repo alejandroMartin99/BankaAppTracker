@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -105,6 +105,8 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   constructor(
     private transactionService: TransactionService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone,
     public privacy: PrivacyService
   ) {}
 
@@ -205,27 +207,33 @@ export class ResumenComponent implements OnInit, OnDestroy {
       to_date: this.toDate || undefined,
     }).subscribe({
       next: (res) => {
-        const raw = res?.data;
-        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
-        const mapped = arr.map((t: any) => ({
-          id: t.id,
-          transaction_id: t.transaction_id,
-          dt_date: t.dt_date || t.transaction_date || '',
-          importe: typeof t.importe === 'number' ? t.importe : parseFloat(t.importe) || 0,
-          saldo: t.saldo != null ? (typeof t.saldo === 'number' ? t.saldo : parseFloat(t.saldo)) : undefined,
-          cuenta: t.cuenta || t.account_number,
-          descripcion: t.descripcion || t.description || '',
-          categoria: t.categoria || t.category,
-          subcategoria: t.subcategoria
-        }));
-        this.transactions = mapped;
-        this.loading = false;
-        this.showLoader = false;
+        this.ngZone.run(() => {
+          const raw = res?.data;
+          const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
+          const mapped = arr.map((t: any) => ({
+            id: t.id,
+            transaction_id: t.transaction_id,
+            dt_date: t.dt_date || t.transaction_date || '',
+            importe: typeof t.importe === 'number' ? t.importe : parseFloat(t.importe) || 0,
+            saldo: t.saldo != null ? (typeof t.saldo === 'number' ? t.saldo : parseFloat(t.saldo)) : undefined,
+            cuenta: t.cuenta || t.account_number,
+            descripcion: t.descripcion || t.description || '',
+            categoria: t.categoria || t.category,
+            subcategoria: t.subcategoria
+          }));
+          this.transactions = mapped;
+          this.loading = false;
+          this.showLoader = false;
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
-        this.loading = false;
-        this.showLoader = false;
+        this.ngZone.run(() => {
+          this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
+          this.loading = false;
+          this.showLoader = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -233,17 +241,23 @@ export class ResumenComponent implements OnInit, OnDestroy {
   private loadCategoryCatalog(): void {
     this.transactionService.getCategoryCatalog().subscribe({
       next: (res) => {
-        if (res?.success && Array.isArray(res.categories)) {
-          this.catalogCategories = res.categories;
-          this.catalogSubByCategory = res.subcategories_by_category || {};
-        } else {
-          this.catalogCategories = [];
-          this.catalogSubByCategory = {};
-        }
+        this.ngZone.run(() => {
+          if (res?.success && Array.isArray(res.categories)) {
+            this.catalogCategories = res.categories;
+            this.catalogSubByCategory = res.subcategories_by_category || {};
+          } else {
+            this.catalogCategories = [];
+            this.catalogSubByCategory = {};
+          }
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
-        this.catalogCategories = [];
-        this.catalogSubByCategory = {};
+        this.ngZone.run(() => {
+          this.catalogCategories = [];
+          this.catalogSubByCategory = {};
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -319,19 +333,25 @@ export class ResumenComponent implements OnInit, OnDestroy {
   private loadAccounts() {
     this.transactionService.getAccounts().subscribe({
       next: (res) => {
-        const data = res?.data || [];
-        this.accounts = data;
-        this.accountFilters = [
-          { id: '', label: 'Todas' },
-          ...data.map(acc => ({
-            id: acc.display_name,
-            label: acc.display_name
-          }))
-        ];
+        this.ngZone.run(() => {
+          const data = res?.data || [];
+          this.accounts = data;
+          this.accountFilters = [
+            { id: '', label: 'Todas' },
+            ...data.map(acc => ({
+              id: acc.display_name,
+              label: acc.display_name
+            }))
+          ];
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
-        this.accounts = [];
-        this.accountFilters = [{ id: '', label: 'Todas' }];
+        this.ngZone.run(() => {
+          this.accounts = [];
+          this.accountFilters = [{ id: '', label: 'Todas' }];
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -496,13 +516,19 @@ export class ResumenComponent implements OnInit, OnDestroy {
     const id = tx.id;
     this.transactionService.deleteTransaction(id).subscribe({
       next: () => {
-        this.deletingEdit = false;
-        this.closeEditModal();
-        this.transactionService.dataRefresh$.next();
+        this.ngZone.run(() => {
+          this.deletingEdit = false;
+          this.closeEditModal();
+          this.transactionService.dataRefresh$.next();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.editError = err.error?.detail || 'Error al eliminar';
-        this.deletingEdit = false;
+        this.ngZone.run(() => {
+          this.editError = err.error?.detail || 'Error al eliminar';
+          this.deletingEdit = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -570,13 +596,19 @@ export class ResumenComponent implements OnInit, OnDestroy {
           : this.transactionService.updateTransactionDetails(id, detPatch!);
     chain.subscribe({
       next: () => {
-        this.savingEdit = false;
-        this.closeEditModal();
-        this.transactionService.dataRefresh$.next();
+        this.ngZone.run(() => {
+          this.savingEdit = false;
+          this.closeEditModal();
+          this.transactionService.dataRefresh$.next();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.editError = err.error?.detail || 'Error al guardar';
-        this.savingEdit = false;
+        this.ngZone.run(() => {
+          this.editError = err.error?.detail || 'Error al guardar';
+          this.savingEdit = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
