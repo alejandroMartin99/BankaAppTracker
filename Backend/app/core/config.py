@@ -89,7 +89,6 @@ class Settings(BaseSettings):
     )
     DEMO_USER_EMAIL: str = Field(default="", description="Email del usuario demo en Supabase Auth")
     DEMO_USER_PASSWORD: str = Field(default="", description="Contraseña del usuario demo (solo servidor)")
-
     FUND_DETAIL_FETCH_TIMEOUT_SECONDS: float = Field(
         default=25.0,
         ge=5.0,

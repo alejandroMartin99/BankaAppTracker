@@ -628,5 +628,19 @@ class SupabaseService:
             print(f"[Supabase] dismiss_recurring_pattern: {e}")
             raise
 
+    def copy_public_transactions_to_recovery(self) -> Dict[str, Any]:
+        """Ejecuta RPC SQL para copiar public.transactions a recovery.transactions."""
+        if not self.supabase:
+            raise RuntimeError("Supabase no inicializado")
+        res = self.supabase.rpc("copy_public_transactions_to_recovery").execute()
+        data = res.data
+        if isinstance(data, list) and data:
+            first = data[0]
+            if isinstance(first, dict):
+                return first
+        if isinstance(data, dict):
+            return data
+        return {"ok": True, "raw": data}
+
 
 supabase_service = SupabaseService()

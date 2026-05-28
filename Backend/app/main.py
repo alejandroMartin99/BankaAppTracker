@@ -23,6 +23,7 @@ from app.api.routers.get_transactions import router as get_router
 from app.api.routers.investment import router as investment_router
 from app.api.routers.recurring_payments import router as recurring_payments_router
 from app.api.routers.auth_demo import router as auth_demo_router
+from app.api.routers.recovery_backup import router as recovery_backup_router
 from app.api.services.supabase.supabase_service import supabase_service
 
 KEEP_ALIVE_TASK: asyncio.Task | None = None
@@ -138,6 +139,7 @@ app.include_router(get_router)
 app.include_router(investment_router)
 app.include_router(recurring_payments_router)
 app.include_router(auth_demo_router)
+app.include_router(recovery_backup_router)
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
