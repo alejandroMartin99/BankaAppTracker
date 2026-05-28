@@ -24,32 +24,34 @@ def main_decode_ibercaja(df: pd.DataFrame, account_map: dict | None = None) -> t
     suffix = None
     known_masked_accounts = [str(k).strip() for k in (account_map or {}).keys() if str(k).strip()]
     base_candidates = [k[:-6] for k in known_masked_accounts if len(k) >= 6]
-    base_pattern = base_candidates[0] if base_candidates else "20859254******"
+    base_pattern = base_candidates[0] if base_candidates else ""
 
-    def _extract_suffix(text: str) -> str | None:
+    def _extract_account_parts(text: str) -> tuple[str | None, str | None]:
         if not text:
-            return None
+            return None, None
         # Caso típico en extracto: 8 dígitos + asteriscos + 6 dígitos
         m_mask = re.search(r"(\d{8})\*+(\d{6})", text)
         if m_mask:
-            return m_mask.group(2)
+            return f"{m_mask.group(1)}******", m_mask.group(2)
         # IBAN ES + 24 chars (tomamos últimos 6 dígitos)
         m_iban = re.search(r"\bES\d{22}\b", text.replace(" ", ""))
         if m_iban:
             digits = re.sub(r"\D", "", m_iban.group(0))
             if len(digits) >= 6:
-                return digits[-6:]
+                return None, digits[-6:]
         # Fallback: secuencias largas de dígitos en cabecera (CCC/IBAN parcial)
         for raw in re.findall(r"\d{10,24}", text):
             if len(raw) >= 6:
-                return raw[-6:]
-        return None
+                return None, raw[-6:]
+        return None, None
 
     for i in range(min(15, len(df))):
         row_text = " ".join(str(v) for v in df.iloc[i].values if pd.notna(v))
-        candidate_suffix = _extract_suffix(row_text)
+        detected_base, candidate_suffix = _extract_account_parts(row_text)
         if candidate_suffix:
             suffix = candidate_suffix
+            if detected_base:
+                base_pattern = detected_base
             account_number = f"{base_pattern}{suffix}"
             break
 
