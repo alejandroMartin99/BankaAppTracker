@@ -472,11 +472,30 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   get balanceAxisMin(): number {
-    return Math.floor(this.balanceHistoryMin / 500) * 500;
+    const { min } = this.balanceAxisBounds;
+    return min;
   }
 
   get balanceAxisMax(): number {
-    return Math.ceil(this.balanceHistoryMax / 500) * 500;
+    const { max } = this.balanceAxisBounds;
+    return max;
+  }
+
+  private get balanceTickStep(): number {
+    const min = this.balanceHistoryMin;
+    const max = this.balanceHistoryMax;
+    const span = Math.max(1, max - min);
+    const targetTicks = 5;
+    const rough = span / targetTicks;
+    return Math.max(100, Math.ceil(rough / 100) * 100);
+  }
+
+  private get balanceAxisBounds(): { min: number; max: number } {
+    const step = this.balanceTickStep;
+    const min = Math.floor(this.balanceHistoryMin / step) * step;
+    let max = Math.ceil(this.balanceHistoryMax / step) * step;
+    if (max <= min) max = min + step;
+    return { min, max };
   }
 
   get balanceHistoryValues(): number[] {
@@ -533,7 +552,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
   get balanceHistoryYTicks(): { y: number; value: number; base: boolean }[] {
     const min = this.balanceAxisMin;
     const max = this.balanceAxisMax;
-    const step = 1000;
+    const step = this.balanceTickStep;
     const out: { y: number; value: number; base: boolean }[] = [];
     for (let value = max; value >= min; value -= step) {
       out.push({ y: this.balanceY(value, min, max), value, base: value === min });
