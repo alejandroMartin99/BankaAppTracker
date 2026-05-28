@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ChangeDetectionStrategy } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -15,6 +15,7 @@ type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
 @Component({
   selector: 'app-gastos',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './gastos.component.html',
   styleUrl: './gastos.component.scss',
@@ -49,6 +50,15 @@ export class GastosComponent implements OnInit, OnDestroy {
   customTo = '';
   showCalendar = false;
   private destroy$ = new Subject<void>();
+  private iconInfoCache = new Map<number, ReturnType<typeof getTransactionIconInfo>>();
+  private derivedDisplayedTransactions: Transaction[] = [];
+  private derivedTransactionsByDate: { date: string; dateLabel: string; transactions: Transaction[] }[] = [];
+  private derivedDisplayedCount = 0;
+  private derivedTransactionsForBalances: Transaction[] = [];
+  private derivedTotalGastos = 0;
+  private derivedTotalIngresos = 0;
+  private derivedTotalBalance = 0;
+  private derivedPerAccountStats = new Map<string, { gastos: number; ingresos: number; balance: number }>();
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'month', label: 'Mes en curso' },
@@ -86,10 +96,18 @@ export class GastosComponent implements OnInit, OnDestroy {
     this.loadingBalances = true;
     this.transactionService.getBalances().subscribe({
       next: (res) => {
-        if (res?.success && res?.data) this.balances = { ...res.data };
-        this.loadingBalances = false;
+        this.ngZone.run(() => {
+          if (res?.success && res?.data) this.balances = { ...res.data };
+          this.loadingBalances = false;
+          this.cdr.detectChanges();
+        });
       },
-      error: () => { this.loadingBalances = false; }
+      error: () => {
+        this.ngZone.run(() => {
+          this.loadingBalances = false;
+          this.cdr.detectChanges();
+        });
+      }
     });
   }
 
@@ -122,16 +140,20 @@ export class GastosComponent implements OnInit, OnDestroy {
         this.ngZone.run(() => {
           this.transactions = mapped;
           this.totalCount = res?.count ?? mapped.length;
+          this.recomputeDerivedData();
           this.loading = false;
           this.showLoader = false;
           this.cdr.detectChanges();
         });
       },
       error: (err) => {
-        console.error('[Gastos] transactions error:', err);
-        this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
-        this.loading = false;
-        this.showLoader = false;
+        this.ngZone.run(() => {
+          console.error('[Gastos] transactions error:', err);
+          this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
+          this.loading = false;
+          this.showLoader = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -198,7 +220,12 @@ export class GastosComponent implements OnInit, OnDestroy {
   }
 
   getIconInfo(t: Transaction) {
-    return getTransactionIconInfo(t);
+    const key = Number(t.id ?? 0);
+    const hit = this.iconInfoCache.get(key);
+    if (hit) return hit;
+    const info = getTransactionIconInfo(t);
+    this.iconInfoCache.set(key, info);
+    return info;
   }
 
   getIconColor(t: Transaction): string {
@@ -218,46 +245,18 @@ export class GastosComponent implements OnInit, OnDestroy {
     if (img && !img.src.endsWith('/icons/default.svg')) img.src = '/icons/default.svg';
   }
 
-  /** Transacciones dentro del rango de fechas seleccionado (fromDate / toDate) */
-  get transactionsInRange(): Transaction[] {
-    if (!this.fromDate && !this.toDate) return this.transactions;
-    return this.transactions.filter(t => {
-      const d = (t.dt_date || '').slice(0, 10);
-      if (!d) return false;
-      if (this.fromDate && d < this.fromDate) return false;
-      if (this.toDate && d > this.toDate) return false;
-      return true;
-    });
-  }
-
-  /** Movimientos sin Compra_Inmueble, solo en rango (incluye Transferencias) */
   get displayedTransactions(): Transaction[] {
-    return this.transactionsInRange.filter(t =>
-      (t.categoria || '') !== 'Compra_Inmueble'
-    );
+    return this.derivedDisplayedTransactions;
   }
 
   /** Transacciones para calcular gastos/ingresos/saldo del periodo = solo rango de fechas, sin transferencias internas */
   get transactionsForBalances(): Transaction[] {
-    return this.transactionsInRange.filter(t => !t.es_transferencia_interna);
+    return this.derivedTransactionsForBalances;
   }
 
   /** Agrupado por fecha. Orden viene del API (dt_date desc). */
   get transactionsByDate(): { date: string; dateLabel: string; transactions: Transaction[] }[] {
-    const grouped = new Map<string, Transaction[]>();
-    for (const t of this.displayedTransactions) {
-      const d = (t.dt_date || '').slice(0, 10);
-      if (!d) continue;
-      if (!grouped.has(d)) grouped.set(d, []);
-      grouped.get(d)!.push(t);
-    }
-    return Array.from(grouped.entries())
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, transactions]) => ({
-        date,
-        dateLabel: this.formatDisplayDate(date),
-        transactions
-      }));
+    return this.derivedTransactionsByDate;
   }
 
   getAccountLabel(cuenta?: string): string {
@@ -298,40 +297,74 @@ export class GastosComponent implements OnInit, OnDestroy {
   }
 
   gastosByAccount(cuenta: string): number {
-    return this.transactionsForBalances
-      .filter(t => (t.cuenta || '') === cuenta && (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedPerAccountStats.get(cuenta)?.gastos ?? 0;
   }
 
   ingresosByAccount(cuenta: string): number {
-    return this.transactionsForBalances
-      .filter(t => (t.cuenta || '') === cuenta && (t.importe || 0) > 0)
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedPerAccountStats.get(cuenta)?.ingresos ?? 0;
   }
 
   balanceByAccount(cuenta: string): number {
-    return this.transactionsForBalances
-      .filter(t => (t.cuenta || '') === cuenta)
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedPerAccountStats.get(cuenta)?.balance ?? 0;
   }
 
   get totalGastos(): number {
-    return this.transactionsForBalances
-      .filter(t => (t.importe || 0) < 0 && (t.categoria || '') !== 'Transferencia')
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedTotalGastos;
   }
 
   get totalIngresos(): number {
-    return this.transactionsForBalances
-      .filter(t => (t.importe || 0) > 0)
-      .reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedTotalIngresos;
   }
 
   get totalBalance(): number {
-    return this.transactionsForBalances.reduce((sum, t) => sum + (t.importe || 0), 0);
+    return this.derivedTotalBalance;
   }
 
   get displayedCount(): number {
-    return this.displayedTransactions.length;
+    return this.derivedDisplayedCount;
+  }
+
+  private recomputeDerivedData(): void {
+    this.iconInfoCache.clear();
+    const txRange = this.transactions;
+    this.derivedDisplayedTransactions = txRange.filter(t => (t.categoria || '') !== 'Compra_Inmueble');
+    this.derivedDisplayedCount = this.derivedDisplayedTransactions.length;
+
+    const grouped = new Map<string, Transaction[]>();
+    for (const t of this.derivedDisplayedTransactions) {
+      const d = (t.dt_date || '').slice(0, 10);
+      if (!d) continue;
+      if (!grouped.has(d)) grouped.set(d, []);
+      grouped.get(d)!.push(t);
+    }
+    this.derivedTransactionsByDate = Array.from(grouped.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, transactions]) => ({ date, dateLabel: this.formatDisplayDate(date), transactions }));
+
+    this.derivedTransactionsForBalances = txRange.filter(t => !t.es_transferencia_interna);
+    this.derivedPerAccountStats = new Map<string, { gastos: number; ingresos: number; balance: number }>();
+    let gastos = 0;
+    let ingresos = 0;
+    let balance = 0;
+    for (const t of this.derivedTransactionsForBalances) {
+      const cuenta = (t.cuenta || '').toString();
+      if (!this.derivedPerAccountStats.has(cuenta)) {
+        this.derivedPerAccountStats.set(cuenta, { gastos: 0, ingresos: 0, balance: 0 });
+      }
+      const st = this.derivedPerAccountStats.get(cuenta)!;
+      const imp = t.importe || 0;
+      st.balance += imp;
+      balance += imp;
+      if (imp < 0 && (t.categoria || '') !== 'Transferencia') {
+        st.gastos += imp;
+        gastos += imp;
+      } else if (imp > 0) {
+        st.ingresos += imp;
+        ingresos += imp;
+      }
+    }
+    this.derivedTotalGastos = gastos;
+    this.derivedTotalIngresos = ingresos;
+    this.derivedTotalBalance = balance;
   }
 }

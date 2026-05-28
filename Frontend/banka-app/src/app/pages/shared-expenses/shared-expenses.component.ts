@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ChangeDetectionStrategy } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -60,6 +60,7 @@ function makeSubKey(monthKey: string, cat: string, sub: string): string {
 @Component({
   selector: 'app-shared-expenses',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './shared-expenses.component.html',
   styleUrl: './shared-expenses.component.scss',
@@ -92,6 +93,18 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   expandedSubcategoryKey: string | null = null;
   selectedChartMonthKey: string | null = null;
   private destroy$ = new Subject<void>();
+  private filteredSummaryCache: Transaction[] = [];
+  private linkedAccountNamesCache: string[] = [];
+  private monthsSummaryCache: MonthSummary[] = [];
+  private subcategoryInsightsCache: SubcategoryInsight[] = [];
+  private topSubcategoryNamesCache: string[] = [];
+  private monthSubBreakdownCache = new Map<string, SubBreakdown>();
+  private monthSubcategoryMaxCache = new Map<string, number>();
+  private totalMineCache = 0;
+  private totalOtherCache = 0;
+  private totalJointCache = 0;
+  private totalMineNoConjuntaCache = 0;
+  private totalOtherNoConjuntaCache = 0;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'all', label: 'Histórico' },
@@ -152,15 +165,19 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
           this.sharedConsentError = null;
           this.loading = false;
           this.showLoader = false;
+          this.recomputeDerivedData();
           this.cdr.detectChanges();
         });
       },
       error: (err) => {
-        console.error('[SharedExpenses] error:', err);
-        this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
-        this.sharedWithUserName = null;
-        this.loading = false;
-        this.showLoader = false;
+        this.ngZone.run(() => {
+          console.error('[SharedExpenses] error:', err);
+          this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
+          this.sharedWithUserName = null;
+          this.loading = false;
+          this.showLoader = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -236,28 +253,12 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   /** Transacciones relevantes: Suministros (todos) + Gimnasio solo si gasto > 20 € */
   private get filteredForSummary(): Transaction[] {
-    return this.transactions.filter(t => {
-      const importe = t.importe ?? 0;
-      if (importe >= 0) return false; // solo gastos
-      const cat = String(t.categoria ?? '').trim().toLowerCase();
-      const sub = String(t.subcategoria ?? '').trim().toLowerCase();
-      const isSuministros = cat === 'suministros';
-      const isGimnasio = sub === 'gimnasio';
-      if (isSuministros) return true;
-      if (isGimnasio) return Math.abs(importe) > 20; // Gimnasio: solo > 20 €
-      return false;
-    });
+    return this.filteredSummaryCache;
   }
 
   /** Nombres de cuentas detectadas de la otra parte en este periodo. */
   get linkedAccountNames(): string[] {
-    const names = new Set<string>();
-    for (const t of this.filteredForSummary) {
-      if (t.is_own_account) continue;
-      const n = (t.cuenta || '').toString().trim();
-      if (n) names.add(n);
-    }
-    return Array.from(names).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    return this.linkedAccountNamesCache;
   }
 
   get displayedTransactions(): Transaction[] {
@@ -266,86 +267,17 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   /** Agrupado por mes, luego categoría y subcategoría */
   get monthsSummary(): MonthSummary[] {
-    const byMonth = new Map<string, Transaction[]>();
-
-    for (const t of this.displayedTransactions) {
-      const dateStr = t.dt_date;
-      if (!dateStr) continue;
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!byMonth.has(key)) byMonth.set(key, []);
-      byMonth.get(key)!.push(t);
-    }
-
-    const result: MonthSummary[] = Array.from(byMonth.entries()).map(([monthKey, txs]) => {
-      const byCat = new Map<string, Map<string, Transaction[]>>();
-      let totalMine = 0;
-      let totalOther = 0;
-      let totalJoint = 0;
-
-      for (const t of txs) {
-        const cat = t.categoria || 'Sin categoría';
-        const sub = t.subcategoria || 'Sin subcategoría';
-        if (!byCat.has(cat)) byCat.set(cat, new Map());
-        const subMap = byCat.get(cat)!;
-        if (!subMap.has(sub)) subMap.set(sub, []);
-        subMap.get(sub)!.push(t);
-
-        const importeAbs = Math.abs(t.importe ?? 0);
-        if (importeAbs > 0) {
-          const isJoint = (t.cuenta || '').toLowerCase() === 'conjunta';
-          if (isJoint) {
-            totalJoint += importeAbs;
-          } else if (t.is_own_account) {
-            totalMine += importeAbs;
-          } else {
-            totalOther += importeAbs;
-          }
-        }
-      }
-
-      const categories: CategorySummary[] = Array.from(byCat.entries()).map(([categoria, subMap]) => {
-        const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
-          subcategoria,
-          total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
-          transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
-        }));
-        return {
-          categoria,
-          total: subcategories.reduce((s, sc) => s + sc.total, 0),
-          subcategories: subcategories.sort((a, b) => a.total - b.total)
-        };
-      }).sort((a, b) => a.total - b.total);
-
-      const total = categories.reduce((s, c) => s + c.total, 0);
-      const [yearStr, monthStr] = monthKey.split('-');
-      const year = Number(yearStr);
-      const month = Number(monthStr) - 1;
-      const label = new Date(year, month, 1).toLocaleDateString('es-ES', {
-        month: 'long',
-        year: 'numeric'
-      });
-
-      return { monthKey, label, total, totalMine, totalOther, totalJoint, categories };
-    });
-
-    // Ordenar meses descendente (más reciente primero)
-    return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    return this.monthsSummaryCache;
   }
 
   /** Total que has pagado tú (todos los gastos del filtro) */
   get totalMine(): number {
-    return this.filteredForSummary
-      .filter(t => t.is_own_account && (t.cuenta || '').toLowerCase() !== 'conjunta')
-      .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
+    return this.totalMineCache;
   }
 
   /** Total que ha pagado la otra parte (datos reales recibidos del backend). */
   get totalOther(): number {
-    return this.filteredForSummary
-      .filter(t => !t.is_own_account)
-      .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
+    return this.totalOtherCache;
   }
 
   get sharedTotal(): number {
@@ -354,9 +286,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   /** Total cargado en la cuenta Conjunta (pago de los dos) */
   get totalJoint(): number {
-    return this.filteredForSummary
-      .filter(t => (t.cuenta || '').toLowerCase() === 'conjunta')
-      .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
+    return this.totalJointCache;
   }
 
   /** Transacciones no Conjunta (Conjunta = pago de los dos, no entra en quién debe a quién) */
@@ -366,16 +296,12 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   /** Tuyo excluyendo Conjunta, para el saldo */
   get totalMineNoConjunta(): number {
-    return this.filteredNoConjunta
-      .filter(t => t.is_own_account)
-      .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
+    return this.totalMineNoConjuntaCache;
   }
 
   /** Del otro excluyendo Conjunta, para el saldo */
   get totalOtherNoConjunta(): number {
-    return this.filteredNoConjunta
-      .filter(t => !t.is_own_account)
-      .reduce((sum, t) => sum + Math.abs(t.importe ?? 0), 0);
+    return this.totalOtherNoConjuntaCache;
   }
 
   /**
@@ -406,22 +332,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   /** Ranking de subcategorías con desglose por quién paga. */
   get subcategoryInsights(): SubcategoryInsight[] {
-    const bySub = new Map<string, SubcategoryInsight>();
-    for (const t of this.filteredForSummary) {
-      const sub = this.getSubcategoryName(t);
-      if (!bySub.has(sub)) {
-        bySub.set(sub, { name: sub, total: 0, mine: 0, other: 0, joint: 0, txCount: 0 });
-      }
-      const row = bySub.get(sub)!;
-      const amount = Math.abs(t.importe ?? 0);
-      const isJoint = (t.cuenta || '').toLowerCase() === 'conjunta';
-      row.total += amount;
-      row.txCount += 1;
-      if (isJoint) row.joint += amount;
-      else if (t.is_own_account) row.mine += amount;
-      else row.other += amount;
-    }
-    return Array.from(bySub.values()).sort((a, b) => b.total - a.total);
+    return this.subcategoryInsightsCache;
   }
 
   get topSubcategoryInsights(): SubcategoryInsight[] {
@@ -429,40 +340,15 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   }
 
   get topSubcategoryNames(): string[] {
-    const globalTop = this.topSubcategoryInsights.map(x => x.name);
-    const otherTop = this.subcategoryInsights
-      .filter(x => x.other > 0)
-      .sort((a, b) => b.other - a.other)
-      .slice(0, 3)
-      .map(x => x.name);
-    return Array.from(new Set([...globalTop, ...otherTop])).slice(0, 7);
+    return this.topSubcategoryNamesCache;
   }
 
   getMonthSubcategoryMax(monthKey: string): number {
-    let max = 0;
-    for (const sub of this.topSubcategoryNames) {
-      const b = this.getMonthSubBreakdown(monthKey, sub);
-      max = Math.max(max, b.total || 0);
-    }
-    return max;
+    return this.monthSubcategoryMaxCache.get(monthKey) ?? 0;
   }
 
   getMonthSubBreakdown(monthKey: string, subName: string): SubBreakdown {
-    let mine = 0;
-    let other = 0;
-    let joint = 0;
-    for (const t of this.filteredForSummary) {
-      const d = new Date(t.dt_date || '');
-      if (isNaN(d.getTime())) continue;
-      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (mk !== monthKey) continue;
-      if (this.getSubcategoryName(t) !== subName) continue;
-      const amount = Math.abs(t.importe ?? 0);
-      if ((t.cuenta || '').toLowerCase() === 'conjunta') joint += amount;
-      else if (t.is_own_account) mine += amount;
-      else other += amount;
-    }
-    return { mine, other, joint, total: mine + other + joint };
+    return this.monthSubBreakdownCache.get(makeSubKey(monthKey, '', subName)) ?? { mine: 0, other: 0, joint: 0, total: 0 };
   }
 
   /** Últimos meses para gráfica comparativa (cronológico ascendente). */
@@ -531,6 +417,109 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   retry() {
     this.loadTransactions();
+  }
+
+  private recomputeDerivedData(): void {
+    this.filteredSummaryCache = this.transactions.filter(t => {
+      const importe = t.importe ?? 0;
+      if (importe >= 0) return false;
+      const cat = String(t.categoria ?? '').trim().toLowerCase();
+      const sub = String(t.subcategoria ?? '').trim().toLowerCase();
+      return cat === 'suministros' || (sub === 'gimnasio' && Math.abs(importe) > 20);
+    });
+
+    const names = new Set<string>();
+    const byMonth = new Map<string, Transaction[]>();
+    const bySub = new Map<string, SubcategoryInsight>();
+    this.monthSubBreakdownCache.clear();
+    this.monthSubcategoryMaxCache.clear();
+    this.totalMineCache = 0;
+    this.totalOtherCache = 0;
+    this.totalJointCache = 0;
+    this.totalMineNoConjuntaCache = 0;
+    this.totalOtherNoConjuntaCache = 0;
+
+    for (const t of this.filteredSummaryCache) {
+      const n = (t.cuenta || '').toString().trim();
+      if (!t.is_own_account && n) names.add(n);
+      const d = new Date(t.dt_date || '');
+      if (isNaN(d.getTime())) continue;
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth.has(mk)) byMonth.set(mk, []);
+      byMonth.get(mk)!.push(t);
+
+      const subName = this.getSubcategoryName(t);
+      if (!bySub.has(subName)) bySub.set(subName, { name: subName, total: 0, mine: 0, other: 0, joint: 0, txCount: 0 });
+      const row = bySub.get(subName)!;
+      const amount = Math.abs(t.importe ?? 0);
+      const isJoint = (t.cuenta || '').toLowerCase() === 'conjunta';
+      row.total += amount;
+      row.txCount += 1;
+      if (isJoint) {
+        row.joint += amount;
+        this.totalJointCache += amount;
+      } else if (t.is_own_account) {
+        row.mine += amount;
+        this.totalMineCache += amount;
+        this.totalMineNoConjuntaCache += amount;
+      } else {
+        row.other += amount;
+        this.totalOtherCache += amount;
+        this.totalOtherNoConjuntaCache += amount;
+      }
+      const bKey = makeSubKey(mk, '', subName);
+      const b = this.monthSubBreakdownCache.get(bKey) ?? { mine: 0, other: 0, joint: 0, total: 0 };
+      if (isJoint) b.joint += amount;
+      else if (t.is_own_account) b.mine += amount;
+      else b.other += amount;
+      b.total = b.mine + b.other + b.joint;
+      this.monthSubBreakdownCache.set(bKey, b);
+    }
+
+    this.linkedAccountNamesCache = Array.from(names).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    this.subcategoryInsightsCache = Array.from(bySub.values()).sort((a, b) => b.total - a.total);
+    const globalTop = this.subcategoryInsightsCache.slice(0, 5).map(x => x.name);
+    const otherTop = [...this.subcategoryInsightsCache].filter(x => x.other > 0).sort((a, b) => b.other - a.other).slice(0, 3).map(x => x.name);
+    this.topSubcategoryNamesCache = Array.from(new Set([...globalTop, ...otherTop])).slice(0, 7);
+
+    for (const mk of byMonth.keys()) {
+      let max = 0;
+      for (const sub of this.topSubcategoryNamesCache) {
+        const total = this.monthSubBreakdownCache.get(makeSubKey(mk, '', sub))?.total ?? 0;
+        if (total > max) max = total;
+      }
+      this.monthSubcategoryMaxCache.set(mk, max);
+    }
+
+    const months: MonthSummary[] = Array.from(byMonth.entries()).map(([monthKey, txs]) => {
+      const byCat = new Map<string, Map<string, Transaction[]>>();
+      let totalMine = 0; let totalOther = 0; let totalJoint = 0;
+      for (const t of txs) {
+        const cat = t.categoria || 'Sin categoría';
+        const sub = t.subcategoria || 'Sin subcategoría';
+        if (!byCat.has(cat)) byCat.set(cat, new Map());
+        const subMap = byCat.get(cat)!;
+        if (!subMap.has(sub)) subMap.set(sub, []);
+        subMap.get(sub)!.push(t);
+        const amount = Math.abs(t.importe ?? 0);
+        if ((t.cuenta || '').toLowerCase() === 'conjunta') totalJoint += amount;
+        else if (t.is_own_account) totalMine += amount;
+        else totalOther += amount;
+      }
+      const categories: CategorySummary[] = Array.from(byCat.entries()).map(([categoria, subMap]) => {
+        const subcategories: SubcategorySummary[] = Array.from(subMap.entries()).map(([subcategoria, transactions]) => ({
+          subcategoria,
+          total: transactions.reduce((s, tx) => s + (tx.importe || 0), 0),
+          transactions: transactions.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''))
+        }));
+        return { categoria, total: subcategories.reduce((s, sc) => s + sc.total, 0), subcategories: subcategories.sort((a, b) => a.total - b.total) };
+      }).sort((a, b) => a.total - b.total);
+      const [y, m] = monthKey.split('-').map(Number);
+      const label = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const total = categories.reduce((s, c) => s + c.total, 0);
+      return { monthKey, label, total, totalMine, totalOther, totalJoint, categories };
+    });
+    this.monthsSummaryCache = months.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }
 
   openManageAccountsModal(): void {

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -63,6 +63,7 @@ export interface SubcategoryDetailTableRow {
 @Component({
   selector: 'app-charts',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './charts.component.html',
   styleUrl: './charts.component.scss',
@@ -148,6 +149,9 @@ export class ChartsComponent implements OnInit, OnDestroy {
   /** Diagrama de líneas mes × subcategoría (mismo período que la evolución de la categoría) */
   categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
   selectedBalanceChartAccount = '';
+  private balanceHistorySeriesCache: { dateKey: string; label: string; saldo: number }[] = [];
+  private balanceHistoryMinCache = 0;
+  private balanceHistoryMaxCache = 1;
 
   private static readonly SUB_LINE_VB = { vw: 340, vh: 172, padL: 52, padR: 10, padT: 10, padB: 40 } as const;
   /** Expuesto para el SVG del drill de subcategorías */
@@ -206,6 +210,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
         this.showLoader = false;
         this.buildAnalysis();
         this.ensureBalanceChartAccount();
+        this.recomputeBalanceChartData();
       },
       error: (err) => {
         this.error = err.error?.detail || 'Error al cargar datos';
@@ -250,6 +255,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     if (this.excludeModalPending !== null) {
       this.excludeAbove5000 = this.excludeModalPending;
       this.buildAnalysis();
+      this.recomputeBalanceChartData();
     }
     this.closeExcludeModal();
   }
@@ -432,43 +438,19 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   selectBalanceChartAccount(account: string): void {
     this.selectedBalanceChartAccount = account;
+    this.recomputeBalanceChartData();
   }
 
   get balanceHistorySeries(): { dateKey: string; label: string; saldo: number }[] {
-    if (!this.selectedBalanceChartAccount) return [];
-    const currentYear = new Date().getFullYear();
-    const lastByDay = new Map<string, { dt: string; saldo: number }>();
-    for (const t of this.transactions) {
-      if ((t.cuenta || '') !== this.selectedBalanceChartAccount) continue;
-      if (this.shouldExclude(t)) continue;
-      if (t.saldo == null || Number.isNaN(t.saldo)) continue;
-      const dt = (t.dt_date || '').trim();
-      const dateKey = dt.slice(0, 10);
-      if (!dateKey) continue;
-      const year = Number(dateKey.slice(0, 4));
-      if (year !== currentYear) continue;
-      const prev = lastByDay.get(dateKey);
-      if (!prev || dt.localeCompare(prev.dt) >= 0) {
-        lastByDay.set(dateKey, { dt, saldo: t.saldo });
-      }
-    }
-    return Array.from(lastByDay.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dateKey, row]) => ({
-        dateKey,
-        label: this.formatBalanceChartDay(dateKey),
-        saldo: row.saldo
-      }));
+    return this.balanceHistorySeriesCache;
   }
 
   get balanceHistoryMin(): number {
-    const vals = this.balanceHistorySeries.map(x => x.saldo);
-    return vals.length ? Math.min(...vals) : 0;
+    return this.balanceHistoryMinCache;
   }
 
   get balanceHistoryMax(): number {
-    const vals = this.balanceHistorySeries.map(x => x.saldo);
-    return vals.length ? Math.max(...vals) : 1;
+    return this.balanceHistoryMaxCache;
   }
 
   get balanceAxisMin(): number {
@@ -499,7 +481,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   get balanceHistoryValues(): number[] {
-    return this.balanceHistorySeries.map(x => x.saldo);
+    return this.balanceHistorySeriesCache.map(x => x.saldo);
   }
 
   get balanceHistoryPath(): string {
@@ -632,6 +614,36 @@ export class ChartsComponent implements OnInit, OnDestroy {
     const [y, m] = monthKey.split('-').map(Number);
     if (!y || !m) return monthKey;
     return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' });
+  }
+
+  private recomputeBalanceChartData(): void {
+    if (!this.selectedBalanceChartAccount) {
+      this.balanceHistorySeriesCache = [];
+      this.balanceHistoryMinCache = 0;
+      this.balanceHistoryMaxCache = 1;
+      return;
+    }
+    const currentYear = new Date().getFullYear();
+    const lastByDay = new Map<string, { dt: string; saldo: number }>();
+    for (const t of this.transactions) {
+      if ((t.cuenta || '') !== this.selectedBalanceChartAccount) continue;
+      if (this.shouldExclude(t)) continue;
+      if (t.saldo == null || Number.isNaN(t.saldo)) continue;
+      const dt = (t.dt_date || '').trim();
+      const dateKey = dt.slice(0, 10);
+      if (!dateKey) continue;
+      if (Number(dateKey.slice(0, 4)) !== currentYear) continue;
+      const prev = lastByDay.get(dateKey);
+      if (!prev || dt.localeCompare(prev.dt) >= 0) {
+        lastByDay.set(dateKey, { dt, saldo: t.saldo });
+      }
+    }
+    this.balanceHistorySeriesCache = Array.from(lastByDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dateKey, row]) => ({ dateKey, label: this.formatBalanceChartDay(dateKey), saldo: row.saldo }));
+    const vals = this.balanceHistorySeriesCache.map(x => x.saldo);
+    this.balanceHistoryMinCache = vals.length ? Math.min(...vals) : 0;
+    this.balanceHistoryMaxCache = vals.length ? Math.max(...vals) : 1;
   }
 
   formatBalanceYAxis(value: number): string {

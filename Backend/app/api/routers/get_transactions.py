@@ -243,6 +243,10 @@ async def get_balances(user: dict = Depends(get_current_user)) -> Dict[str, Any]
 async def get_transactions(
     from_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD"),
     to_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD"),
+    page: int = Query(1, ge=1, description="Página (1-based)"),
+    page_size: int = Query(500, ge=1, le=1000, description="Tamaño de página"),
+    limit: Optional[int] = Query(None, ge=1, le=1000, description="Compatibilidad legacy"),
+    offset: Optional[int] = Query(None, ge=0, description="Compatibilidad legacy"),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     if not supabase_service.is_connected():
@@ -252,11 +256,15 @@ async def get_transactions(
     if not account_ids:
         return {"success": True, "count": 0, "data": []}
 
+    effective_page_size = limit if limit is not None else page_size
+    effective_offset = offset if offset is not None else (page - 1) * effective_page_size
+    tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id"
+
     try:
         q = (
             supabase_service.supabase
             .table("transactions")
-            .select("*")
+            .select(tx_select, count="exact")
             .in_("account_id", account_ids)
         )
         if from_date:
@@ -264,13 +272,17 @@ async def get_transactions(
         if to_date:
             # Incluir todo el día: hasta 23:59:59
             q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
-        response = q.order("dt_date", desc=True).limit(10000).execute()
+        response = (
+            q.order("dt_date", desc=True)
+            .range(effective_offset, effective_offset + effective_page_size - 1)
+            .execute()
+        )
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(account_ids)
         for row in data:
             # Priorizar siempre el display_name actual de la cuenta
             row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
-        return {"success": True, "count": len(data), "data": data}
+        return {"success": True, "count": int(response.count or 0), "data": data, "page": page, "page_size": effective_page_size}
     except Exception as e:
         raise internal_server_error(e, "get_transactions")
 
@@ -283,6 +295,10 @@ async def get_transactions(
 async def get_shared_transactions(
     from_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD"),
     to_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD"),
+    page: int = Query(1, ge=1, description="Página (1-based)"),
+    page_size: int = Query(500, ge=1, le=1000, description="Tamaño de página"),
+    limit: Optional[int] = Query(None, ge=1, le=1000, description="Compatibilidad legacy"),
+    offset: Optional[int] = Query(None, ge=0, description="Compatibilidad legacy"),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Transacciones para análisis compartido.
@@ -311,18 +327,26 @@ async def get_shared_transactions(
     if not visible_account_ids:
         return {"success": True, "count": 0, "data": []}
 
+    effective_page_size = limit if limit is not None else page_size
+    effective_offset = offset if offset is not None else (page - 1) * effective_page_size
+    tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id"
+
     try:
         q = (
             supabase_service.supabase
             .table("transactions")
-            .select("*")
+            .select(tx_select, count="exact")
             .in_("account_id", visible_account_ids)
         )
         if from_date:
             q = q.gte("dt_date", from_date)
         if to_date:
             q = q.lte("dt_date", f"{to_date}T23:59:59.999999")
-        response = q.order("dt_date", desc=True).limit(10000).execute()
+        response = (
+            q.order("dt_date", desc=True)
+            .range(effective_offset, effective_offset + effective_page_size - 1)
+            .execute()
+        )
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(visible_account_ids)
         for row in data:
@@ -330,8 +354,10 @@ async def get_shared_transactions(
             row["is_own_account"] = row.get("account_id") in my_account_set
         return {
             "success": True,
-            "count": len(data),
+            "count": int(response.count or 0),
             "data": data,
+            "page": page,
+            "page_size": effective_page_size,
             "shared_with_user_name": shared_with_user_name,
             "shared_balances_enabled": shared_enabled,
         }

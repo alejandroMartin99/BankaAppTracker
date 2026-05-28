@@ -480,9 +480,10 @@ def _load_transaction_pools(user_id: str) -> Tuple[List[Dict[str, Any]], List[Di
 
     raw: List[Dict[str, Any]] = []
     try:
+        tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id,is_transfer,es_transferencia_interna"
         q = (
             supabase_service.supabase.table("transactions")
-            .select("*")
+            .select(tx_select)
             .in_("account_id", visible_account_ids)
             .gte("dt_date", from_d.isoformat())
             .order("dt_date", desc=False)

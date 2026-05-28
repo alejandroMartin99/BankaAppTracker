@@ -3,6 +3,7 @@ Supabase Service - Conexión y operaciones sobre cuentas y transacciones.
 """
 
 import logging
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -23,6 +24,12 @@ class SupabaseService:
     def __init__(self):
         self.supabase: Optional[Client] = None
         self._uses_service_role: bool = False
+        self._share_eligible_cache_ttl_s = 60
+        self._share_eligible_cache_expires_at = 0.0
+        self._share_eligible_cache: Set[str] = set()
+        self._category_catalog_cache_ttl_s = 60
+        self._category_catalog_cache: Dict[str, Dict[str, Any]] = {}
+        self._category_catalog_cache_expires_at: Dict[str, float] = {}
         key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
         if settings.SUPABASE_URL and key:
             try:
@@ -115,6 +122,9 @@ class SupabaseService:
         """
         if not self.supabase:
             return set()
+        now = time.time()
+        if now < self._share_eligible_cache_expires_at and self._share_eligible_cache:
+            return set(self._share_eligible_cache)
         try:
             r = (
                 self.supabase.table("accounts")
@@ -122,7 +132,10 @@ class SupabaseService:
                 .in_("source", ["ibercaja", "santander"])
                 .execute()
             )
-            return {str(x["id"]) for x in (r.data or []) if x.get("id")}
+            ids = {str(x["id"]) for x in (r.data or []) if x.get("id")}
+            self._share_eligible_cache = set(ids)
+            self._share_eligible_cache_expires_at = now + self._share_eligible_cache_ttl_s
+            return ids
         except Exception:
             return set()
 
@@ -338,6 +351,12 @@ class SupabaseService:
         """
         if not self.supabase:
             return {"categories": [], "subcategories_by_category": {}}
+        uid = _uuid_str(user_id)
+        now = time.time()
+        if now < self._category_catalog_cache_expires_at.get(uid, 0):
+            cached = self._category_catalog_cache.get(uid)
+            if cached is not None:
+                return cached
         account_ids = self.get_user_account_ids(user_id)
         if not account_ids:
             return {"categories": [], "subcategories_by_category": {}}
@@ -374,10 +393,13 @@ class SupabaseService:
             if offset > 500_000:
                 break
         categories = sorted(subs_by_cat.keys(), key=lambda x: (x.lower(), x))
-        return {
+        result = {
             "categories": categories,
             "subcategories_by_category": {c: sorted(subs_by_cat[c]) for c in categories},
         }
+        self._category_catalog_cache[uid] = result
+        self._category_catalog_cache_expires_at[uid] = now + self._category_catalog_cache_ttl_s
+        return result
 
     def get_existing_transaction_ids(self, transaction_ids: List[str]) -> Set[str]:
         if not self.supabase or not transaction_ids:
