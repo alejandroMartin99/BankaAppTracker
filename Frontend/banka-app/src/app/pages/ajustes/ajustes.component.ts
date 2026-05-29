@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { Transaction } from '../../models/transaction.model';
 import { getAccountColorForName } from '../../utils/account-colors';
@@ -71,7 +73,8 @@ const ADD_NEW_SUBCATEGORY = '__ADD_NEW__';
     ])
   ]
 })
-export class AjustesComponent implements OnInit {
+export class AjustesComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   transactions: Transaction[] = [];
   loading = false;
   showLoader = false;
@@ -139,6 +142,17 @@ export class AjustesComponent implements OnInit {
   ngOnInit(): void {
     this.loadCategoryCatalog();
     this.loadTransactions();
+    this.transactionService.dataRefresh$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.loadCategoryCatalog();
+        this.loadTransactions();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private loadCategoryCatalog(): void {
