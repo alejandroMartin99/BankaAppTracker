@@ -147,9 +147,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
     return this.incomesSummary.reduce((sum, cat) => sum + cat.total, 0);
   }
 
-  /** Balance = Ingresos + Gastos (coherente con los totales mostrados) */
+  /** Balance = suma neta de importes (misma base que el chart de evolución) */
   get totalBalance(): number {
-    return this.totalIngresos + this.totalGastos;
+    return this.filteredTransactions.reduce((s, t) => s + (t.importe ?? 0), 0);
   }
 
   get incomesSummary(): CategorySummary[] {

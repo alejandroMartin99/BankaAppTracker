@@ -150,6 +150,11 @@ export class ChartsComponent implements OnInit, OnDestroy {
   categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
   selectedBalanceChartAccount = '';
   private balanceHistorySeriesCache: { dateKey: string; label: string; saldo: number }[] = [];
+  /** Por día: primer y último apunte (saldo tras movimiento) para la tabla mensual */
+  private balanceDaySnapshotsCache = new Map<
+    string,
+    { first: { dt: string; saldo: number; importe: number }; last: { dt: string; saldo: number; importe: number } }
+  >();
   private balanceHistoryMinCache = 0;
   private balanceHistoryMaxCache = 1;
 
@@ -582,38 +587,42 @@ export class ChartsComponent implements OnInit, OnDestroy {
     fechaFin: string;
     ahorroMes: number;
   }[] {
-    const byMonth = new Map<string, { dateKey: string; saldo: number }[]>();
-    for (const row of this.balanceHistorySeries) {
-      const monthKey = row.dateKey.slice(0, 7);
+    const byMonth = new Map<string, string[]>();
+    for (const dateKey of this.balanceDaySnapshotsCache.keys()) {
+      const monthKey = dateKey.slice(0, 7);
       if (!monthKey) continue;
       if (!byMonth.has(monthKey)) byMonth.set(monthKey, []);
-      byMonth.get(monthKey)!.push({ dateKey: row.dateKey, saldo: row.saldo });
+      byMonth.get(monthKey)!.push(dateKey);
     }
 
-    const starts = Array.from(byMonth.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([monthKey, rows]) => {
-        const ordered = [...rows].sort((a, b) => a.dateKey.localeCompare(b.dateKey));
-        const first = ordered[0]!;
-        const last = ordered[ordered.length - 1]!;
+    const months = Array.from(byMonth.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([monthKey, dateKeys]) => {
+        const ordered = [...dateKeys].sort((a, b) => a.localeCompare(b));
+        const firstDay = this.balanceDaySnapshotsCache.get(ordered[0]!)!;
+        const lastDay = this.balanceDaySnapshotsCache.get(ordered[ordered.length - 1]!)!;
         return {
           monthKey,
           monthLabel: this.formatMonthKey(monthKey),
-          saldoDia1: first.saldo,
-          saldoDia30: last.saldo,
-          fechaInicio: first.dateKey,
-          fechaFin: last.dateKey
+          saldoFinMes: lastDay.last.saldo,
+          fechaInicioMes: ordered[0]!,
+          fechaFinMes: ordered[ordered.length - 1]!,
+          /** Saldo antes del primer movimiento del periodo (no cuenta ese importe dos veces) */
+          saldoAperturaPeriodo: firstDay.first.saldo - firstDay.first.importe
         };
       });
 
-    return starts.map((row, idx) => {
-      const saldoInicio = idx === 0 ? row.saldoDia1 : starts[idx - 1]!.saldoDia30;
-      const fechaInicio = idx === 0 ? row.fechaInicio : starts[idx - 1]!.fechaFin;
+    return months.map((row, idx) => {
+      const saldoInicio = idx === 0 ? row.saldoAperturaPeriodo : months[idx - 1]!.saldoFinMes;
+      const fechaInicio = idx === 0 ? row.fechaInicioMes : months[idx - 1]!.fechaFinMes;
       return {
-        ...row,
+        monthKey: row.monthKey,
+        monthLabel: row.monthLabel,
         saldoDia1: saldoInicio,
+        saldoDia30: row.saldoFinMes,
         fechaInicio,
-        ahorroMes: row.saldoDia30 - saldoInicio
+        fechaFin: row.fechaFinMes,
+        ahorroMes: row.saldoFinMes - saldoInicio
       };
     });
   }
@@ -627,12 +636,16 @@ export class ChartsComponent implements OnInit, OnDestroy {
   private recomputeBalanceChartData(): void {
     if (!this.selectedBalanceChartAccount) {
       this.balanceHistorySeriesCache = [];
+      this.balanceDaySnapshotsCache = new Map();
       this.balanceHistoryMinCache = 0;
       this.balanceHistoryMaxCache = 1;
       return;
     }
     const currentYear = new Date().getFullYear();
-    const lastByDay = new Map<string, { dt: string; saldo: number }>();
+    const byDay = new Map<
+      string,
+      { first: { dt: string; saldo: number; importe: number }; last: { dt: string; saldo: number; importe: number } }
+    >();
     for (const t of this.transactions) {
       if ((t.cuenta || '') !== this.selectedBalanceChartAccount) continue;
       if (this.shouldExclude(t)) continue;
@@ -641,14 +654,24 @@ export class ChartsComponent implements OnInit, OnDestroy {
       const dateKey = dt.slice(0, 10);
       if (!dateKey) continue;
       if (Number(dateKey.slice(0, 4)) !== currentYear) continue;
-      const prev = lastByDay.get(dateKey);
-      if (!prev || dt.localeCompare(prev.dt) >= 0) {
-        lastByDay.set(dateKey, { dt, saldo: t.saldo });
+      const importe = typeof t.importe === 'number' ? t.importe : parseFloat(String(t.importe)) || 0;
+      const snap = { dt, saldo: t.saldo, importe };
+      const prev = byDay.get(dateKey);
+      if (!prev) {
+        byDay.set(dateKey, { first: snap, last: snap });
+        continue;
       }
+      if (dt.localeCompare(prev.first.dt) < 0) prev.first = snap;
+      if (dt.localeCompare(prev.last.dt) >= 0) prev.last = snap;
     }
-    this.balanceHistorySeriesCache = Array.from(lastByDay.entries())
+    this.balanceDaySnapshotsCache = byDay;
+    this.balanceHistorySeriesCache = Array.from(byDay.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dateKey, row]) => ({ dateKey, label: this.formatBalanceChartDay(dateKey), saldo: row.saldo }));
+      .map(([dateKey, row]) => ({
+        dateKey,
+        label: this.formatBalanceChartDay(dateKey),
+        saldo: row.last.saldo
+      }));
     const vals = this.balanceHistorySeriesCache.map(x => x.saldo);
     this.balanceHistoryMinCache = vals.length ? Math.min(...vals) : 0;
     this.balanceHistoryMaxCache = vals.length ? Math.max(...vals) : 1;
