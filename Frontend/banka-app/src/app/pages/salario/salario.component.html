@@ -222,6 +222,7 @@
     </section>
 
     <!-- ── Diagnóstico retención ──────────────────────────────────────────── -->
+    @if (!privacy.hideBalances()) {
     <section class="nominas-section">
       <div class="nominas-header">
         <h2 class="section-title">Tus nóminas reales</h2>
@@ -308,6 +309,7 @@
         }
       }
     </section>
+    } <!-- /!inputsExpanded -->
   }
 
 </div>

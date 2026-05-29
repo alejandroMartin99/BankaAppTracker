@@ -8,6 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
+import { PrivacyService } from '../../services/privacy.service';
 import { Transaction } from '../../models/transaction.model';
 
 // ─── IRPF Data ───────────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@ export class SalarioComponent implements OnInit {
     private txService: TransactionService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
+    public privacy: PrivacyService,
   ) {}
 
   ngOnInit(): void {
