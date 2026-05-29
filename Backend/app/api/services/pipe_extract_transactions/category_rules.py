@@ -42,11 +42,22 @@ CATEGORY_RULES = [
 
     # FORMACIÓN
     (r'CURSOR', 'Formación', 'Cursor'),
+    (r'CLAUDE', 'Formación', 'Claude'),
+    (r'MRDOMAIN', 'Formación', 'DominioWeb'),
 
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
     (r'ADMON LOTERIA', 'OCIO', 'Lotería'),
     (r'LOTERIA', 'OCIO', 'Lotería'),
+    (r'SERVICE NAVIGO', 'OCIO', 'Viaje_Paris'),
+    (r'MARTA COTS PUJ', 'OCIO', 'Viaje_Paris'),
+    (r'LE PETIT VEND', 'OCIO', 'Viaje_Paris'),
+    (r'LA DAME DE PARIS', 'OCIO', 'Viaje_Paris'),
+    (r'SETE - SOCI', 'OCIO', 'Viaje_Paris'),
+    (r'EIFFEL TERRASSE', 'OCIO', 'Viaje_Paris'),
+    (r'BOUILLON PIGALLE', 'OCIO', 'Viaje_Paris'),
+
+
     
 
     # Seguros
@@ -77,6 +88,9 @@ CATEGORY_RULES = [
     (r'SEITT', 'Transporte', 'Peaje'),
     (r'VIA-T', 'Transporte', 'Peaje'),
     (r'CASTELLANA DE AUTOPISTAS', 'Transporte', 'Peaje'),
+    (r'CASTELLANA DE AUTOP', 'Transporte', 'Peaje'),
+    (r'AP-6', 'Transporte', 'Peaje'),
+    (r'AURGI', 'Transporte', 'Taller'),
 
     # Hogar
     (r'JYSK', 'Hogar', 'JYSK'),
@@ -89,6 +103,9 @@ CATEGORY_RULES = [
     (r'HOGARDEXTER', 'Hogar', 'Hogardexter'),
     (r'CMB SUPERKIT', 'Hogar', 'Centro Maderero Valdebernardo'),
     (r'RESTANTE MESA LU', 'Hogar', 'Mesa'),
+    (r'PINTURA', 'Hogar', 'Pintura'),
+    (r'GROUPE SEB IBERICA', 'Hogar', 'Sartenes'),
+    (r'MIMMA GALLERY', 'Hogar', 'Sofá'),
 
 
     # Supermercados
@@ -106,6 +123,7 @@ CATEGORY_RULES = [
     (r'LA VIDA VERDE', 'Supermercado', 'General'),
     (r'UNIDE MARKET', 'Supermercado', 'Unide'),
     (r'LUPA', 'Supermercado', 'Lupa'),
+    
 
     
     # Restaurantes
@@ -132,6 +150,8 @@ CATEGORY_RULES = [
     (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
     (r'GLOVO', 'Restaurantes', 'Glovo'),
     (r'DELINAS INECO EGEO', 'Restaurantes', 'Ineco_Desayuno'),
+    (r'HUANG', 'Restaurantes', 'Huang Bao'),
+    (r'STARBUCKS', 'Restaurantes', 'Starbucks'),
 
 
 
@@ -157,6 +177,7 @@ CATEGORY_RULES = [
 
     # Transferencias
     (r'TRANSFERENCIA INTERNA', 'Transferencia', 'Interna_Ibercaja'),
+    (r'00000100067H663451', 'Transferencia', 'Aportacion_Conjunta_Lucia'),
     (r'MYINVESTOR', 'Transferencia', 'MyInvestor'),
     (r'REVOLUT\*\*', 'Transferencia', 'Revolut'),
     (r'ENVIADA DESDE REVOLUT', 'Transferencia', 'Revolut'),

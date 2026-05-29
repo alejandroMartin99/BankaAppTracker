@@ -4,6 +4,7 @@ Detección automática de cargos e ingresos mensuales recurrentes.
 
 from __future__ import annotations
 
+import logging
 import re
 import statistics
 from collections import Counter
@@ -15,6 +16,8 @@ from app.api.services.pipe_extract_transactions.internal_transfer_detection impo
     detect_internal_transfer_ids,
 )
 from app.api.services.supabase.supabase_service import supabase_service
+
+logger = logging.getLogger(__name__)
 
 MIN_OCCURRENCES = 2
 LOOKBACK_MONTHS = 14
@@ -480,7 +483,7 @@ def _load_transaction_pools(user_id: str) -> Tuple[List[Dict[str, Any]], List[Di
 
     raw: List[Dict[str, Any]] = []
     try:
-        tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id,is_transfer,es_transferencia_interna"
+        tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id,cuenta"
         q = (
             supabase_service.supabase.table("transactions")
             .select(tx_select)
@@ -494,7 +497,8 @@ def _load_transaction_pools(user_id: str) -> Tuple[List[Dict[str, Any]], List[Di
         names = supabase_service.get_account_display_names(visible_account_ids)
         for row in raw:
             row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
-    except Exception:
+    except Exception as e:
+        logger.warning("recurring_payments: error cargando transacciones: %s", e, exc_info=True)
         raw = []
 
     internal_ids = detect_internal_transfer_ids(raw)

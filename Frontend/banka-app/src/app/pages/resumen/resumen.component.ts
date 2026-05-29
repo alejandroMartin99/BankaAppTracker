@@ -116,7 +116,11 @@ export class ResumenComponent implements OnInit, OnDestroy {
     this.applyPreset('month');
     this.transactionService.dataRefresh$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => this.loadTransactions());
+      .subscribe(() => {
+        this.loadAccounts();
+        this.loadCategoryCatalog();
+        this.loadTransactions();
+      });
   }
 
   ngOnDestroy() {

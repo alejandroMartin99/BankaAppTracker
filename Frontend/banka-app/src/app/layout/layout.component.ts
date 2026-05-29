@@ -417,7 +417,6 @@ export class LayoutComponent {
         this.uploadSourceType = res.source_type ?? null;
         this.uploadSummary = res.summary ?? null;
         this.uploadMessage = this.buildSuccessMessage(res);
-        this.transactionService.dataRefresh$.next();
         this.scheduleToastDismiss();
       },
       error: (err) => {

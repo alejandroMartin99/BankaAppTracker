@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -160,6 +160,8 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   constructor(
     private transactionService: TransactionService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone,
     public privacy: PrivacyService
   ) {}
 
@@ -194,28 +196,34 @@ export class ChartsComponent implements OnInit, OnDestroy {
       to_date: to
     }).subscribe({
       next: (res) => {
-        const raw = res?.data;
-        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
-        this.transactions = arr.map((t: any) => ({
-          id: t.id,
-          dt_date: t.dt_date || t.transaction_date || '',
-          importe: typeof t.importe === 'number' ? t.importe : parseFloat(t.importe) || 0,
-          saldo: t.saldo != null ? (typeof t.saldo === 'number' ? t.saldo : parseFloat(t.saldo)) : undefined,
-          cuenta: t.cuenta || t.account_number || '',
-          categoria: (t.categoria || t.category || '').trim(),
-          subcategoria: t.subcategoria || '',
-          descripcion: t.descripcion || t.description || ''
-        }));
-        this.loading = false;
-        this.showLoader = false;
-        this.buildAnalysis();
-        this.ensureBalanceChartAccount();
-        this.recomputeBalanceChartData();
+        this.ngZone.run(() => {
+          const raw = res?.data;
+          const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
+          this.transactions = arr.map((t: any) => ({
+            id: t.id,
+            dt_date: t.dt_date || t.transaction_date || '',
+            importe: typeof t.importe === 'number' ? t.importe : parseFloat(t.importe) || 0,
+            saldo: t.saldo != null ? (typeof t.saldo === 'number' ? t.saldo : parseFloat(t.saldo)) : undefined,
+            cuenta: t.cuenta || t.account_number || '',
+            categoria: (t.categoria || t.category || '').trim(),
+            subcategoria: t.subcategoria || '',
+            descripcion: t.descripcion || t.description || ''
+          }));
+          this.loading = false;
+          this.showLoader = false;
+          this.buildAnalysis();
+          this.ensureBalanceChartAccount();
+          this.recomputeBalanceChartData();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.error = err.error?.detail || 'Error al cargar datos';
-        this.loading = false;
-        this.showLoader = false;
+        this.ngZone.run(() => {
+          this.error = err.error?.detail || 'Error al cargar datos';
+          this.loading = false;
+          this.showLoader = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }

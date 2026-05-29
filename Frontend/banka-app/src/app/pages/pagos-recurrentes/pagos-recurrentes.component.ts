@@ -1,10 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   RecurringPaymentHistoryPoint,
   RecurringPaymentItem,
   RecurringPaymentsService,
 } from '../../services/recurring-payments.service';
+import { TransactionService } from '../../services/transaction.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
 import { PrivacyService } from '../../services/privacy.service';
 
@@ -27,7 +30,8 @@ const CATEGORY_ORDER = ['Nómina', 'Nomina', 'Vivienda', 'Seguros', 'Suministros
   templateUrl: './pagos-recurrentes.component.html',
   styleUrl: './pagos-recurrentes.component.scss',
 })
-export class PagosRecurrentesComponent implements OnInit {
+export class PagosRecurrentesComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   loading = false;
   error: string | null = null;
   monthYm = '';
@@ -43,6 +47,7 @@ export class PagosRecurrentesComponent implements OnInit {
 
   constructor(
     private recurring: RecurringPaymentsService,
+    private transactionService: TransactionService,
     public privacy: PrivacyService,
   ) {}
 
@@ -51,6 +56,14 @@ export class PagosRecurrentesComponent implements OnInit {
     this.monthYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     this.monthLabel = this.formatMonthLabel(this.monthYm);
     this.load();
+    this.transactionService.dataRefresh$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.load());
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get groupedByCategory(): RecurringCategoryGroup[] {

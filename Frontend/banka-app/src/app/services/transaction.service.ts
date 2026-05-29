@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, Subject, of } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
+import { forkJoin, Observable, Subject, of } from 'rxjs';
+import { concatMap, map, tap } from 'rxjs/operators';
 import {
   Transaction,
   TransactionResponse,
@@ -91,6 +91,12 @@ export class TransactionService {
     this.balancesSnapshot = null;
   }
 
+  /** Tras mutaciones (upload, edición masiva): limpia caché y avisa a las pantallas. */
+  notifyDataChanged(): void {
+    this.clearTransactionsCache();
+    this.dataRefresh$.next();
+  }
+
   private cloneTransactionResponse(r: TransactionResponse): TransactionResponse {
     return structuredClone(r);
   }
@@ -144,16 +150,37 @@ export class TransactionService {
     return out;
   }
 
-  /** Una sola petición HTTP sin query (histórico reciente hasta tope del servidor). */
-  private ensureFullTransactionsSnapshot(): Observable<TransactionResponse> {
-    const now = Date.now();
-    if (
-      this.transactionsSnapshot &&
-      now - this.transactionsSnapshot.storedAt < TRANSACTIONS_CACHE_TTL_MS
-    ) {
-      return of(this.cloneTransactionResponse(this.transactionsSnapshot.body));
-    }
-    return this.http.get<TransactionResponse>(this.transactionsUrl).pipe(
+  private fetchTransactionsPage(page: number, pageSize: number): Observable<TransactionResponse> {
+    const params = new HttpParams()
+      .set('page', String(page))
+      .set('page_size', String(pageSize));
+    return this.http.get<TransactionResponse>(this.transactionsUrl, { params });
+  }
+
+  /** Carga todas las páginas del backend (page_size=1000) para el snapshot en cliente. */
+  private loadAllTransactionsFromApi(): Observable<TransactionResponse> {
+    const pageSize = 1000;
+    return this.fetchTransactionsPage(1, pageSize).pipe(
+      concatMap((first) => {
+        const firstRows = Array.isArray(first.data) ? first.data : [];
+        const total = first.count ?? firstRows.length;
+        const pages = Math.max(1, Math.ceil(total / pageSize));
+        if (pages <= 1) {
+          return of({ ...first, count: total, data: firstRows });
+        }
+        const restPages = Array.from({ length: pages - 1 }, (_, i) =>
+          this.fetchTransactionsPage(i + 2, pageSize),
+        );
+        return forkJoin(restPages).pipe(
+          map((responses) => {
+            const allRows = [...firstRows];
+            for (const r of responses) {
+              if (Array.isArray(r.data)) allRows.push(...r.data);
+            }
+            return { ...first, success: first.success, count: total, data: allRows };
+          }),
+        );
+      }),
       tap((body) => {
         this.transactionsSnapshot = {
           body: this.cloneTransactionResponse(body),
@@ -163,13 +190,30 @@ export class TransactionService {
     );
   }
 
+  private ensureFullTransactionsSnapshot(): Observable<TransactionResponse> {
+    const now = Date.now();
+    if (
+      this.transactionsSnapshot &&
+      now - this.transactionsSnapshot.storedAt < TRANSACTIONS_CACHE_TTL_MS
+    ) {
+      return of(this.cloneTransactionResponse(this.transactionsSnapshot.body));
+    }
+    return this.loadAllTransactionsFromApi();
+  }
+
   /**
    * Sube archivo de extracto (Excel o CSV) para importar transacciones
    */
   uploadTransactions(file: File): Observable<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<UploadResponse>(this.uploadUrl, formData);
+    return this.http.post<UploadResponse>(this.uploadUrl, formData).pipe(
+      tap((res) => {
+        if (res?.success !== false) {
+          this.notifyDataChanged();
+        }
+      }),
+    );
   }
 
   getBalances(): Observable<BalancesResponse> {
@@ -205,8 +249,7 @@ export class TransactionService {
   }
 
   /**
-   * Lista de transacciones: una petición al backend sin filtros (caché TTL), luego filtro por fechas
-   * y paginación en memoria. Los parámetros limit/offset del backend no existen; solo afectan al cliente.
+   * Snapshot completo paginado en servidor (page_size=1000), caché TTL; filtros limit/offset en cliente.
    */
   getTransactions(params?: TransactionQueryParams): Observable<TransactionResponse> {
     return this.ensureFullTransactionsSnapshot().pipe(
