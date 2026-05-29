@@ -131,7 +131,7 @@
                       <span class="tx-line1">
                         @if (tx.cuenta) {
                           <span class="tx-cuenta-badge" [class.tx-cuenta-revolut]="tx.cuenta === 'Revolut'" [class.tx-cuenta-personal]="tx.cuenta === 'Personal'" [class.tx-cuenta-conjunta]="tx.cuenta === 'Conjunta'" [class.tx-cuenta-pluxee]="tx.cuenta === 'Pluxee'">
-                            {{ getAccountLabelShort(tx.cuenta) }}
+                            {{ getAccountLabel(tx.cuenta) }}
                           </span>
                         }
                         <span class="tx-categoria">{{ tx.categoria || 'Sin categoría' }}</span>

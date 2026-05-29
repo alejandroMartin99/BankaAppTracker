@@ -263,12 +263,6 @@ export class GastosComponent implements OnInit, OnDestroy {
     return cuenta || '';
   }
 
-  /** Versión corta para balance cards en móvil */
-  getAccountLabelShort(cuenta?: string): string {
-    if (!cuenta) return '';
-    return cuenta.length > 10 ? cuenta.slice(0, 9) + '…' : cuenta;
-  }
-
   previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--;

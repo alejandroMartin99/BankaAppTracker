@@ -435,6 +435,8 @@
 }
 
 .tx-cuenta-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 1px 4px;
   border-radius: 2px;
   font-size: 8px;
