@@ -48,6 +48,8 @@ CATEGORY_RULES = [
     # OCIO
     (r'KINEPOLIS', 'OCIO', 'Kinepolis'),
     (r'ADMON LOTERIA', 'OCIO', 'Lotería'),
+    (r'BATERIA', 'OCIO', 'Bateria'),
+    (r'BATE .', 'OCIO', 'Bateria'),
     (r'LOTERIA', 'OCIO', 'Lotería'),
     (r'SERVICE NAVIGO', 'OCIO', 'Viaje_Paris'),
     (r'MARTA COTS PUJ', 'OCIO', 'Viaje_Paris'),
@@ -56,6 +58,11 @@ CATEGORY_RULES = [
     (r'SETE - SOCI', 'OCIO', 'Viaje_Paris'),
     (r'EIFFEL TERRASSE', 'OCIO', 'Viaje_Paris'),
     (r'BOUILLON PIGALLE', 'OCIO', 'Viaje_Paris'),
+    (r'ANTTRIPCOM', 'OCIO', 'Viajes'),
+    (r'RYANAIR ', 'OCIO', 'Ryanair'),
+    (r'ENTRADAS ', 'OCIO', 'Conciertos'),
+
+
 
 
     
@@ -106,6 +113,7 @@ CATEGORY_RULES = [
     (r'PINTURA', 'Hogar', 'Pintura'),
     (r'GROUPE SEB IBERICA', 'Hogar', 'Sartenes'),
     (r'MIMMA GALLERY', 'Hogar', 'Sofá'),
+    (r'PAPELERIA', 'Hogar', ' Papeleria'),
 
 
     # Supermercados
@@ -123,11 +131,13 @@ CATEGORY_RULES = [
     (r'LA VIDA VERDE', 'Supermercado', 'General'),
     (r'UNIDE MARKET', 'Supermercado', 'Unide'),
     (r'LUPA', 'Supermercado', 'Lupa'),
+    (r'KIWOKO', 'Supermercado', 'Kiwoko'),
+    (r'LI DA SUPERESTRELLA', 'Supermercado', 'Bazar'),
     
 
     
     # Restaurantes
-    (r'RESTAURANTE|TABERNA|BAR|CERVECERIA|CAFETERIA|CONSUMICI|RTE ', 'Restaurantes', None),
+    (r'RESTAURANTE|RESTAURANT|TABERNA|BAR|CERVECERIA|CAFETERIA|CONSUMICI|RTE ', 'Restaurantes', None),
     (r'DI CARLO', 'Restaurantes', 'Pizzeria Di Carlo'),
     (r'PIZZ CARLOS', 'Restaurantes', 'Pizzeria Di Carlo'),
     (r'BURGER KING', 'Restaurantes', 'Burger King'),
@@ -152,6 +162,8 @@ CATEGORY_RULES = [
     (r'DELINAS INECO EGEO', 'Restaurantes', 'Ineco_Desayuno'),
     (r'HUANG', 'Restaurantes', 'Huang Bao'),
     (r'STARBUCKS', 'Restaurantes', 'Starbucks'),
+    (r'DEHESA PARTENON', 'Restaurantes', 'Dehesa'),
+    (r'CALBENTA RESTAURANT', 'Restaurantes', 'Calventa'),
 
 
 
@@ -178,8 +190,10 @@ CATEGORY_RULES = [
     # Transferencias
     (r'TRANSFERENCIA INTERNA', 'Transferencia', 'Interna_Ibercaja'),
     (r'00000100067H663451', 'Transferencia', 'Aportacion_Conjunta_Lucia'),
+    (r'00000001000000067H663450', 'Transferencia', 'Aportacion_Conjunta_Lucia'),
     (r'MYINVESTOR', 'Transferencia', 'MyInvestor'),
     (r'REVOLUT\*\*', 'Transferencia', 'Revolut'),
+    (r'BBVA .', 'Transferencia', 'BBVA'),
     (r'ENVIADA DESDE REVOLUT', 'Transferencia', 'Revolut'),
     (r'TRANSFERENCIA', 'Transferencia', None),
     (r'UNA RECARGA DE APPLE PAY CON', 'Transferencia', 'Recarga'),
