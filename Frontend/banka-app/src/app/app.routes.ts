@@ -18,6 +18,7 @@ export const routes: Routes = [
       { path: 'ajustes', loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent) },
       { path: 'inversion', loadComponent: () => import('./pages/inversion/inversion.component').then(m => m.InversionComponent) },
       { path: 'hipotecas', loadComponent: () => import('./pages/hipotecas/hipotecas.component').then(m => m.HipotecasComponent) },
+      { path: 'salario', loadComponent: () => import('./pages/salario/salario.component').then(m => m.SalarioComponent) },
       {
         path: 'pagos-recurrentes',
         loadComponent: () =>

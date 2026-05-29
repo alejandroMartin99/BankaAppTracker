@@ -172,6 +172,7 @@ export class LayoutComponent {
       url.startsWith('/ajustes') ||
       url.startsWith('/inversion') ||
       url.startsWith('/hipotecas') ||
+      url.startsWith('/salario') ||
       url.startsWith('/pagos-recurrentes')
     );
   }

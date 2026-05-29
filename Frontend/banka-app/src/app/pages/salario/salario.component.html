@@ -1,0 +1,313 @@
+<div class="salario-page">
+
+  <!-- ── Header ───────────────────────────────────────────────────────────── -->
+  <header class="page-header">
+    <div class="page-header-main">
+      <h1 class="page-title">Calculadora Salario</h1>
+      <button type="button" class="btn-toggle-inputs" (click)="inputsExpanded = !inputsExpanded">
+        {{ inputsExpanded ? 'Ocultar datos' : 'Editar datos' }}
+      </button>
+    </div>
+    @if (result) {
+      <p class="page-subtitle">
+        {{ getCcaaName(config.ccaa) }} · {{ config.pagas }} pagas ·
+        {{ config.situacion === 'soltero' ? 'Soltero/a' : config.situacion === 'casado_sin_rentas' ? 'Casado/a (pareja sin rentas)' : 'Casado/a (pareja con rentas)' }}
+        @if (config.hijos > 0) { · {{ config.hijos }} {{ config.hijos === 1 ? 'hijo' : 'hijos' }} }
+      </p>
+    }
+  </header>
+
+  <!-- ── Inputs ────────────────────────────────────────────────────────────── -->
+  @if (inputsExpanded) {
+    <section class="inputs-section">
+
+      <!-- Fila 1: salario + periodo + pagas -->
+      <div class="inputs-row">
+        <div class="ifield ifield--bruto">
+          <span class="ifield-label">Salario bruto</span>
+          <div class="ifield-row">
+            <input
+              type="number"
+              class="ifield-input"
+              [(ngModel)]="config.bruto"
+              (ngModelChange)="onConfigChange()"
+              min="0" step="100"
+            />
+            <button type="button" class="pill-toggle" (click)="togglePeriod()">
+              {{ config.brutoPeriod === 'anual' ? 'Año' : 'Mes' }}
+            </button>
+          </div>
+          <span class="ifield-hint">
+            @if (config.brutoPeriod === 'mensual') { {{ brutoAnual | number:'1.0-0':'es' }} € / año }
+            @else { {{ (config.bruto / 12) | number:'1.0-0':'es' }} € / mes }
+          </span>
+        </div>
+
+        <div class="ifield">
+          <span class="ifield-label">Pagas</span>
+          <div class="pagas-selector">
+            @for (p of [12, 14, 15, 16]; track p) {
+              <button type="button" class="pagas-btn" [class.active]="config.pagas === p" (click)="setPagas(p)">{{ p }}</button>
+            }
+          </div>
+        </div>
+
+        <div class="ifield">
+          <span class="ifield-label">Contrato</span>
+          <div class="pagas-selector">
+            <button type="button" class="pagas-btn" [class.active]="config.tipoContrato === 'indefinido'" (click)="config.tipoContrato = 'indefinido'; onConfigChange()">Indef.</button>
+            <button type="button" class="pagas-btn" [class.active]="config.tipoContrato === 'parcial'" (click)="config.tipoContrato = 'parcial'; onConfigChange()">Parcial</button>
+          </div>
+        </div>
+
+        <div class="ifield ifield--ccaa">
+          <span class="ifield-label">CC.AA</span>
+          <select class="ifield-select" [(ngModel)]="config.ccaa" (ngModelChange)="onConfigChange()">
+            @for (cc of ccaaLabels; track cc.code) {
+              <option [value]="cc.code">{{ cc.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="ifield">
+          <span class="ifield-label">Hijos</span>
+          <div class="ifield-row">
+            <input type="number" class="ifield-input ifield-input--xs" [(ngModel)]="config.hijos" (ngModelChange)="onConfigChange()" min="0" max="8" />
+            @if (config.hijos > 0) {
+              <label class="ifield-check">
+                <input type="checkbox" [checked]="config.edadMayorHijo < 3" (change)="config.edadMayorHijo = config.edadMayorHijo < 3 ? 5 : 0; onConfigChange()" />
+                &lt; 3 años
+              </label>
+            }
+          </div>
+        </div>
+
+        <div class="ifield">
+          <span class="ifield-label">Edad</span>
+          <input type="number" class="ifield-input ifield-input--xs" [(ngModel)]="config.edad" (ngModelChange)="onConfigChange()" min="16" max="99" />
+        </div>
+
+        <div class="ifield ifield--toggle">
+          <span class="ifield-label">2.º pagador</span>
+          <button type="button" class="btn-toggle" [class.on]="config.segundoPagador" (click)="config.segundoPagador = !config.segundoPagador; onConfigChange()">
+            <span class="btn-toggle-thumb"></span>
+          </button>
+        </div>
+        @if (config.segundoPagador) {
+          <div class="ifield">
+            <span class="ifield-label">Importe anual</span>
+            <input type="number" class="ifield-input" [(ngModel)]="config.segundoPagadorImporte" (ngModelChange)="onConfigChange()" min="0" step="100" placeholder="0" />
+          </div>
+          @if (segundoPagadorWarning) {
+            <p class="ifield-warning">2.º pagador &gt; 1.500 €/año: límite declaración baja a 12.000 €. Retención recalculada con ingresos combinados.</p>
+          }
+        }
+      </div>
+
+    </section>
+  }
+
+  <!-- ── Results ───────────────────────────────────────────────────────────── -->
+  @if (result) {
+    <!-- KPI cards -->
+    <section class="kpi-section">
+      <div class="kpi-card kpi-card--highlight">
+        <span class="kpi-label">Neto anual</span>
+        <span class="kpi-value">{{ result.netoAnual | number:'1.0-0':'es' }} €</span>
+        <span class="kpi-sub">{{ result.netoPorPaga | number:'1.0-0':'es' }} € / paga · {{ result.netoMensual | number:'1.0-0':'es' }} € / mes</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Bruto anual</span>
+        <span class="kpi-value">{{ result.brutoAnual | number:'1.0-0':'es' }} €</span>
+        <span class="kpi-sub">{{ result.brutoPorPaga | number:'1.0-0':'es' }} € / paga</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">IRPF anual</span>
+        <span class="kpi-value kpi-value--cost">{{ result.irpfAnual | number:'1.0-0':'es' }} €</span>
+        <span class="kpi-sub">Tipo efectivo {{ result.irpfEfectivo | number:'1.1-1':'es' }} % · Marginal {{ result.irpfMarginal | number:'1.1-1':'es' }} %</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Seguridad Social</span>
+        <span class="kpi-value kpi-value--cost">{{ result.ssAnual | number:'1.0-0':'es' }} €</span>
+        <span class="kpi-sub">{{ ssPct | number:'1.1-1':'es' }} % · base {{ result.baseCotizacion | number:'1.0-0':'es' }} € / mes</span>
+      </div>
+    </section>
+
+    <!-- Barra proporcional -->
+    <section class="bar-section">
+      <div class="bar-track">
+        <div class="bar-seg bar-seg--ss" [style.width.%]="ssPct">
+          @if (ssPct > 5) { <span class="bar-label">SS {{ ssPct | number:'1.1-1':'es' }}%</span> }
+        </div>
+        <div class="bar-seg bar-seg--irpf" [style.width.%]="irpfPct">
+          @if (irpfPct > 5) { <span class="bar-label">IRPF {{ irpfPct | number:'1.1-1':'es' }}%</span> }
+        </div>
+        <div class="bar-seg bar-seg--neto" [style.width.%]="netoPct">
+          @if (netoPct > 10) { <span class="bar-label">Neto {{ netoPct | number:'1.1-1':'es' }}%</span> }
+        </div>
+      </div>
+      <div class="bar-legend">
+        <span class="legend-item"><span class="legend-dot legend-dot--ss"></span>SS</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--irpf"></span>IRPF</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--neto"></span>Neto</span>
+      </div>
+    </section>
+
+    <!-- Desglose detallado -->
+    <section class="breakdown-section">
+      <h2 class="section-title">Desglose anual</h2>
+      <div class="breakdown-table">
+        <div class="breakdown-row breakdown-row--header">
+          <span>Concepto</span><span>Anual</span>
+          <span>{{ config.pagas === 12 ? 'Mensual' : 'Por paga' }}</span>
+        </div>
+        <div class="breakdown-row">
+          <span>Salario bruto</span>
+          <span>{{ result.brutoAnual | number:'1.2-2':'es' }} €</span>
+          <span>{{ result.brutoPorPaga | number:'1.2-2':'es' }} €</span>
+        </div>
+        @for (ss of ssDesglose; track ss.label) {
+          <div class="breakdown-row breakdown-row--sub">
+            <span>− {{ ss.label }} ({{ ss.pct | number:'1.2-2':'es' }} %)</span>
+            <span class="text-cost">{{ (ss.importe * 12) | number:'1.2-2':'es' }} €</span>
+            <span class="text-cost">{{ (ss.importe * 12 / config.pagas) | number:'1.2-2':'es' }} €</span>
+          </div>
+        }
+        <div class="breakdown-row breakdown-row--total">
+          <span>= Neto trabajo (antes IRPF)</span>
+          <span>{{ (result.brutoAnual - result.ssAnual) | number:'1.2-2':'es' }} €</span>
+          <span>{{ ((result.brutoAnual - result.ssAnual) / config.pagas) | number:'1.2-2':'es' }} €</span>
+        </div>
+        <div class="breakdown-row breakdown-row--sub">
+          <span>− Reducción rendimientos trabajo</span>
+          <span class="text-cost">{{ result.reduccionRendimientos | number:'1.2-2':'es' }} €</span>
+          <span>—</span>
+        </div>
+        <div class="breakdown-row breakdown-row--sub">
+          <span>− Mínimo personal y familiar</span>
+          <span class="text-cost">{{ result.minPersonalFamiliar | number:'1.2-2':'es' }} €</span>
+          <span>—</span>
+        </div>
+        <div class="breakdown-row breakdown-row--sub breakdown-row--emph">
+          <span>= Base liquidable IRPF</span>
+          <span>{{ result.baseLiquidable | number:'1.2-2':'es' }} €</span>
+          <span>—</span>
+        </div>
+        <div class="breakdown-row breakdown-row--sub">
+          <span>− IRPF (tipo efectivo {{ result.irpfEfectivo | number:'1.1-1':'es' }} %)</span>
+          <span class="text-cost">{{ result.irpfAnual | number:'1.2-2':'es' }} €</span>
+          <span class="text-cost">{{ (result.irpfAnual / config.pagas) | number:'1.2-2':'es' }} €</span>
+        </div>
+        <div class="breakdown-row breakdown-row--neto">
+          <span>= Salario neto</span>
+          <span>{{ result.netoAnual | number:'1.2-2':'es' }} €</span>
+          <span>{{ result.netoPorPaga | number:'1.2-2':'es' }} €</span>
+        </div>
+        @if (config.pagas > 12) {
+          <div class="breakdown-row breakdown-row--pagas-split">
+            <span>
+              12 mensualidades × {{ result.netoPorPaga | number:'1.0-0':'es' }} €
+              &nbsp;+&nbsp;
+              {{ config.pagas - 12 }} {{ config.pagas - 12 === 1 ? 'paga extra' : 'pagas extra' }} × {{ result.netoPorPaga | number:'1.0-0':'es' }} €
+            </span>
+            <span></span>
+            <span></span>
+          </div>
+        }
+      </div>
+      <p class="breakdown-note">
+        Cálculo orientativo según normativa IRPF 2025 y cuotas SS 2025.
+        Para deducciones específicas (discapacidad, movilidad, etc.) consulta un asesor fiscal.
+      </p>
+    </section>
+
+    <!-- ── Diagnóstico retención ──────────────────────────────────────────── -->
+    <section class="nominas-section">
+      <div class="nominas-header">
+        <h2 class="section-title">Tus nóminas reales</h2>
+        @if (nominaSubcategorias.length > 1) {
+          <div class="nominas-sub-selector">
+            <span class="nominas-sub-label">Empresa</span>
+            <div class="pagas-selector">
+              @for (sub of nominaSubcategorias; track sub) {
+                <button
+                  type="button"
+                  class="pagas-btn"
+                  [class.active]="selectedSubcategoria === sub"
+                  (click)="selectedSubcategoria = sub; onSubcategoriaChange()"
+                >{{ sub }}</button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      @if (nominasLoading) {
+        <p class="state-msg">Cargando nóminas...</p>
+      } @else if (nominasError) {
+        <p class="state-msg state-msg--error">{{ nominasError }}</p>
+      } @else if (nominasFiltradas.length === 0) {
+        <p class="state-msg">
+          No se han encontrado transacciones con categoría <strong>Nómina</strong>.
+          Asegúrate de que tus ingresos salariales están correctamente categorizados.
+        </p>
+      } @else {
+        <!-- Diagnóstico banner (basado en la última nómina de la empresa seleccionada) -->
+        @if (diagnostico) {
+          <div class="diagnostico-card" [class.diagnostico--ok]="diagnostico.estado === 'ok'" [class.diagnostico--alta]="diagnostico.estado === 'alta'" [class.diagnostico--baja]="diagnostico.estado === 'baja'">
+            <div class="diagnostico-header">
+              <span class="diagnostico-icon">
+                @if (diagnostico.estado === 'ok') { ✓ }
+                @if (diagnostico.estado === 'alta') { ↑ }
+                @if (diagnostico.estado === 'baja') { ↓ }
+              </span>
+              <span class="diagnostico-title">
+                @if (diagnostico.estado === 'ok') { Retención correcta }
+                @if (diagnostico.estado === 'alta') { Retención posiblemente alta }
+                @if (diagnostico.estado === 'baja') { Retención posiblemente baja }
+              </span>
+            </div>
+            <p class="diagnostico-msg">{{ diagnostico.mensaje }}</p>
+            <div class="diagnostico-stats">
+              <div class="diag-stat">
+                <span class="diag-stat-label">Última nómina</span>
+                <span class="diag-stat-value">{{ diagnostico.netoRealMedio | number:'1.0-0':'es' }} €</span>
+              </div>
+              <div class="diag-stat">
+                <span class="diag-stat-label">Neto teórico por paga</span>
+                <span class="diag-stat-value">{{ result.netoPorPaga | number:'1.0-0':'es' }} €</span>
+              </div>
+              <div class="diag-stat">
+                <span class="diag-stat-label">Retención real</span>
+                <span class="diag-stat-value">{{ diagnostico.retencionRealPct | number:'1.1-1':'es' }} %</span>
+              </div>
+              <div class="diag-stat">
+                <span class="diag-stat-label">Retención teórica</span>
+                <span class="diag-stat-value">{{ diagnostico.retencionTeoricaPct | number:'1.1-1':'es' }} %</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Tabla nóminas -->
+        <div class="nominas-table">
+          <div class="nominas-row nominas-row--header">
+            <span>Fecha</span><span>Descripción</span><span>Importe</span>
+          </div>
+          @for (n of (showAllNominas ? nominasFiltradas : nominasFiltradas.slice(0, 6)); track n.fecha + n.importe) {
+            <div class="nominas-row">
+              <span class="nominas-fecha">{{ n.fecha }}</span>
+              <span class="nominas-desc">{{ n.descripcion || '—' }}</span>
+              <span class="nominas-importe">{{ n.importe | number:'1.2-2':'es' }} €</span>
+            </div>
+          }
+        </div>
+        @if (nominasFiltradas.length > 6) {
+          <button type="button" class="btn-more" (click)="showAllNominas = !showAllNominas">
+            {{ showAllNominas ? 'Ver menos' : 'Ver todas (' + nominasFiltradas.length + ')' }}
+          </button>
+        }
+      }
+    </section>
+  }
+
+</div>
