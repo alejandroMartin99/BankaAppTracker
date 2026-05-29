@@ -14,6 +14,11 @@ export interface Transaction {
   es_transferencia_interna?: boolean;
   /** En gastos compartidos: true = cuenta del usuario actual, false = cuenta de otro usuario que comparte */
   is_own_account?: boolean;
+  /** Cuenta personal de la pareja vinculada (Conjunta compartida) */
+  is_partner_account?: boolean;
+  /** Cuenta común del hogar (varios user_id en user_accounts) */
+  is_joint_account?: boolean;
+  account_owner_user_id?: string;
 }
 
 export interface TransactionResponse {

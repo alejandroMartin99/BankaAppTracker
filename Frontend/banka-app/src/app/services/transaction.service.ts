@@ -21,9 +21,18 @@ export interface CategoryCatalogResponse {
   subcategories_by_category: Record<string, string[]>;
 }
 
+export interface SharedPartnerInfo {
+  user_id: string;
+  display_name: string;
+  account_names: string[];
+}
+
 export interface SharedTransactionsResponse extends TransactionResponse {
   shared_with_user_name?: string | null;
   shared_balances_enabled?: boolean;
+  partners?: SharedPartnerInfo[];
+  partner_accounts_linked?: boolean;
+  joint_account_names?: string[];
 }
 
 export interface MortgageSettings {
@@ -281,14 +290,41 @@ export class TransactionService {
   }
 
   /**
-   * Transacciones para análisis de gastos compartidos: propias + de usuarios que comparten alguna cuenta.
-   * Cada item incluye is_own_account.
+   * Transacciones para gastos compartidos (propias + pareja vinculada por Conjunta + shares explícitos).
+   * Carga todas las páginas del backend.
    */
   getSharedTransactions(params?: { from_date?: string; to_date?: string }): Observable<SharedTransactionsResponse> {
-    let httpParams = new HttpParams();
+    const pageSize = 1000;
+    let httpParams = new HttpParams().set('page', '1').set('page_size', String(pageSize));
     if (params?.from_date) httpParams = httpParams.set('from_date', params.from_date);
     if (params?.to_date) httpParams = httpParams.set('to_date', params.to_date);
-    return this.http.get<SharedTransactionsResponse>(this.sharedTransactionsUrl, { params: httpParams });
+    return this.http.get<SharedTransactionsResponse>(this.sharedTransactionsUrl, { params: httpParams }).pipe(
+      concatMap((first) => {
+        const firstRows = Array.isArray(first.data) ? first.data : [];
+        const total = first.count ?? firstRows.length;
+        const pages = Math.max(1, Math.ceil(total / pageSize));
+        if (pages <= 1) {
+          return of({ ...first, count: total, data: firstRows });
+        }
+        const restPages = Array.from({ length: pages - 1 }, (_, i) => {
+          let p = new HttpParams()
+            .set('page', String(i + 2))
+            .set('page_size', String(pageSize));
+          if (params?.from_date) p = p.set('from_date', params.from_date);
+          if (params?.to_date) p = p.set('to_date', params.to_date);
+          return this.http.get<SharedTransactionsResponse>(this.sharedTransactionsUrl, { params: p });
+        });
+        return forkJoin(restPages).pipe(
+          map((responses) => {
+            const allRows = [...firstRows];
+            for (const r of responses) {
+              if (Array.isArray(r.data)) allRows.push(...r.data);
+            }
+            return { ...first, count: total, data: allRows };
+          }),
+        );
+      }),
+    );
   }
 
   /** Activa/desactiva la inclusión de saldos de usuarios vinculados en Compartidos. */

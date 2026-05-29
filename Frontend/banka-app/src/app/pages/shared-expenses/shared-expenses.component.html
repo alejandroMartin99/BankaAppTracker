@@ -7,7 +7,7 @@
           <span class="loader-dot"></span>
           <span class="loader-dot"></span>
         </div>
-        <p class="loader-text">Cargando suministros...</p>
+        <p class="loader-text">Cargando compartidos...</p>
         <div class="loader-bar"></div>
       </div>
     </div>
@@ -49,6 +49,79 @@
     }
   </section>
 
+  @if (!loading && !error) {
+    <section class="filter-section include-filter">
+      <p class="include-filter-label">Incluir en el reparto</p>
+      <div class="include-filter-split">
+        <label class="include-filter-field">
+          <span class="include-filter-field-label">Categoría</span>
+          <select
+            class="include-filter-select"
+            [ngModel]="activeFilterCategory"
+            (ngModelChange)="onFilterCategoryPick($event)"
+          >
+            @for (cat of filterCategoriesList; track cat) {
+              <option [value]="cat">
+                {{ cat }}@if (isCategoryFilterActive(cat)) { · incluida}
+              </option>
+            }
+          </select>
+        </label>
+        <div class="include-filter-subs">
+          @if (activeFilterCategory) {
+            <div class="include-filter-subs-head">
+              <span class="include-sub-label">Subcategorías</span>
+              @if (activeFilterSubs.length > 0) {
+                <button
+                  type="button"
+                  class="chip chip-all"
+                  [class.active]="isActiveCategoryWholeSelected()"
+                  (click)="toggleWholeCategory(activeFilterCategory)"
+                >
+                  Todas
+                </button>
+              }
+            </div>
+            @if (activeFilterSubs.length > 0) {
+              <div class="filter-chips">
+                @for (sub of activeFilterSubs; track sub) {
+                  <button
+                    type="button"
+                    class="chip chip-subtle"
+                    [class.active]="isSubFilterSelected(activeFilterCategory, sub)"
+                    (click)="toggleFilterSub(activeFilterCategory, sub)"
+                  >
+                    {{ sub }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="include-filter-empty">Esta categoría no tiene subcategorías.</p>
+              <button
+                type="button"
+                class="chip"
+                [class.active]="isCategoryFilterActive(activeFilterCategory)"
+                (click)="toggleWholeCategory(activeFilterCategory)"
+              >
+                Incluir {{ activeFilterCategory }}
+              </button>
+            }
+          }
+        </div>
+      </div>
+      @if (includedFilterItems.length) {
+        <div class="include-filter-summary">
+          <span class="include-filter-summary-label">Incluidos</span>
+          <div class="filter-chips">
+            @for (item of includedFilterItems; track item) {
+              <span class="chip chip-included">{{ item }}</span>
+            }
+          </div>
+        </div>
+      }
+    </section>
+  }
+
   @if (error) {
     <div class="error-card">
       <p>{{ error }}</p>
@@ -57,34 +130,39 @@
   }
 
   @if (!loading && !error && displayedTransactions.length > 0) {
-    @if (sharedWithUserName) {
+    @if (sharedWithUserName || partners.length > 0) {
       <div class="shared-user-banner">
-        <span class="shared-user-banner-label">Cuenta compartida detectada con</span>
-        <strong class="shared-user-banner-name">{{ sharedWithUserName }}</strong>
+        <span class="shared-user-banner-text">
+          Vinculado con <strong>{{ partnerLabel }}</strong>@if (partnerAccountsLinked) {<span class="shared-user-banner-meta"> · Cuentas personales visibles</span>} @else if (sharedBalancesEnabled && partners.length > 0) {<span class="shared-user-banner-meta"> · Sin extractos personales de {{ partnerLabel }} aún</span>}
+        </span>
       </div>
     }
     <!-- Totales (estilo Resumen) -->
     <section class="totals-section">
       <div class="totals-row">
-        <span class="totals-label">Total gastos (Suministros + Gimnasio)</span>
+        <span class="totals-label">Total gastos</span>
         <span class="totals-value totals-gastos">{{ sharedTotal | number:'1.2-2':'es' }} €</span>
       </div>
       <div class="totals-row">
-        <span class="totals-label">Has pagado Conjunta</span>
+        <span class="totals-label">Gastado en {{ jointLabel }}</span>
         <span class="totals-value">{{ totalJoint | number:'1.2-2':'es' }} €</span>
       </div>
-      <div class="totals-row">
-        <span class="totals-label">Has pagado tú</span>
-        <span class="totals-value">{{ totalMine | number:'1.2-2':'es' }} €</span>
+      <div class="totals-row totals-row--sub">
+        <span class="totals-label">Mitad teórica {{ jointLabel }} (50/50)</span>
+        <span class="totals-value">{{ jointFairShare | number:'1.2-2':'es' }} € / persona</span>
       </div>
       <div class="totals-row">
-        <span class="totals-label">Ha pagado la otra parte</span>
-        <span class="totals-value">{{ totalOther | number:'1.2-2':'es' }} €</span>
+        <span class="totals-label">Tú (cuenta personal)</span>
+        <span class="totals-value">{{ totalMineNoConjunta | number:'1.2-2':'es' }} €</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">{{ partnerLabel }} (cuenta personal)</span>
+        <span class="totals-value">{{ totalOtherNoConjunta | number:'1.2-2':'es' }} €</span>
       </div>
       <p class="totals-privacy-note">
         {{ sharedBalancesEnabled
-          ? 'Se incluyen cuentas vinculadas a usuarios que comparten cuenta contigo.'
-          : 'La vinculación de saldos está desactivada: solo ves tus propios movimientos.' }}
+          ? 'Incluye tus cuentas y las personales de quien comparte una cuenta contigo (según selección arriba).'
+          : 'Activa la vinculación para ver los gastos personales de tu pareja en esta categoría.' }}
       </p>
       <p class="totals-privacy-note">
         <button type="button" class="manage-link" (click)="openManageAccountsModal()">
@@ -92,7 +170,7 @@
         </button>
       </p>
       <div class="totals-row totals-row--balance">
-        <span class="totals-label">Saldo 50/50 (sin Conjunta)</span>
+        <span class="totals-label">Saldo 50/50 (sin {{ jointLabel }})</span>
         @if (privacy.hideBalances()) {
           <span class="totals-value">***</span>
         } @else if (settlementAmount > 0) {
@@ -114,15 +192,24 @@
         </p>
         <p class="manage-modal-text">
           <strong>Privacidad:</strong> en esta vista solo se muestran totales/saldos de movimientos asignados a
-          <strong>Gimnasio</strong> y <strong>Suministros</strong>. En ningún caso la otra parte podrá acceder al resto
+          Elige qué categorías/subcategorías se comparten en esta vista. Por defecto:
+          <strong>Suministros</strong> y <strong>Gimnasio</strong>. La otra parte no verá el resto
           de tus movimientos o categorías personales.
         </p>
         <p class="manage-modal-text">
           Persona vinculada:
-          <strong>{{ sharedWithUserName || 'Usuario vinculado' }}</strong>
+          <strong>{{ partnerLabel }}</strong>
         </p>
+        @if (partners.length > 0) {
+          @for (p of partners; track p.user_id) {
+            <p class="manage-modal-text">
+              Cuentas de {{ p.display_name }}:
+              <strong>{{ p.account_names.length ? p.account_names.join(', ') : 'Ninguna personal cargada' }}</strong>
+            </p>
+          }
+        }
         <p class="manage-modal-text">
-          Cuentas detectadas:
+          Cuentas con movimientos en el periodo:
           @if (linkedAccountNames.length > 0) {
             <strong>{{ linkedAccountNames.join(', ') }}</strong>
           } @else {
@@ -162,8 +249,8 @@
               <span class="month-total-chip-label">{{ m.label | titlecase }}</span>
               <span class="month-total-chip-values">
                 <span>Tú {{ m.totalMine | number:'1.0-0':'es' }}€</span>
-                <span>Otra {{ m.totalOther | number:'1.0-0':'es' }}€</span>
-                <span>Conjunta {{ m.totalJoint | number:'1.0-0':'es' }}€</span>
+                <span>{{ partnerShortLabel }} {{ m.totalOther | number:'1.0-0':'es' }}€</span>
+                <span>{{ jointLabel }} {{ m.totalJoint | number:'1.0-0':'es' }}€</span>
               </span>
             </button>
 
@@ -171,8 +258,8 @@
               <div class="month-total-chip-chart">
                 <div class="owner-legend">
                   <span><i class="dot dot-mine"></i>Tú</span>
-                  <span><i class="dot dot-other"></i>Otra parte</span>
-                  <span><i class="dot dot-joint"></i>Conjunta</span>
+                  <span><i class="dot dot-other"></i>{{ partnerShortLabel }}</span>
+                  <span><i class="dot dot-joint"></i>{{ jointLabel }}</span>
                 </div>
                 <div class="bar-chart">
                   <div class="month-sub-row">
@@ -221,8 +308,8 @@
   @if (!loading && !error && displayedTransactions.length === 0) {
     <div class="empty-state">
       <span class="empty-icon">💡</span>
-      <p>No hay gastos de Suministros o Gimnasio en este periodo</p>
-      <p class="empty-hint">Suministros (todos) y Gimnasio solo &gt; 20 €. Tuyos y de quien comparte cuenta.</p>
+      <p>No hay gastos con la selección actual en este periodo</p>
+      <p class="empty-hint">Ajusta categorías arriba o el rango de fechas.</p>
     </div>
   }
 </div>

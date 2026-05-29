@@ -314,22 +314,52 @@ async def get_shared_transactions(
     my_account_ids = supabase_service.get_owned_account_ids(uid)
     eligible_ids = set(supabase_service.get_share_eligible_account_ids())
     my_eligible_account_ids = [aid for aid in my_account_ids if aid in eligible_ids]
-    shared_user_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
+    linked_partner_ids = supabase_service.get_linked_partner_user_ids(uid)
+    explicit_share_owner_ids = supabase_service.get_user_ids_sharing_accounts_with(uid)
+    partner_user_ids = list(dict.fromkeys(linked_partner_ids + explicit_share_owner_ids))
     shared_with_user_name = (
-        supabase_service.get_user_display_name(shared_user_ids[0])
-        if shared_user_ids else None
+        supabase_service.get_user_display_name(partner_user_ids[0])
+        if partner_user_ids else None
     )
     shared_enabled = _is_shared_balances_enabled(uid)
     shared_account_ids = supabase_service.get_shared_account_ids(uid, permission="view") if shared_enabled else []
-    visible_account_ids = list(dict.fromkeys(my_eligible_account_ids + shared_account_ids))
+    partner_personal_ids = (
+        supabase_service.get_partner_personal_account_ids(uid) if shared_enabled else []
+    )
+    visible_account_ids = list(
+        dict.fromkeys(my_eligible_account_ids + shared_account_ids + partner_personal_ids)
+    )
     my_account_set = set(my_eligible_account_ids)
+    partner_account_set = set(shared_account_ids + partner_personal_ids) - my_account_set
+    joint_account_ids = set(supabase_service.get_household_joint_account_ids(uid))
+
+    partners_meta = []
+    for pid in partner_user_ids:
+        p_accounts = supabase_service.get_owned_account_ids(pid)
+        p_eligible = [aid for aid in p_accounts if aid in eligible_ids and aid not in my_account_set]
+        names = supabase_service.get_account_display_names(p_eligible) if p_eligible else {}
+        partners_meta.append({
+            "user_id": pid,
+            "display_name": supabase_service.get_user_display_name(pid),
+            "account_names": sorted(set(names.values())),
+        })
 
     if not visible_account_ids:
-        return {"success": True, "count": 0, "data": []}
+        return {
+            "success": True,
+            "count": 0,
+            "data": [],
+            "shared_with_user_name": shared_with_user_name,
+            "shared_balances_enabled": shared_enabled,
+            "partners": partners_meta,
+            "partner_accounts_linked": bool(partner_account_set),
+            "joint_account_names": [],
+        }
 
     effective_page_size = limit if limit is not None else page_size
     effective_offset = offset if offset is not None else (page - 1) * effective_page_size
     tx_select = "id,transaction_id,dt_date,importe,saldo,descripcion,categoria,subcategoria,account_id"
+    account_owners = supabase_service.get_account_owner_user_ids(visible_account_ids)
 
     try:
         q = (
@@ -349,9 +379,16 @@ async def get_shared_transactions(
         )
         data = list(response.data or [])
         names = supabase_service.get_account_display_names(visible_account_ids)
+        joint_account_names = sorted(
+            {names.get(aid, "") for aid in joint_account_ids if names.get(aid)}
+        )
         for row in data:
-            row["cuenta"] = names.get(row.get("account_id", ""), row.get("cuenta") or "Cuenta")
-            row["is_own_account"] = row.get("account_id") in my_account_set
+            aid = row.get("account_id")
+            row["cuenta"] = names.get(aid, row.get("cuenta") or "Cuenta")
+            row["is_own_account"] = aid in my_account_set
+            row["is_partner_account"] = aid in partner_account_set
+            row["is_joint_account"] = aid in joint_account_ids
+            row["account_owner_user_id"] = account_owners.get(aid)
         return {
             "success": True,
             "count": int(response.count or 0),
@@ -360,6 +397,9 @@ async def get_shared_transactions(
             "page_size": effective_page_size,
             "shared_with_user_name": shared_with_user_name,
             "shared_balances_enabled": shared_enabled,
+            "partners": partners_meta,
+            "partner_accounts_linked": bool(partner_account_set),
+            "joint_account_names": joint_account_names,
         }
     except Exception as e:
         raise internal_server_error(e, "get_shared_transactions")

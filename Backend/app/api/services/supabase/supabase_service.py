@@ -195,6 +195,109 @@ class SupabaseService:
         except Exception:
             return []
 
+    def get_linked_partner_user_ids(self, user_id: str) -> List[str]:
+        """Usuarios vinculados por compartir al menos una cuenta (p. ej. Conjunta)."""
+        if not self.supabase:
+            return []
+        uid = _uuid_str(user_id)
+        my_accounts = self.get_user_account_ids(uid)
+        if not my_accounts:
+            return []
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("user_id")
+                .in_("account_id", my_accounts)
+                .execute()
+            )
+            partners = [
+                x.get("user_id")
+                for x in (r.data or [])
+                if x.get("user_id") and x.get("user_id") != uid
+            ]
+            return list(dict.fromkeys(partners))
+        except Exception:
+            return []
+
+    def get_partner_personal_account_ids(self, user_id: str) -> List[str]:
+        """
+        Cuentas personales elegibles (IBAN) de la pareja vinculada por cuenta común.
+        Excluye cuentas que el usuario actual ya tiene (p. ej. Conjunta compartida).
+        """
+        if not self.supabase:
+            return []
+        uid = _uuid_str(user_id)
+        partners = self.get_linked_partner_user_ids(uid)
+        if not partners:
+            return []
+        my_ids = set(self.get_owned_account_ids(uid))
+        eligible = self._get_share_eligible_account_ids()
+        if not eligible:
+            return []
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("account_id")
+                .in_("user_id", partners)
+                .execute()
+            )
+            out: List[str] = []
+            for row in r.data or []:
+                aid = row.get("account_id")
+                if not aid or aid in my_ids or aid not in eligible:
+                    continue
+                out.append(aid)
+            return list(dict.fromkeys(out))
+        except Exception:
+            return []
+
+    def get_household_joint_account_ids(self, user_id: str) -> List[str]:
+        """Cuentas del usuario enlazadas a más de un user_id (cuenta común, sin depender del nombre)."""
+        if not self.supabase:
+            return []
+        uid = _uuid_str(user_id)
+        my_accounts = self.get_user_account_ids(uid)
+        if not my_accounts:
+            return []
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("account_id, user_id")
+                .in_("account_id", my_accounts)
+                .execute()
+            )
+            users_by_account: Dict[str, Set[str]] = {}
+            for row in r.data or []:
+                aid = row.get("account_id")
+                ouid = row.get("user_id")
+                if not aid or not ouid:
+                    continue
+                users_by_account.setdefault(str(aid), set()).add(str(ouid))
+            return [aid for aid, users in users_by_account.items() if len(users) > 1]
+        except Exception:
+            return []
+
+    def get_account_owner_user_ids(self, account_ids: List[str]) -> Dict[str, str]:
+        """account_id -> user_id del primer vínculo en user_accounts."""
+        if not self.supabase or not account_ids:
+            return {}
+        try:
+            r = (
+                self.supabase.table("user_accounts")
+                .select("account_id, user_id")
+                .in_("account_id", account_ids)
+                .execute()
+            )
+            owners: Dict[str, str] = {}
+            for row in r.data or []:
+                aid = row.get("account_id")
+                ouid = row.get("user_id")
+                if aid and ouid and aid not in owners:
+                    owners[str(aid)] = str(ouid)
+            return owners
+        except Exception:
+            return {}
+
     def get_user_display_name(self, user_id: str) -> str:
         """
         Intenta resolver el nombre visible de un usuario.
