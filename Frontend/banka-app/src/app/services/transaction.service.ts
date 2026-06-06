@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { forkJoin, Observable, Subject, of } from 'rxjs';
-import { concatMap, map, tap } from 'rxjs/operators';
+import { concatMap, finalize, map, shareReplay, tap } from 'rxjs/operators';
 import {
   Transaction,
   TransactionResponse,
@@ -90,6 +90,9 @@ export class TransactionService {
   /** Snapshot de GET /balances (saldos por cuenta mostrados en Gastos). */
   private balancesSnapshot: { body: BalancesResponse; storedAt: number } | null = null;
 
+  /** Evita peticiones duplicadas al cargar el snapshot completo. */
+  private inflightTransactions$: Observable<TransactionResponse> | null = null;
+
   constructor(private http: HttpClient) {
     this.dataRefresh$.subscribe(() => this.clearTransactionsCache());
   }
@@ -98,6 +101,19 @@ export class TransactionService {
   clearTransactionsCache(): void {
     this.transactionsSnapshot = null;
     this.balancesSnapshot = null;
+    this.inflightTransactions$ = null;
+  }
+
+  /** True si ya hay snapshot de transacciones en memoria (TTL válido). */
+  hasTransactionsCache(): boolean {
+    const snap = this.transactionsSnapshot;
+    if (!snap) return false;
+    return Date.now() - snap.storedAt < TRANSACTIONS_CACHE_TTL_MS;
+  }
+
+  /** Precarga inicial compartida por Gastos, Resumen, Charts… */
+  prefetchInitialData(): Observable<TransactionResponse> {
+    return this.ensureFullTransactionsSnapshot();
   }
 
   /** Tras mutaciones (upload, edición masiva): limpia caché y avisa a las pantallas. */
@@ -207,7 +223,17 @@ export class TransactionService {
     ) {
       return of(this.cloneTransactionResponse(this.transactionsSnapshot.body));
     }
-    return this.loadAllTransactionsFromApi();
+    if (!this.inflightTransactions$) {
+      this.inflightTransactions$ = this.loadAllTransactionsFromApi().pipe(
+        shareReplay(1),
+        finalize(() => {
+          this.inflightTransactions$ = null;
+        }),
+      );
+    }
+    return this.inflightTransactions$.pipe(
+      map((body) => this.cloneTransactionResponse(body)),
+    );
   }
 
   /**

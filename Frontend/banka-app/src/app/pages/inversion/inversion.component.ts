@@ -921,7 +921,7 @@ export class InversionComponent implements OnInit {
   }
 
   load(): void {
-    this.backendLoader.beginPageLoad();
+    this.backendLoader.beginMinimalLoad();
     this.loading = true;
     this.error = null;
     this.fundError = null;
@@ -935,7 +935,7 @@ export class InversionComponent implements OnInit {
         this.applyFundsResponse(funds);
         this.applyBenchmarkResponse(bench);
         this.loading = false;
-        this.backendLoader.endPageLoad();
+        this.backendLoader.endMinimalLoad();
       },
       error: (err) => {
         this.loadAttempted = true;
@@ -953,7 +953,7 @@ export class InversionComponent implements OnInit {
             ? 'Inicia sesión para ver Inversión y gestionar tus fondos.'
             : err.error?.detail || 'Error al cargar. ¿Backend en marcha?';
         this.loading = false;
-        this.backendLoader.endPageLoad();
+        this.backendLoader.endMinimalLoad();
       },
     });
   }

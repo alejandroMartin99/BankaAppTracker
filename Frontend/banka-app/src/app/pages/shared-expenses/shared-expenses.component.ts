@@ -173,7 +173,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     const withStartupLoader = this.useStartupLoader;
-    if (withStartupLoader) this.backendLoader.beginPageLoad();
+    if (withStartupLoader) this.backendLoader.beginMinimalLoad();
 
     this.loading = true;
     this.error = null;
@@ -213,7 +213,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
           this.recomputeDerivedData();
           if (withStartupLoader) {
             this.useStartupLoader = false;
-            this.backendLoader.endPageLoad();
+            this.backendLoader.endMinimalLoad();
           }
           this.cdr.detectChanges();
         });
@@ -226,7 +226,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
           this.loading = false;
           if (withStartupLoader) {
             this.useStartupLoader = false;
-            this.backendLoader.endPageLoad();
+            this.backendLoader.endMinimalLoad();
           }
           this.cdr.detectChanges();
         });

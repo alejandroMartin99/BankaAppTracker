@@ -184,7 +184,9 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
-    this.loading = true;
+    if (!this.transactionService.hasTransactionsCache()) {
+      this.loading = true;
+    }
     this.error = null;
     const { from, to } = this.getDateRange();
     this.transactionService.getTransactions({

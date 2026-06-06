@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -6,6 +6,7 @@ import { TransactionService, UploadResponse } from '../services/transaction.serv
 import { AuthService } from '../services/auth.service';
 import { Account } from '../models/transaction.model';
 import { BackendLoaderComponent } from '../components/backend-loader/backend-loader.component';
+import { BackendLoaderService } from '../services/backend-loader.service';
 import { PrivacyService } from '../services/privacy.service';
 import { ThemeService } from '../services/theme.service';
 
@@ -18,7 +19,7 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss'
 })
-export class LayoutComponent {
+export class LayoutComponent implements OnInit {
   /** Orden: izquierda → centro → derecha: Resumen, Charts, Gastos (central), Compartidos, Ajustes */
   navItems = [
     { path: '/resumen', label: 'Resumen', icon: 'resumen' },
@@ -68,10 +69,21 @@ export class LayoutComponent {
   constructor(
     public router: Router,
     private transactionService: TransactionService,
+    private backendLoader: BackendLoaderService,
     public auth: AuthService,
     public privacy: PrivacyService,
     public theme: ThemeService
   ) {}
+
+  ngOnInit(): void {
+    if (!this.transactionService.hasTransactionsCache()) {
+      this.backendLoader.beginSplashLoad();
+      this.transactionService.prefetchInitialData().subscribe({
+        next: () => this.backendLoader.endSplashLoad(),
+        error: () => this.backendLoader.endSplashLoad(),
+      });
+    }
+  }
 
   get avatarDisplayName(): string {
     return this.auth.displayName();

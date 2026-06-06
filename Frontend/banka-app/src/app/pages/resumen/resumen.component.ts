@@ -195,7 +195,9 @@ export class ResumenComponent implements OnInit, OnDestroy {
   }
 
   loadTransactions() {
-    this.loading = true;
+    if (!this.transactionService.hasTransactionsCache()) {
+      this.loading = true;
+    }
     this.error = null;
     this.transactionService.getTransactions({
       from_date: this.fromDate || undefined,

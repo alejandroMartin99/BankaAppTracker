@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransactionService } from '../../services/transaction.service';
+import { BackendLoaderService } from '../../services/backend-loader.service';
 import { Transaction } from '../../models/transaction.model';
 import { PrivacyService } from '../../services/privacy.service';
 
@@ -66,15 +67,27 @@ export class HipotecasComponent implements OnInit {
   private simulationScenarioCache: Record<string, SimulationScenario> = {};
   private investmentFundCurveCache: { key: string; value: number[] } | null = null;
   private investmentFundNetCurveCache: { key: string; value: number[] } | null = null;
+  private initialLoadsPending = 0;
 
   constructor(
     private transactionService: TransactionService,
+    private backendLoader: BackendLoaderService,
     public privacy: PrivacyService
   ) {}
 
   ngOnInit(): void {
+    this.backendLoader.beginMinimalLoad();
+    this.initialLoadsPending = 2;
     this.loadMortgageConfig();
     this.loadTransactions();
+  }
+
+  private onInitialLoadDone(): void {
+    if (this.initialLoadsPending <= 0) return;
+    this.initialLoadsPending--;
+    if (this.initialLoadsPending === 0) {
+      this.backendLoader.endMinimalLoad();
+    }
   }
 
   get termMonths(): number {
@@ -1028,16 +1041,20 @@ export class HipotecasComponent implements OnInit {
   }
 
   private loadTransactions(): void {
-    this.loading = true;
+    if (!this.transactionService.hasTransactionsCache()) {
+      this.loading = true;
+    }
     this.error = null;
     this.transactionService.getTransactions().subscribe({
       next: (res) => {
         this.transactions = Array.isArray(res?.data) ? res.data : [];
         this.loading = false;
+        this.onInitialLoadDone();
       },
       error: (err) => {
         this.error = err?.error?.detail || 'No se pudieron cargar los movimientos';
         this.loading = false;
+        this.onInitialLoadDone();
       }
     });
   }
@@ -1062,10 +1079,11 @@ export class HipotecasComponent implements OnInit {
         }
         this.receiptStateByTx = byTx;
         this.mortgageConfigResolved = true;
+        this.onInitialLoadDone();
       },
       error: () => {
-        // Si falla, mantenemos el panel principal por defecto
         this.mortgageConfigResolved = true;
+        this.onInitialLoadDone();
       }
     });
   }

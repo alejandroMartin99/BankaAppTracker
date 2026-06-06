@@ -5,6 +5,8 @@ export interface LoaderMessage {
   category: string;
 }
 
+export type LoaderVariant = 'splash' | 'minimal';
+
 const LOADER_DURATION_MS = 90_000;
 const MESSAGE_ROTATE_MS = 6_000;
 const FAST_COMPLETE_MS = 500;
@@ -39,24 +41,30 @@ const WAITING_MESSAGE: LoaderMessage = {
 
 @Injectable({ providedIn: 'root' })
 export class BackendLoaderService {
-  /** Peticiones API en curso durante el cold start de sesión. */
-  private readonly pending = signal(0);
-  /** Cargas de pestaña que usan el mismo loader (Compartidos, Fondos…). */
-  private readonly pageLoads = signal(0);
-  private readonly sessionDone = signal(false);
+  private readonly splashActive = signal(false);
+  private readonly splashDone = signal(false);
+  private readonly minimalLoads = signal(0);
   private readonly backendReady = signal(false);
   private readonly startedAt = signal<number | null>(null);
+  private closingVariant = signal<LoaderVariant | null>(null);
 
   readonly progress = signal(0);
   readonly isClosing = signal(false);
   readonly isStalled = signal(false);
 
+  readonly variant = computed<LoaderVariant | null>(() => {
+    if (this.isClosing()) return this.closingVariant();
+    if (this.splashActive()) return 'splash';
+    if (this.minimalLoads() > 0) return 'minimal';
+    return null;
+  });
+
   readonly isVisible = computed(
-    () =>
-      this.isClosing() ||
-      this.pageLoads() > 0 ||
-      (!this.sessionDone() && this.pending() > 0),
+    () => this.isClosing() || this.splashActive() || this.minimalLoads() > 0,
   );
+
+  readonly isSplash = computed(() => this.variant() === 'splash');
+  readonly isMinimal = computed(() => this.variant() === 'minimal');
 
   readonly messageIndex = signal(0);
 
@@ -65,29 +73,30 @@ export class BackendLoaderService {
   private completeTimeout: ReturnType<typeof setTimeout> | null = null;
   private shuffledIndices: number[] = [];
 
-  requestStarted(): void {
-    if (this.sessionDone()) return;
-
-    const wasActive = this.isBusy();
-    this.pending.update((n) => n + 1);
-    if (!wasActive) this.startSession();
+  /** Loader inicial (solo una vez por sesión, hasta la primera respuesta del backend). */
+  beginSplashLoad(): void {
+    if (this.splashDone() || this.splashActive()) return;
+    this.splashActive.set(true);
+    this.startSplashSession();
   }
 
-  responseReceived(): void {
-    this.pending.update((n) => Math.max(0, n - 1));
-    this.tryFinish();
+  endSplashLoad(): void {
+    if (!this.splashActive()) return;
+    this.finish('splash', () => {
+      this.splashActive.set(false);
+      this.splashDone.set(true);
+    });
   }
 
-  /** Primera carga de pestañas que no disparan el interceptor a tiempo. */
-  beginPageLoad(): void {
-    const wasActive = this.isBusy();
-    this.pageLoads.update((n) => n + 1);
-    if (!wasActive) this.startSession();
+  /** Loader compacto para Compartidos, Inversión, Hipotecas. */
+  beginMinimalLoad(): void {
+    this.minimalLoads.update((n) => n + 1);
   }
 
-  endPageLoad(): void {
-    this.pageLoads.update((n) => Math.max(0, n - 1));
-    this.tryFinish();
+  endMinimalLoad(): void {
+    this.minimalLoads.update((n) => Math.max(0, n - 1));
+    if (this.minimalLoads() > 0 || this.splashActive()) return;
+    this.finish('minimal', () => undefined);
   }
 
   getMessage(index: number): LoaderMessage {
@@ -104,24 +113,33 @@ export class BackendLoaderService {
     return this.getMessage(index).text;
   }
 
-  private isBusy(): boolean {
-    return this.isClosing() || this.pageLoads() > 0 || (!this.sessionDone() && this.pending() > 0);
-  }
-
-  private startSession(): void {
+  private startSplashSession(): void {
     this.resetSession();
     this.startProgress();
     this.startMessageRotation();
   }
 
-  private tryFinish(): void {
+  private finish(kind: LoaderVariant, onDone: () => void): void {
     if (this.backendReady() || this.isClosing()) return;
-    if (this.pending() > 0 || this.pageLoads() > 0) return;
 
     this.backendReady.set(true);
     this.stopMessageRotation();
     this.stopProgress();
-    this.completeAndDismiss();
+
+    if (kind === 'minimal') {
+      this.closingVariant.set('minimal');
+      this.isClosing.set(true);
+      this.completeTimeout = setTimeout(() => {
+        onDone();
+        this.isClosing.set(false);
+        this.closingVariant.set(null);
+        this.backendReady.set(false);
+      }, 180);
+      return;
+    }
+
+    this.closingVariant.set('splash');
+    this.completeAndDismiss(onDone);
   }
 
   private resetSession(): void {
@@ -129,6 +147,7 @@ export class BackendLoaderService {
     this.isClosing.set(false);
     this.isStalled.set(false);
     this.backendReady.set(false);
+    this.closingVariant.set(null);
     this.startedAt.set(Date.now());
     this.shuffledIndices = this.shuffleIndices(LOADER_MESSAGES.length);
     this.messageIndex.set(0);
@@ -157,7 +176,7 @@ export class BackendLoaderService {
     }
   }
 
-  private completeAndDismiss(): void {
+  private completeAndDismiss(onDone: () => void): void {
     this.isClosing.set(true);
     const start = this.progress();
     const startTime = performance.now();
@@ -172,8 +191,9 @@ export class BackendLoaderService {
       } else {
         this.progress.set(100);
         this.completeTimeout = setTimeout(() => {
-          this.sessionDone.set(true);
+          onDone();
           this.isClosing.set(false);
+          this.closingVariant.set(null);
           this.backendReady.set(false);
         }, 200);
       }

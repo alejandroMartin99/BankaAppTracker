@@ -1,46 +1,54 @@
 @if (loader.isVisible()) {
-  <div
-    class="backend-loader-overlay"
-    role="status"
-    aria-live="polite"
-    aria-label="Cargando aplicación"
-    @overlayState
-    [class.backend-loader-overlay--closing]="loader.isClosing()"
-    [class.backend-loader-overlay--stalled]="loader.isStalled()"
-  >
-    <div class="backend-loader-content">
-      <p class="backend-loader-brand">BankaApp</p>
-
-      <div class="backend-loader-quote-wrap">
-        <blockquote
-          class="backend-loader-quote"
-          [@quoteChange]="loader.messageIndex()"
-        >
-          "{{ loader.getQuoteText(loader.messageIndex()) }}"
-        </blockquote>
-        <p class="backend-loader-category" [@quoteChange]="loader.messageIndex()">
-          — {{ loader.getCategory(loader.messageIndex()) }}
-        </p>
+  @if (loader.isSplash()) {
+    <div
+      class="backend-loader-overlay"
+      role="status"
+      aria-live="polite"
+      aria-label="Cargando aplicación"
+      @overlayState
+      [class.backend-loader-overlay--closing]="loader.isClosing()"
+      [class.backend-loader-overlay--stalled]="loader.isStalled()"
+    >
+      <div class="backend-loader-content">
+        <p class="backend-loader-brand">BankaApp</p>
+        <div class="backend-loader-quote-wrap">
+          <blockquote class="backend-loader-quote" [@quoteChange]="loader.messageIndex()">
+            "{{ loader.getQuoteText(loader.messageIndex()) }}"
+          </blockquote>
+          <p class="backend-loader-category" [@quoteChange]="loader.messageIndex()">
+            — {{ loader.getCategory(loader.messageIndex()) }}
+          </p>
+        </div>
+      </div>
+      <div class="backend-loader-footer">
+        <div class="backend-loader-bar-meta">
+          <span class="backend-loader-status">
+            @if (loader.isStalled()) {
+              Conectando con el servicio…
+            } @else {
+              Preparando tus datos…
+            }
+          </span>
+          <span class="backend-loader-pct">{{ loader.progress() }}%</span>
+        </div>
+        <div class="backend-loader-bar-wrap">
+          <div class="backend-loader-bar" [style.width.%]="loader.progress()"></div>
+        </div>
       </div>
     </div>
-
-    <div class="backend-loader-footer">
-      <div class="backend-loader-bar-meta">
-        <span class="backend-loader-status">
-          @if (loader.isStalled()) {
-            Conectando con el servicio…
-          } @else {
-            Preparando tus datos…
-          }
-        </span>
-        <span class="backend-loader-pct">{{ loader.progress() }}%</span>
-      </div>
-      <div class="backend-loader-bar-wrap">
-        <div
-          class="backend-loader-bar"
-          [style.width.%]="loader.progress()"
-        ></div>
+  } @else {
+    <div
+      class="backend-loader-overlay backend-loader-overlay--minimal"
+      role="status"
+      aria-live="polite"
+      aria-label="Cargando"
+      @overlayState
+      [class.backend-loader-overlay--closing]="loader.isClosing()"
+    >
+      <div class="backend-loader-minimal-card">
+        <div class="backend-loader-minimal-spinner" aria-hidden="true"></div>
+        <p class="backend-loader-minimal-text">Cargando…</p>
       </div>
     </div>
-  </div>
+  }
 }
