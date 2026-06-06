@@ -5,7 +5,7 @@ import { RouterModule, Router } from '@angular/router';
 import { TransactionService, UploadResponse } from '../services/transaction.service';
 import { AuthService } from '../services/auth.service';
 import { Account } from '../models/transaction.model';
-import { BackendLoaderService } from '../services/backend-loader.service';
+import { BackendLoaderComponent } from '../components/backend-loader/backend-loader.component';
 import { PrivacyService } from '../services/privacy.service';
 import { ThemeService } from '../services/theme.service';
 
@@ -14,7 +14,7 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, BackendLoaderComponent],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss'
 })
@@ -69,7 +69,6 @@ export class LayoutComponent {
     public router: Router,
     private transactionService: TransactionService,
     public auth: AuthService,
-    public backendLoader: BackendLoaderService,
     public privacy: PrivacyService,
     public theme: ThemeService
   ) {}

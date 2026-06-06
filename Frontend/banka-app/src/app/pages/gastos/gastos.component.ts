@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ChangeDetectionStrategy } from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
@@ -19,23 +18,11 @@ type DatePreset = 'month' | '30d' | '3m' | 'year' | 'custom';
   imports: [CommonModule, FormsModule],
   templateUrl: './gastos.component.html',
   styleUrl: './gastos.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [
-        style({ opacity: 0 }),
-        animate('200ms ease-out', style({ opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('180ms ease-in', style({ opacity: 0 }))
-      ])
-    ])
-  ]
 })
 export class GastosComponent implements OnInit, OnDestroy {
   balances: Record<string, number> = {};
   transactions: Transaction[] = [];
   loading = false;
-  showLoader = false;
   loadingBalances = false;
   error: string | null = null;
 
@@ -113,7 +100,6 @@ export class GastosComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
 
     this.transactionService.getTransactions({
@@ -142,7 +128,6 @@ export class GastosComponent implements OnInit, OnDestroy {
           this.totalCount = res?.count ?? mapped.length;
           this.recomputeDerivedData();
           this.loading = false;
-          this.showLoader = false;
           this.cdr.detectChanges();
         });
       },
@@ -151,7 +136,6 @@ export class GastosComponent implements OnInit, OnDestroy {
           console.error('[Gastos] transactions error:', err);
           this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
           this.loading = false;
-          this.showLoader = false;
           this.cdr.detectChanges();
         });
       }

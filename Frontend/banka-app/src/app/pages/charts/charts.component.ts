@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, NgZone } from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -67,17 +66,10 @@ export interface SubcategoryDetailTableRow {
   imports: [CommonModule, FormsModule],
   templateUrl: './charts.component.html',
   styleUrl: './charts.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
-    ])
-  ]
 })
 export class ChartsComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
   loading = false;
-  showLoader = false;
   error: string | null = null;
   private destroy$ = new Subject<void>();
 
@@ -193,7 +185,6 @@ export class ChartsComponent implements OnInit, OnDestroy {
 
   loadData(): void {
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     const { from, to } = this.getDateRange();
     this.transactionService.getTransactions({
@@ -215,7 +206,6 @@ export class ChartsComponent implements OnInit, OnDestroy {
             descripcion: t.descripcion || t.description || ''
           }));
           this.loading = false;
-          this.showLoader = false;
           this.buildAnalysis();
           this.ensureBalanceChartAccount();
           this.recomputeBalanceChartData();
@@ -226,7 +216,6 @@ export class ChartsComponent implements OnInit, OnDestroy {
         this.ngZone.run(() => {
           this.error = err.error?.detail || 'Error al cargar datos';
           this.loading = false;
-          this.showLoader = false;
           this.cdr.detectChanges();
         });
       }

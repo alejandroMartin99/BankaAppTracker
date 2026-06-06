@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -61,23 +60,11 @@ const ADD_NEW_SUBCATEGORY = '__ADD_NEW__';
   imports: [CommonModule, FormsModule],
   templateUrl: './ajustes.component.html',
   styleUrl: './ajustes.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [
-        style({ opacity: 0 }),
-        animate('200ms ease-out', style({ opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('180ms ease-in', style({ opacity: 0 }))
-      ])
-    ])
-  ]
 })
 export class AjustesComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   transactions: Transaction[] = [];
   loading = false;
-  showLoader = false;
   error: string | null = null;
 
   /** ids en guardado */
@@ -244,7 +231,6 @@ export class AjustesComponent implements OnInit, OnDestroy {
 
   loadTransactions(): void {
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     this.transactionService.getTransactions().subscribe({
       next: (res) => {
@@ -284,13 +270,11 @@ export class AjustesComponent implements OnInit, OnDestroy {
         this.reconcileDraftSubcategories();
         this.pruneAccountMonthFilterToLoadedData();
         this.loading = false;
-        this.showLoader = false;
       },
       error: (err) => {
         console.error('[Ajustes] error loadTransactions', err);
         this.error = err.error?.detail || 'Error al cargar transacciones';
         this.loading = false;
-        this.showLoader = false;
       }
     });
   }

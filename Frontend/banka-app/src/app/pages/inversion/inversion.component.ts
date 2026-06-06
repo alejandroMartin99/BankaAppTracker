@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { forkJoin } from 'rxjs';
 import {
   BenchmarkClasificacion,
@@ -24,6 +23,7 @@ import {
   InvestmentFundsResponse,
   InvestmentService,
 } from '../../services/investment.service';
+import { BackendLoaderService } from '../../services/backend-loader.service';
 import { sliceBenchmarksForPeriod } from '../../utils/investment-benchmark-slice';
 
 const CHART_COLORS = [
@@ -152,18 +152,13 @@ interface CrosshairLegendPanel {
   imports: [CommonModule, FormsModule],
   templateUrl: './inversion.component.html',
   styleUrl: './inversion.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))]),
-    ]),
-  ],
 })
 export class InversionComponent implements OnInit {
   private readonly investment = inject(InvestmentService);
   private readonly locale = inject(LOCALE_ID);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly backendLoader = inject(BackendLoaderService);
 
   @ViewChild('chartSvg', { read: ElementRef }) chartSvgRef?: ElementRef<SVGSVGElement>;
 
@@ -202,7 +197,6 @@ export class InversionComponent implements OnInit {
   ];
 
   loading = false;
-  showLoader = false;
   error: string | null = null;
   loadAttempted = false;
   items: BenchmarkItem[] = [];
@@ -927,8 +921,8 @@ export class InversionComponent implements OnInit {
   }
 
   load(): void {
+    this.backendLoader.beginPageLoad();
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     this.fundError = null;
     this.errors = [];
@@ -941,7 +935,7 @@ export class InversionComponent implements OnInit {
         this.applyFundsResponse(funds);
         this.applyBenchmarkResponse(bench);
         this.loading = false;
-        this.showLoader = false;
+        this.backendLoader.endPageLoad();
       },
       error: (err) => {
         this.loadAttempted = true;
@@ -959,14 +953,13 @@ export class InversionComponent implements OnInit {
             ? 'Inicia sesión para ver Inversión y gestionar tus fondos.'
             : err.error?.detail || 'Error al cargar. ¿Backend en marcha?';
         this.loading = false;
-        this.showLoader = false;
+        this.backendLoader.endPageLoad();
       },
     });
   }
 
   loadBenchmarksOnly(): void {
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     this.errors = [];
     this.cryptoErrors = [];
@@ -974,7 +967,6 @@ export class InversionComponent implements OnInit {
       next: (res) => {
         this.applyBenchmarkResponse(res);
         this.loading = false;
-        this.showLoader = false;
       },
       error: (err) => {
         this.benchmarksRaw = null;
@@ -989,7 +981,6 @@ export class InversionComponent implements OnInit {
             ? 'Inicia sesión para ver Inversión.'
             : err.error?.detail || 'Error al cargar benchmarks.';
         this.loading = false;
-        this.showLoader = false;
       },
     });
   }
@@ -1073,7 +1064,6 @@ export class InversionComponent implements OnInit {
       error: (err) => {
         this.fundError = err.error?.detail || 'Error al actualizar la lista.';
         this.loading = false;
-        this.showLoader = false;
         onDone?.();
       },
     });

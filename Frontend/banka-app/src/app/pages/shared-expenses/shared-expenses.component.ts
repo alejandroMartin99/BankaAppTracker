@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ChangeDetectionStrategy } from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
@@ -8,6 +7,7 @@ import { TransactionService, SharedPartnerInfo } from '../../services/transactio
 import { Transaction } from '../../models/transaction.model';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
 import { PrivacyService } from '../../services/privacy.service';
+import { BackendLoaderService } from '../../services/backend-loader.service';
 
 type DatePreset = 'all' | 'month' | '30d' | '3m' | 'year' | 'custom';
 
@@ -94,12 +94,6 @@ function isExcludedFilterLabel(label: string): boolean {
   imports: [CommonModule, FormsModule],
   templateUrl: './shared-expenses.component.html',
   styleUrl: './shared-expenses.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
-    ])
-  ]
 })
 export class SharedExpensesComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
@@ -109,7 +103,6 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   jointAccountNames: string[] = [];
   loading = false;
   error: string | null = null;
-  showLoader = false;
 
   fromDate = '';
   toDate = '';
@@ -143,6 +136,7 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   private totalJointCache = 0;
   private totalMineNoConjuntaCache = 0;
   private totalOtherNoConjuntaCache = 0;
+  private useStartupLoader = true;
 
   readonly presets: { id: DatePreset; label: string }[] = [
     { id: 'all', label: 'Histórico' },
@@ -157,7 +151,8 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
     private transactionService: TransactionService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    public privacy: PrivacyService
+    public privacy: PrivacyService,
+    private backendLoader: BackendLoaderService,
   ) {}
 
   ngOnInit() {
@@ -177,8 +172,10 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
   }
 
   loadTransactions() {
+    const withStartupLoader = this.useStartupLoader;
+    if (withStartupLoader) this.backendLoader.beginPageLoad();
+
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     this.transactionService.getSharedTransactions({
       from_date: this.fromDate || undefined,
@@ -213,8 +210,11 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
           this.sharedConsentError = null;
           this.ensureFilterSelection();
           this.loading = false;
-          this.showLoader = false;
           this.recomputeDerivedData();
+          if (withStartupLoader) {
+            this.useStartupLoader = false;
+            this.backendLoader.endPageLoad();
+          }
           this.cdr.detectChanges();
         });
       },
@@ -224,7 +224,10 @@ export class SharedExpensesComponent implements OnInit, OnDestroy {
           this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
           this.sharedWithUserName = null;
           this.loading = false;
-          this.showLoader = false;
+          if (withStartupLoader) {
+            this.useStartupLoader = false;
+            this.backendLoader.endPageLoad();
+          }
           this.cdr.detectChanges();
         });
       }

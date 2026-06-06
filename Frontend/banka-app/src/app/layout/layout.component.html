@@ -1,15 +1,5 @@
 <div class="layout">
-  <!-- Loader primera carga / cold start backend -->
-  @if (backendLoader.isVisible()) {
-    <div class="backend-loader-overlay" role="status" aria-live="polite">
-      <div class="backend-loader-card">
-        <div class="backend-loader-bar-wrap">
-          <div class="backend-loader-bar"></div>
-        </div>
-        <p class="backend-loader-msg">{{ backendLoader.getMessage(backendLoader.messageIndex()) }}</p>
-      </div>
-    </div>
-  }
+  <app-backend-loader />
 
   <!-- Toast de subida -->
   @if (uploadStatus !== 'idle') {
@@ -323,7 +313,7 @@
   }
 
   @if (avatarModalOpen) {
-    <div class="backend-loader-overlay" (click)="closeAvatarModal()"></div>
+    <div class="app-modal-overlay" (click)="closeAvatarModal()"></div>
     <div class="app-avatar-popover" (click)="$event.stopPropagation()">
       <h3 class="app-avatar-title">Cambiar foto de perfil</h3>
       <p class="app-avatar-desc">Sube una imagen. Se guardará en tu perfil de Supabase.</p>
@@ -365,7 +355,7 @@
   }
 
   @if (profileNameModalOpen) {
-    <div class="backend-loader-overlay" (click)="closeProfileNameModal()"></div>
+    <div class="app-modal-overlay" (click)="closeProfileNameModal()"></div>
     <div class="app-profile-popover" (click)="$event.stopPropagation()">
       <h3 class="app-avatar-title">Editar nombre de perfil</h3>
       <div class="app-profile-edit">
@@ -394,7 +384,7 @@
   }
 
   @if (renameSharedConfirmOpen && renamePendingAccount) {
-    <div class="backend-loader-overlay" (click)="cancelSaveSharedAccount()"></div>
+    <div class="app-modal-overlay" (click)="cancelSaveSharedAccount()"></div>
     <div class="app-confirm-popover" (click)="$event.stopPropagation()">
       <h3 class="app-avatar-title">Cambiar nombre de cuenta compartida</h3>
       <p class="app-avatar-desc">

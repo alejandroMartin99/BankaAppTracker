@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, NgZone } from '@angular/core';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -46,17 +45,10 @@ function mergeUniqueSortedCategories(fromTx: string[], fromCatalog: string[]): s
   imports: [CommonModule, FormsModule],
   templateUrl: './resumen.component.html',
   styleUrl: './resumen.component.scss',
-  animations: [
-    trigger('loaderOverlay', [
-      transition(':enter', [style({ opacity: 0 }), animate('200ms ease-out', style({ opacity: 1 }))]),
-      transition(':leave', [animate('180ms ease-in', style({ opacity: 0 }))])
-    ])
-  ]
 })
 export class ResumenComponent implements OnInit, OnDestroy {
   transactions: Transaction[] = [];
   loading = false;
-  showLoader = false;
   error: string | null = null;
 
   fromDate = '';
@@ -204,7 +196,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   loadTransactions() {
     this.loading = true;
-    this.showLoader = true;
     this.error = null;
     this.transactionService.getTransactions({
       from_date: this.fromDate || undefined,
@@ -227,7 +218,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
           }));
           this.transactions = mapped;
           this.loading = false;
-          this.showLoader = false;
           this.cdr.detectChanges();
         });
       },
@@ -235,7 +225,6 @@ export class ResumenComponent implements OnInit, OnDestroy {
         this.ngZone.run(() => {
           this.error = err.error?.detail || 'Error al cargar. ¿Backend conectado?';
           this.loading = false;
-          this.showLoader = false;
           this.cdr.detectChanges();
         });
       }
