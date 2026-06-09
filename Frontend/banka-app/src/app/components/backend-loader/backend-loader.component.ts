@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { BackendLoaderService } from '../../services/backend-loader.service';
@@ -22,11 +22,8 @@ import { LOADER_SHOWCASE_SLIDES } from './loader-showcase.data';
     ]),
     trigger('captureChange', [
       transition('* => *', [
-        style({ opacity: 0, transform: 'scale(1.06) translateY(8px)' }),
-        animate(
-          '650ms cubic-bezier(0.22, 1, 0.36, 1)',
-          style({ opacity: 1, transform: 'scale(1) translateY(0)' }),
-        ),
+        style({ opacity: 0 }),
+        animate('450ms ease-out', style({ opacity: 1 })),
       ]),
     ]),
     trigger('captionChange', [
@@ -41,16 +38,21 @@ import { LOADER_SHOWCASE_SLIDES } from './loader-showcase.data';
   ],
 })
 export class BackendLoaderComponent implements OnInit {
-  constructor(public loader: BackendLoaderService) {}
+  readonly loader = inject(BackendLoaderService);
+
+  constructor() {
+    effect(() => {
+      const lock = this.loader.isSplash();
+      document.documentElement.style.overflow = lock ? 'hidden' : '';
+      document.body.style.overflow = lock ? 'hidden' : '';
+      document.body.style.maxWidth = lock ? '100vw' : '';
+    });
+  }
 
   ngOnInit(): void {
     for (const slide of LOADER_SHOWCASE_SLIDES) {
       const img = new Image();
       img.src = slide.image;
     }
-  }
-
-  get dotIndices(): number[] {
-    return Array.from({ length: this.loader.showcaseCount }, (_, i) => i);
   }
 }

@@ -17,29 +17,28 @@
           <div class="backend-loader-phone" aria-hidden="true">
             <div class="backend-loader-phone-notch"></div>
             <div class="backend-loader-phone-screen">
-              <img
-                class="backend-loader-capture"
-                [src]="slide.image"
-                [alt]="slide.title"
-                [@captureChange]="loader.slideIndex()"
-              />
+              <div class="backend-loader-capture-wrap" [@captureChange]="loader.slideIndex()">
+                <img
+                  class="backend-loader-capture"
+                  [src]="slide.image"
+                  [alt]="slide.title"
+                />
+              </div>
             </div>
           </div>
 
           <div class="backend-loader-caption" [@captionChange]="loader.slideIndex()">
             <span class="backend-loader-caption-tag">{{ slide.tag }}</span>
-            <h2 class="backend-loader-caption-title">{{ slide.title }}</h2>
-            <p class="backend-loader-caption-desc">{{ slide.description }}</p>
+            <p class="backend-loader-caption-line">
+              <strong>{{ slide.title }}</strong>
+              <span class="backend-loader-caption-sep">·</span>
+              {{ slide.description }}
+            </p>
           </div>
 
-          <div class="backend-loader-dots" aria-hidden="true">
-            @for (i of dotIndices; track i) {
-              <span
-                class="backend-loader-dot"
-                [class.backend-loader-dot--active]="loader.slideIndex() === i"
-              ></span>
-            }
-          </div>
+          <p class="backend-loader-slide-num" aria-hidden="true">
+            {{ loader.slideIndex() + 1 }} / {{ loader.showcaseCount }}
+          </p>
         </div>
       </div>
 
