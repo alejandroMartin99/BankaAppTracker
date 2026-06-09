@@ -18,7 +18,7 @@ export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
     tag: 'Gastos',
   },
   {
-    image: '/captures/BAP_Resumen.png',
+    image: '/captures/BA_Resumen.png',
     title: 'Resumen financiero',
     description: 'Balance, evolución del patrimonio y vista global de tus cuentas de un vistazo.',
     tag: 'Resumen',
