@@ -2,7 +2,7 @@ import { Component, OnInit, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { BackendLoaderService } from '../../services/backend-loader.service';
-import { LOADER_SHOWCASE_SLIDES } from './loader-showcase.data';
+import { LOADER_SHOWCASE_SLIDES, captureSrc2x, CAPTURE_NATIVE_WIDTH, CAPTURE_NATIVE_HEIGHT } from './loader-showcase.data';
 
 @Component({
   selector: 'app-backend-loader',
@@ -39,6 +39,9 @@ import { LOADER_SHOWCASE_SLIDES } from './loader-showcase.data';
 })
 export class BackendLoaderComponent implements OnInit {
   readonly loader = inject(BackendLoaderService);
+  readonly captureNativeWidth = CAPTURE_NATIVE_WIDTH;
+  readonly captureNativeHeight = CAPTURE_NATIVE_HEIGHT;
+  readonly captureSrc2x = captureSrc2x;
 
   constructor() {
     effect(() => {
@@ -51,8 +54,14 @@ export class BackendLoaderComponent implements OnInit {
 
   ngOnInit(): void {
     for (const slide of LOADER_SHOWCASE_SLIDES) {
-      const img = new Image();
-      img.src = slide.image;
+      for (const src of [slide.image, captureSrc2x(slide.image)]) {
+        const img = new Image();
+        img.src = src;
+      }
     }
+  }
+
+  captureSrcSet(src: string): string {
+    return `${src} 1x, ${captureSrc2x(src)} 2x`;
   }
 }

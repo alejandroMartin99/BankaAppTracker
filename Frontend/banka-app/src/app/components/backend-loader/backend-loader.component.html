@@ -19,6 +19,11 @@
                 <img
                   class="backend-loader-capture"
                   [src]="slide.image"
+                  [srcset]="captureSrcSet(slide.image)"
+                  sizes="400px"
+                  [attr.width]="captureNativeWidth"
+                  [attr.height]="captureNativeHeight"
+                  decoding="async"
                   [alt]="slide.title"
                 />
               </div>

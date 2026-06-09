@@ -5,6 +5,14 @@ export interface LoaderShowcaseSlide {
   tag: string;
 }
 
+/** Resolución nativa de las capturas actuales (1×). Para retina: ≥714px ancho. */
+export const CAPTURE_NATIVE_WIDTH = 357;
+export const CAPTURE_NATIVE_HEIGHT = 613;
+
+export function captureSrc2x(src: string): string {
+  return src.replace(/\.png$/i, '@2x.png');
+}
+
 /** Capturas en `public/captures/` — carrusel del splash inicial. */
 export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
   {
