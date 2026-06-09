@@ -16,8 +16,9 @@ import yfinance as yf
 from app.api.services.investment_benchmarks import (
     ISIN_CLASIFICACION,
     ISIN_FALLBACK_LABEL,
-    YAHOO_SYMBOL_BY_ISIN,
+    discover_yahoo_symbol_for_isin,
     normalize_isin,
+    sync_benchmark_name_from_fund_detail_isin,
 )
 from app.api.services.supabase.supabase_service import supabase_service
 from app.core.config import settings
@@ -223,8 +224,7 @@ def _cache_key(isin: Optional[str], symbol: Optional[str]) -> str:
 
 def _resolve_yahoo_symbol(isin: Optional[str], symbol: Optional[str]) -> str:
     if isin:
-        n = normalize_isin(isin)
-        return YAHOO_SYMBOL_BY_ISIN.get(n, n)
+        return discover_yahoo_symbol_for_isin(normalize_isin(isin))
     if symbol:
         return symbol.strip().upper()
     raise ValueError("Falta isin o symbol")
@@ -297,7 +297,9 @@ def warm_fund_detail_cache_force_sync(isin: str) -> None:
         return
     ysym = _resolve_yahoo_symbol(ck, None)
     detail = _fetch_fund_detail_sync(ck, ysym)
+    _enrich_detail_static_isin(detail, ck)
     supabase_service.upsert_investment_fund_detail_cache(ck, ysym, detail)
+    sync_benchmark_name_from_fund_detail_isin(ck)
 
 
 def _fetch_fund_detail_sync(cache_key: str, yahoo_symbol: str) -> Dict[str, Any]:
@@ -444,6 +446,8 @@ async def get_or_build_fund_detail(isin: Optional[str], symbol: Optional[str]) -
             ysym,
             detail,
         )
+        if isin:
+            await asyncio.to_thread(sync_benchmark_name_from_fund_detail_isin, normalize_isin(isin))
 
     return {
         "success": True,

@@ -417,6 +417,45 @@ def _display_name_from_composition(comp: Dict[str, Any], isin: str) -> Optional[
     return None
 
 
+def _resolve_display_name_from_detail_payload(isin: str, pl: Dict[str, Any]) -> Optional[str]:
+    """Nombre legible desde payload de ficha (info + composition + catálogo interno)."""
+    if not isinstance(pl, dict):
+        return None
+    inv = isin.strip().upper()
+    inf = pl.get("info") if isinstance(pl.get("info"), dict) else {}
+    hit = _display_name_from_info_dict(isin, inf)
+    if hit:
+        return hit[:160]
+
+    fb = ISIN_FALLBACK_LABEL.get(inv)
+    if fb:
+        return fb[:160]
+
+    desc = inf.get("description") if isinstance(inf, dict) else None
+    if isinstance(desc, str):
+        first = desc.strip().split(". ")[0].strip()
+        v = _usable_display_string(first, isin)
+        if v and len(first) > 12:
+            return v[:160]
+
+    comp = pl.get("composition")
+    if isinstance(comp, dict):
+        hit = _display_name_from_composition(comp, isin)
+        if hit:
+            return hit[:160]
+
+    if isinstance(inf, dict):
+        ff = _usable_display_string(inf.get("fundFamily"), isin)
+        cat = _usable_display_string(inf.get("category"), isin)
+        if ff and cat and ff.lower() != cat.lower():
+            combo = f"{ff} ({cat})"
+            if combo.upper() != inv:
+                return combo[:160]
+        if ff:
+            return ff[:160]
+    return None
+
+
 def _name_from_fund_detail_supabase_cache(isin: str) -> Optional[str]:
     """Si existe ficha en caché (p. ej. otro request con Yahoo respondiendo), reutiliza longName o descripción del fondo."""
     try:
@@ -425,35 +464,105 @@ def _name_from_fund_detail_supabase_cache(isin: str) -> Optional[str]:
         row = supabase_service.get_investment_fund_detail_cache(isin.strip().upper())
         if not row or not isinstance(row.get("payload"), dict):
             return None
-        pl: Dict[str, Any] = row["payload"]
-        cached_inf = pl.get("info")
-        if isinstance(cached_inf, dict):
-            hit = _display_name_from_info_dict(isin, cached_inf)
-            if hit:
-                return hit[:160]
-        comp = pl.get("composition")
-        if isinstance(comp, dict):
-            hit = _display_name_from_composition(comp, isin)
-            if hit:
-                return hit[:160]
+        return _resolve_display_name_from_detail_payload(isin, row["payload"])
     except Exception:
         return None
-    return None
+
+
+def discover_yahoo_symbol_for_isin(isin: str) -> str:
+    """
+    Resuelve símbolo Yahoo para un ISIN sin mapa manual obligatorio.
+    Orden: override interno → caché ficha → metadata Yahoo del ISIN → búsqueda yfinance.
+    """
+    inv = canonical_isin(isin)
+    if inv in YAHOO_SYMBOL_BY_ISIN:
+        return YAHOO_SYMBOL_BY_ISIN[inv]
+
+    if supabase_service.is_connected():
+        row = supabase_service.get_investment_fund_detail_cache(inv)
+        if row:
+            ysym = str(row.get("yahoo_symbol") or "").strip()
+            if ysym and ysym.upper() != inv:
+                return ysym
+
+    try:
+        inf = _safe_info_dict(yf.Ticker(inv))
+        for key in ("symbol", "exchange", "quoteType"):
+            _ = inf.get(key)
+        sym = inf.get("symbol")
+        if isinstance(sym, str) and sym.strip() and sym.strip().upper() != inv:
+            return sym.strip()
+    except Exception:
+        pass
+
+    try:
+        from yfinance import Search
+
+        hits = Search(inv, max_results=8).quotes or []
+        for q in hits:
+            if not isinstance(q, dict):
+                continue
+            sym = str(q.get("symbol") or "").strip()
+            if not sym or sym.upper() == inv:
+                continue
+            q_isin = str(q.get("isin") or q.get("isinCode") or "").strip().upper()
+            if q_isin == inv:
+                return sym
+        for q in hits:
+            if not isinstance(q, dict):
+                continue
+            sym = str(q.get("symbol") or "").strip()
+            if sym and sym.upper() != inv:
+                return sym
+    except Exception:
+        pass
+
+    return inv
+
+
+def sync_benchmark_name_from_fund_detail_isin(isin: str) -> None:
+    """Propaga el nombre legible de la ficha en caché al payload de benchmark (si aún muestra ISIN)."""
+    if not supabase_service.is_connected():
+        return
+    inv = canonical_isin(isin)
+    resolved = _name_from_fund_detail_supabase_cache(inv)
+    if not resolved or resolved.upper() == inv:
+        return
+    rows = supabase_service.get_investment_benchmark_series_batch([inv])
+    pl = rows.get(inv)
+    if not isinstance(pl, dict):
+        return
+    current = str(pl.get("name") or "").strip()
+    if (
+        current
+        and current.upper() != inv
+        and not _looks_like_yahoo_internal_shortname(current)
+    ):
+        return
+    patched = dict(pl)
+    patched["name"] = resolved[:160]
+    ysym = str(patched.get("symbol") or inv)
+    supabase_service.upsert_investment_benchmark_series(inv, ysym, patched)
 
 
 def _resolve_benchmark_display_name(isin: str, pl: Dict[str, Any]) -> str:
     """Nombre para UI (detalle/gráfico): evita mostrar solo el ISIN si hay ficha o etiqueta de respaldo."""
     inv = isin.strip().upper()
     raw = str(pl.get("name") or "").strip()
-    if raw and raw.upper() != inv and not _looks_like_yahoo_internal_shortname(raw):
-        return raw[:160]
-    alt = _name_from_fund_detail_supabase_cache(inv)
-    if alt:
-        return alt[:160]
-    fb = ISIN_FALLBACK_LABEL.get(inv)
-    if fb:
-        return fb
-    return raw or inv
+    name_unusable = (
+        not raw
+        or raw.upper() == inv
+        or _looks_like_yahoo_internal_shortname(raw)
+    )
+    if name_unusable:
+        alt = _name_from_fund_detail_supabase_cache(inv)
+        if alt:
+            return alt[:160]
+        fb = ISIN_FALLBACK_LABEL.get(inv)
+        if fb:
+            return fb
+        return raw or inv
+    return raw[:160]
 
 
 def _resolve_fund_name(t: yf.Ticker, isin: str, inf: Dict[str, Any]) -> str:
@@ -574,7 +683,7 @@ def _clasificacion_activo(isin: str, inf: Dict[str, Any], display_name: str) -> 
 
 def _fetch_one_isin_sync(isin: str, period_key: str) -> Dict[str, Any]:
     try:
-        yahoo_sym = YAHOO_SYMBOL_BY_ISIN.get(isin, isin)
+        yahoo_sym = discover_yahoo_symbol_for_isin(isin)
         t = yf.Ticker(yahoo_sym)
         hist = _download_history(t, period_key)
         dates, closes = _history_to_series(hist)
@@ -647,7 +756,7 @@ def _build_isin_nav_cache_row_sync(
     """Serie de cierres para guardar en Supabase (no incluye `instrument_key` de fila)."""
     isin = canonical_isin(isin)
     try:
-        yahoo_sym = YAHOO_SYMBOL_BY_ISIN.get(isin, isin)
+        yahoo_sym = discover_yahoo_symbol_for_isin(isin)
         t = yf.Ticker(yahoo_sym)
         hist = _download_history(t, period_key)
         nav_bars = _nav_bars_from_hist(hist)
@@ -738,6 +847,7 @@ def refresh_instrument_keys_sync(keys: List[str]) -> None:
                 continue
             ysym = str(pl.get("symbol") or ck)
             supabase_service.upsert_investment_benchmark_series(ck, ysym, pl)
+            sync_benchmark_name_from_fund_detail_isin(ck)
 
 
 def run_refresh_investment_benchmark_cache() -> None:

@@ -11,7 +11,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   BenchmarkClasificacion,
   BenchmarkItem,
@@ -1090,6 +1091,48 @@ export class InversionComponent implements OnInit {
     this.cryptoErrors = Array.isArray(res.crypto_errors) ? res.crypto_errors : [];
     this.usingDefaultWatchlist = res.using_default_watchlist ?? true;
     this.reapplyPeriodSlice();
+    this.resolveMissingFundDisplayNames();
+  }
+
+  private isFundNameUnresolved(row: BenchmarkItem): boolean {
+    const isin = (row.isin || '').trim().toUpperCase();
+    if (!isin || isin.length !== 12) return false;
+    const name = (row.name || '').trim();
+    if (!name || name.toUpperCase() === isin) return true;
+    return InversionComponent.YAHOO_INTERNAL_TICKER_RE.test(name);
+  }
+
+  private patchFundDisplayName(isin: string, name: string): void {
+    const key = isin.trim().toUpperCase();
+    const cleaned = InversionComponent.pickNonInternalFundTitle(key, name.trim());
+    if (!cleaned || cleaned.toUpperCase() === key) return;
+    const apply = (row: BenchmarkItem) => {
+      if ((row.isin || '').trim().toUpperCase() === key) row.name = cleaned;
+    };
+    this.items.forEach(apply);
+    this.benchmarksRaw?.items?.forEach(apply);
+    this.rebuildDetailGroups();
+    this.rebuildChart();
+    this.cdr.markForCheck();
+  }
+
+  /** ISIN añadidos por el usuario: resuelve nombre desde ficha en caché si el benchmark solo trae el código. */
+  private resolveMissingFundDisplayNames(): void {
+    const pending = this.items.filter((it) => this.isFundNameUnresolved(it));
+    if (!pending.length) return;
+    forkJoin(
+      pending.map((it) =>
+        this.investment.getFundDetail(it.isin).pipe(catchError(() => of(null as FundDetailResponse | null))),
+      ),
+    ).subscribe((responses) => {
+      pending.forEach((it, i) => {
+        const r = responses[i];
+        if (!r?.success || !r.detail) return;
+        const idKey = it.isin.trim().toUpperCase();
+        const title = InversionComponent.resolveFundDetailTitle(idKey, r.detail, it.name);
+        this.patchFundDisplayName(idKey, title);
+      });
+    });
   }
 
   private reapplyPeriodSlice(): void {
@@ -1487,6 +1530,9 @@ export class InversionComponent implements OnInit {
           r.detail,
           this.fundDetailTitle,
         );
+        if (isin && this.fundDetailTitle) {
+          this.patchFundDisplayName(idKey, this.fundDetailTitle);
+        }
         if (!r.success) {
           this.fundDetailError = 'La ficha no está disponible.';
         }
