@@ -5,6 +5,20 @@
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 0;
+  position: relative;
+
+  /* Zona Dynamic Island / notch: mismo color que el header */
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--safe-area-top);
+    background: var(--header-bg);
+    z-index: 150;
+    pointer-events: none;
+  }
 }
 
 .app-modal-overlay {
@@ -20,6 +34,8 @@
   color: var(--header-text);
   padding: calc(13px + var(--safe-area-top)) 20px 13px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 151;
   display: flex;
   align-items: center;
   justify-content: space-between;
