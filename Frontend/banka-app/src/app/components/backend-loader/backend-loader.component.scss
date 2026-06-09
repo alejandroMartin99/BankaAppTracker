@@ -2,13 +2,12 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: grid;
+  grid-template-rows: 1fr auto;
   box-sizing: border-box;
   width: 100%;
   max-width: 100vw;
-  padding: max(10px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+  padding: max(8px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom));
   background: linear-gradient(
     168deg,
     var(--color-bg) 0%,
@@ -44,6 +43,7 @@
   }
 
   &--minimal {
+    display: flex;
     justify-content: center;
     align-items: center;
     padding: 24px;
@@ -57,12 +57,10 @@
 }
 
 .backend-loader-content {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   min-height: 0;
   min-width: 0;
   max-width: 100%;
@@ -71,29 +69,17 @@
   overflow: hidden;
   position: relative;
   z-index: 1;
-}
-
-.backend-loader-brand {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  text-align: center;
+  padding: 4px 0 10px;
 }
 
 .backend-loader-showcase {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-  justify-content: center;
+  max-height: 100%;
 }
 
 .backend-loader-phone {
@@ -101,20 +87,15 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  /* Capturas reales ~357×613 px */
-  width: min(88vw, 360px, calc(62dvh * 357 / 613));
+  width: min(92vw, 400px, calc(60dvh * 357 / 613));
   max-width: 100%;
-  padding: 11px 10px 13px;
-  border-radius: 30px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--color-text) 12%, var(--color-surface)) 0%,
-    var(--color-surface-raised) 100%
-  );
-  border: 1px solid var(--color-border-light);
+  padding: 10px 9px 12px;
+  border-radius: 32px;
+  background: #0a0a0a;
+  border: 2px solid #000;
   box-shadow:
-    0 16px 32px color-mix(in srgb, var(--color-text) 12%, transparent),
-    0 0 0 1px color-mix(in srgb, #fff 40%, transparent) inset;
+    0 20px 40px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   animation: phoneFloat 5s ease-in-out infinite;
 }
 
@@ -123,19 +104,19 @@
   height: 4px;
   margin: 0 auto 6px;
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-text) 18%, transparent);
+  background: #1a1a1a;
 }
 
 .backend-loader-phone-screen {
   position: relative;
   width: 100%;
   aspect-ratio: 357 / 613;
-  max-height: min(62dvh, 613px);
+  max-height: min(60dvh, 650px);
   border-radius: 20px;
   overflow: hidden;
   isolation: isolate;
   background: #000;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent) inset;
+  box-shadow: inset 0 0 0 1px #000;
 }
 
 .backend-loader-capture-wrap {
@@ -157,10 +138,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
   text-align: center;
-  padding: 0 8px;
+  padding: 0 16px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -168,9 +149,9 @@
 
 .backend-loader-caption-tag {
   display: inline-block;
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: var(--radius-full);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -179,29 +160,28 @@
   border: 1px solid var(--color-border-light);
 }
 
-.backend-loader-caption-line {
+.backend-loader-caption-title {
   margin: 0;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.35;
-  color: var(--color-text-secondary);
-  max-width: 40ch;
-
-  strong {
-    font-weight: 600;
-    color: var(--color-text);
-  }
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-text);
+  max-width: 34ch;
 }
 
-.backend-loader-caption-sep {
-  margin: 0 3px;
-  color: var(--color-text-muted);
+.backend-loader-caption-desc {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  max-width: 36ch;
 }
 
 .backend-loader-slide-num {
   margin: 0;
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
@@ -216,6 +196,17 @@
   position: relative;
   z-index: 1;
   box-sizing: border-box;
+  padding-top: 6px;
+}
+
+.backend-loader-brand {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 .backend-loader-bar-meta {
@@ -274,7 +265,7 @@
 
 @keyframes phoneFloat {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  50% { transform: translateY(-2px); }
 }
 
 .backend-loader-minimal-card {

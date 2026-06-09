@@ -11,8 +11,6 @@
       [class.backend-loader-overlay--stalled]="loader.isStalled()"
     >
       <div class="backend-loader-content">
-        <p class="backend-loader-brand">BankaApp</p>
-
         <div class="backend-loader-showcase">
           <div class="backend-loader-phone" aria-hidden="true">
             <div class="backend-loader-phone-notch"></div>
@@ -29,11 +27,8 @@
 
           <div class="backend-loader-caption" [@captionChange]="loader.slideIndex()">
             <span class="backend-loader-caption-tag">{{ slide.tag }}</span>
-            <p class="backend-loader-caption-line">
-              <strong>{{ slide.title }}</strong>
-              <span class="backend-loader-caption-sep">·</span>
-              {{ slide.description }}
-            </p>
+            <p class="backend-loader-caption-title">{{ slide.title }}</p>
+            <p class="backend-loader-caption-desc">{{ slide.description }}</p>
           </div>
 
           <p class="backend-loader-slide-num" aria-hidden="true">
@@ -43,6 +38,7 @@
       </div>
 
       <div class="backend-loader-footer">
+        <p class="backend-loader-brand">BankaApp</p>
         <div class="backend-loader-bar-meta">
           <span class="backend-loader-status">
             @if (loader.isStalled()) {
