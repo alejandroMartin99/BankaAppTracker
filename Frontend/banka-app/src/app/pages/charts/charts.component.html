@@ -81,18 +81,17 @@
           <tbody>
             @for (row of getExpensesTableRows(); track row.categoria) {
               @let vs = lastMonthVsAvgPresentation(row);
-              <tr>
+              <tr class="charts-tr--clickable" (click)="openCategoryDetail(row.categoria, true)">
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
                 <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
                 <td
-                  class="charts-td-num charts-td-num--clickable"
+                  class="charts-td-num"
                   [class.charts-vs-over]="lastMonthVsAvgToneOver(true, row.lastMonthVsAvgPct, vs.neutral)"
                   [class.charts-vs-under]="lastMonthVsAvgToneUnder(true, row.lastMonthVsAvgPct, vs.neutral)"
                   [class.charts-vs-neutral]="vs.neutral"
                   [attr.title]="vs.hint ?? null"
-                  (click)="openCategoryDetail(row.categoria, true)"
                 >
                   {{ vs.text }}
                 </td>
@@ -164,18 +163,17 @@
           <tbody>
             @for (row of getIncomeTableRows(); track row.categoria) {
               @let vs = lastMonthVsAvgPresentation(row);
-              <tr>
+              <tr class="charts-tr--clickable" (click)="openCategoryDetail(row.categoria, false)">
                 <td class="charts-td-cat">{{ row.categoria }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.total) }}</td>
                 <td class="charts-td-num">{{ formatAmount(row.avgPerMonth) }}</td>
                 <td class="charts-td-num">{{ formatPercent(row.pctOfTotal) }}</td>
                 <td
-                  class="charts-td-num charts-td-num--clickable"
+                  class="charts-td-num"
                   [class.charts-vs-over]="lastMonthVsAvgToneOver(false, row.lastMonthVsAvgPct, vs.neutral)"
                   [class.charts-vs-under]="lastMonthVsAvgToneUnder(false, row.lastMonthVsAvgPct, vs.neutral)"
                   [class.charts-vs-neutral]="vs.neutral"
                   [attr.title]="vs.hint ?? null"
-                  (click)="openCategoryDetail(row.categoria, false)"
                 >
                   {{ vs.text }}
                 </td>
@@ -384,87 +382,155 @@
           }
         </div>
       } @else {
-        <p class="charts-modal-desc charts-modal-desc--tight">
-          Mes vs media por subcategoría. Sin transferencias; filtro 5.000 € si aplica.
-        </p>
         @if (categoryDetailSubLineChart && categoryDetailSubLineChart.series.length > 0) {
           <div class="charts-sub-line-block">
-            <h4 class="charts-sub-line-title">Por mes (top 12 subcategorías del período)</h4>
-            <svg
-              class="charts-sub-line-svg"
-              [attr.viewBox]="subLineSvgViewBox()"
-              preserveAspectRatio="xMidYMid meet"
-              aria-hidden="true"
-            >
-              @for (g of getSubLineYGridTicks(); track g.value) {
-                <line
-                  [class.charts-sub-line-grid]="!g.base"
-                  [class.charts-sub-line-grid-base]="g.base"
-                  [attr.x1]="subLinePadLeft"
-                  [attr.x2]="subLineChartRight()"
-                  [attr.y1]="g.y"
-                  [attr.y2]="g.y"
-                />
-                <text
-                  class="charts-sub-line-yaxis"
-                  x="2"
-                  [attr.y]="g.y"
-                  dominant-baseline="middle"
-                >
-                  {{ formatSubLineYAxis(g.value) }}
-                </text>
-              }
-              @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
-                @if (s.avgPerMonth > 0) {
+            @if (getSubcategoryDrillChart(); as drill) {
+              <button type="button" class="charts-sub-back" (click)="selectSubcategoryInChart(drill.subcategoria)">
+                ← Todas las subcategorías
+              </button>
+              <h4 class="charts-sub-line-title">{{ drill.subcategoria }} · gasto por fecha</h4>
+              <svg
+                class="charts-sub-line-svg"
+                [attr.viewBox]="subLineSvgViewBox()"
+                preserveAspectRatio="xMidYMid meet"
+                aria-hidden="true"
+              >
+                @for (g of getSubLineYGridTicks(drill.maxAmount); track g.value) {
+                  <line
+                    [class.charts-sub-line-grid]="!g.base"
+                    [class.charts-sub-line-grid-base]="g.base"
+                    [attr.x1]="subLinePadLeft"
+                    [attr.x2]="subLineChartRight()"
+                    [attr.y1]="g.y"
+                    [attr.y2]="g.y"
+                  />
+                  <text
+                    class="charts-sub-line-yaxis"
+                    x="2"
+                    [attr.y]="g.y"
+                    dominant-baseline="middle"
+                  >
+                    {{ formatSubLineYAxis(g.value) }}
+                  </text>
+                }
+                @if (drill.avgUnit > 0) {
                   <line
                     class="charts-sub-line-avg"
                     [attr.x1]="subLinePadLeft"
                     [attr.x2]="subLineChartRight()"
-                    [attr.y1]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
-                    [attr.y2]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
-                    [attr.stroke]="s.color"
+                    [attr.y1]="subLineYForValue(drill.avgUnit, drill.maxAmount)"
+                    [attr.y2]="subLineYForValue(drill.avgUnit, drill.maxAmount)"
+                    [attr.stroke]="drill.color"
                   />
                 }
-              }
-              @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
-                <path
-                  class="charts-sub-line-path"
-                  fill="none"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  [attr.stroke]="s.color"
-                  [attr.d]="getSubcategoryTrendPath(s.values, categoryDetailSubLineChart.maxAmount)"
-                />
-              }
-              @for (dot of getSubLineAllDots(); track dot.key) {
-                <circle
-                  class="charts-sub-line-dot"
-                  [attr.cx]="dot.cx"
-                  [attr.cy]="dot.cy"
-                  r="3.25"
-                  fill="#fff"
-                  stroke-width="2"
-                  [attr.stroke]="dot.stroke"
-                />
-              }
-              @for (label of categoryDetailSubLineChart.monthLabels; track $index) {
-                <text
-                  class="charts-sub-line-xlabel"
-                  [attr.x]="subLineMonthLabelX($index)"
-                  [attr.y]="subLineChartBottomY() + 14"
-                  text-anchor="middle"
-                >
-                  {{ label }}
-                </text>
-              }
-            </svg>
+                @for (bar of drill.bars; track bar.key) {
+                  <rect
+                    class="charts-sub-drill-bar"
+                    [attr.x]="bar.x"
+                    [attr.y]="bar.y"
+                    [attr.width]="bar.width"
+                    [attr.height]="bar.height"
+                    [attr.fill]="drill.color"
+                    rx="1"
+                  >
+                    <title>{{ bar.date }} · {{ bar.desc || 'Movimiento' }} · {{ formatAmount(bar.amount) }}</title>
+                  </rect>
+                }
+                @for (lbl of drill.xLabels; track lbl.key) {
+                  <text
+                    class="charts-sub-line-xlabel"
+                    [attr.x]="lbl.x"
+                    [attr.y]="subLineChartBottomY() + 14"
+                    text-anchor="middle"
+                  >
+                    {{ lbl.label }}
+                  </text>
+                }
+              </svg>
+            } @else {
+              <h4 class="charts-sub-line-title">Por mes (top 12 subcategorías del período)</h4>
+              <svg
+                class="charts-sub-line-svg"
+                [attr.viewBox]="subLineSvgViewBox()"
+                preserveAspectRatio="xMidYMid meet"
+                aria-hidden="true"
+              >
+                @for (g of getSubLineYGridTicks(); track g.value) {
+                  <line
+                    [class.charts-sub-line-grid]="!g.base"
+                    [class.charts-sub-line-grid-base]="g.base"
+                    [attr.x1]="subLinePadLeft"
+                    [attr.x2]="subLineChartRight()"
+                    [attr.y1]="g.y"
+                    [attr.y2]="g.y"
+                  />
+                  <text
+                    class="charts-sub-line-yaxis"
+                    x="2"
+                    [attr.y]="g.y"
+                    dominant-baseline="middle"
+                  >
+                    {{ formatSubLineYAxis(g.value) }}
+                  </text>
+                }
+                @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
+                  @if (s.avgPerMonth > 0) {
+                    <line
+                      class="charts-sub-line-avg"
+                      [attr.x1]="subLinePadLeft"
+                      [attr.x2]="subLineChartRight()"
+                      [attr.y1]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
+                      [attr.y2]="subLineYForValue(s.avgPerMonth, categoryDetailSubLineChart.maxAmount)"
+                      [attr.stroke]="s.color"
+                    />
+                  }
+                }
+                @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
+                  <path
+                    class="charts-sub-line-path"
+                    fill="none"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    [attr.stroke]="s.color"
+                    [attr.d]="getSubcategoryTrendPath(s.values, categoryDetailSubLineChart.maxAmount)"
+                    (click)="selectSubcategoryInChart(s.subcategoria)"
+                  />
+                }
+                @for (dot of getSubLineAllDots(); track dot.key) {
+                  <circle
+                    class="charts-sub-line-dot"
+                    [attr.cx]="dot.cx"
+                    [attr.cy]="dot.cy"
+                    r="3.25"
+                    fill="#fff"
+                    stroke-width="2"
+                    [attr.stroke]="dot.stroke"
+                  />
+                }
+                @for (label of categoryDetailSubLineChart.monthLabels; track $index) {
+                  <text
+                    class="charts-sub-line-xlabel"
+                    [attr.x]="subLineMonthLabelX($index)"
+                    [attr.y]="subLineChartBottomY() + 14"
+                    text-anchor="middle"
+                  >
+                    {{ label }}
+                  </text>
+                }
+              </svg>
+            }
             <div class="charts-sub-line-legend">
               @for (s of categoryDetailSubLineChart.series; track s.subcategoria) {
-                <span class="charts-sub-line-legend-item">
+                <button
+                  type="button"
+                  class="charts-sub-line-legend-item charts-sub-line-legend-item--clickable"
+                  [class.charts-sub-line-legend-item--selected]="categoryDetailFocusedSubcategoria === s.subcategoria"
+                  (click)="selectSubcategoryInChart(s.subcategoria)"
+                >
                   <i class="charts-sub-line-swatch" [style.background-color]="s.color"></i>
                   <span class="charts-sub-line-legend-text">{{ s.subcategoria }}</span>
-                </span>
+                </button>
               }
             </div>
             @if (getSubcategoryDetailTableRows(); as subRows) {
@@ -511,7 +577,10 @@
                       <tbody>
                         @for (row of subRows; track row.subcategoria) {
                           @let vs = lastMonthVsAvgPresentation(row);
-                          <tr>
+                          <tr
+                            class="charts-tr--clickable"
+                            (click)="selectSubcategoryInChart(row.subcategoria)"
+                          >
                             <td class="charts-td-cat">{{ row.subcategoria }}</td>
                             <td class="charts-td-num">{{ formatAmount(row.lastMonthValue) }}</td>
                             <td class="charts-td-num">{{ formatPercent(row.pctOfCategoryLastMonth) }}</td>

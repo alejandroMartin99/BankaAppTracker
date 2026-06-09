@@ -45,6 +45,26 @@ export interface SubcategoryLineChartModel {
   maxAmount: number;
 }
 
+/** Gráfico drill: un gasto = una barra, eje X continuo por fecha */
+export interface SubcategoryDrillChartModel {
+  subcategoria: string;
+  color: string;
+  maxAmount: number;
+  /** Media del importe de cada gasto (no mensual) */
+  avgUnit: number;
+  bars: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    date: string;
+    amount: number;
+    desc: string;
+    key: string;
+  }[];
+  xLabels: { x: number; label: string; key: string }[];
+}
+
 /** Filas de la tabla bajo el gráfico de subcategorías (mismo top N que el gráfico). */
 export interface SubcategoryDetailTableRow {
   subcategoria: string;
@@ -140,6 +160,8 @@ export class ChartsComponent implements OnInit, OnDestroy {
   categoryDetailViewMode: 'categoria' | 'subcategoria' = 'categoria';
   /** Diagrama de líneas mes × subcategoría (mismo período que la evolución de la categoría) */
   categoryDetailSubLineChart: SubcategoryLineChartModel | null = null;
+  /** Subcategoría seleccionada en el gráfico de líneas */
+  categoryDetailFocusedSubcategoria: string | null = null;
   selectedBalanceChartAccount = '';
   private balanceHistorySeriesCache: { dateKey: string; label: string; saldo: number }[] = [];
   /** Por día: primer y último apunte (saldo tras movimiento) para la tabla mensual */
@@ -934,10 +956,10 @@ export class ChartsComponent implements OnInit, OnDestroy {
   }
 
   /** Líneas horizontales de rejilla + valores eje Y (0 … máx). `base` = eje X inferior. */
-  getSubLineYGridTicks(): { y: number; value: number; base: boolean }[] {
+  getSubLineYGridTicks(maxAmount?: number): { y: number; value: number; base: boolean }[] {
     const c = this.categoryDetailSubLineChart;
-    if (!c) return [];
-    const max = c.maxAmount;
+    const max = maxAmount ?? c?.maxAmount ?? 0;
+    if (max <= 0) return [];
     const { vh, padT, padB } = ChartsComponent.SUB_LINE_VB;
     const chartH = vh - padT - padB;
     const segments = 4;
@@ -1036,7 +1058,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     return rows;
   }
 
-  /** Puntos para marcadores (evita @for anidado con track inválido). */
+  /** Puntos para marcadores mensuales (vista overview). */
   getSubLineAllDots(): { cx: number; cy: number; stroke: string; key: string }[] {
     const c = this.categoryDetailSubLineChart;
     if (!c) return [];
@@ -1054,6 +1076,103 @@ export class ChartsComponent implements OnInit, OnDestroy {
       });
     }
     return out;
+  }
+
+  getSubcategoryDrillChart(): SubcategoryDrillChartModel | null {
+    const sub = this.categoryDetailFocusedSubcategoria;
+    const c = this.categoryDetailSubLineChart;
+    if (!sub || !c) return null;
+    const series = c.series.find((x) => x.subcategoria === sub);
+    if (!series) return null;
+
+    const ser = this.categoryDetailSeries;
+    if (!ser.length) return null;
+
+    const rangeMin = `${ser[0]!.monthKey}-01`;
+    const rangeMax = this.monthKeyToLastDay(ser[ser.length - 1]!.monthKey);
+    const isExp = this.categoryDetailIsExpense;
+    const txs = this.getTransactionsForSubcategory(sub);
+
+    const amounts: number[] = [];
+    const bars: SubcategoryDrillChartModel['bars'] = [];
+    const countByDate = new Map<string, number>();
+    for (const t of txs) {
+      const d = (t.dt_date || '').slice(0, 10);
+      countByDate.set(d, (countByDate.get(d) ?? 0) + 1);
+    }
+    const slotByDate = new Map<string, number>();
+    const { vw, padL, padR } = ChartsComponent.SUB_LINE_VB;
+    const chartW = vw - padL - padR;
+    const barW = Math.min(Math.max(chartW / Math.max(txs.length * 1.4, 8), 3), 8);
+
+    for (let idx = 0; idx < txs.length; idx++) {
+      const t = txs[idx]!;
+      const amount = isExp ? Math.abs(t.importe || 0) : (t.importe || 0);
+      const date = (t.dt_date || '').slice(0, 10);
+      if (!date || amount <= 0) continue;
+      amounts.push(amount);
+      const slot = slotByDate.get(date) ?? 0;
+      slotByDate.set(date, slot + 1);
+      const slotCount = countByDate.get(date) ?? 1;
+      const cx = this.subLineXForDateInRange(date, rangeMin, rangeMax, slot, slotCount);
+      const groupW = barW * slotCount + Math.max(0, slotCount - 1) * 1.2;
+      const x = cx - groupW / 2 + slot * (barW + 1.2);
+      bars.push({ x, y: 0, width: barW, height: 0, date, amount, desc: (t.descripcion || '').trim(), key: `${t.transaction_id || t.id || idx}-${date}` });
+    }
+
+    const avgUnit = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+    let maxAmount = Math.max(avgUnit, amounts.length > 0 ? Math.max(...amounts) : 1, 1);
+    const baseY = this.subLineYForValue(0, maxAmount);
+    for (const bar of bars) {
+      bar.y = this.subLineYForValue(bar.amount, maxAmount);
+      bar.height = Math.max(0, baseY - bar.y);
+    }
+
+    const xLabels = ser.map((m) => {
+      const midDay = `${m.monthKey}-15`;
+      return {
+        key: m.monthKey,
+        label: `${String(parseInt(m.monthKey.slice(5, 7), 10)).padStart(2, '0')}/${m.monthKey.slice(2, 4)}`,
+        x: this.subLineXForDateInRange(midDay, rangeMin, rangeMax),
+      };
+    });
+
+    return {
+      subcategoria: sub,
+      color: series.color,
+      maxAmount,
+      avgUnit,
+      bars,
+      xLabels,
+    };
+  }
+
+  subLineXForDateInRange(
+    dateStr: string,
+    rangeMin: string,
+    rangeMax: string,
+    slot = 0,
+    slotCount = 1
+  ): number {
+    const { vw, padL, padR } = ChartsComponent.SUB_LINE_VB;
+    const chartW = vw - padL - padR;
+    const t0 = new Date(`${rangeMin.slice(0, 10)}T12:00:00`).getTime();
+    const t1 = new Date(`${rangeMax.slice(0, 10)}T12:00:00`).getTime();
+    const t = new Date(`${dateStr.slice(0, 10)}T12:00:00`).getTime();
+    if (t1 <= t0) return padL;
+    let frac = Math.min(1, Math.max(0, (t - t0) / (t1 - t0)));
+    let x = padL + frac * chartW;
+    if (slotCount > 1) {
+      const spread = Math.min(chartW * 0.025, 8);
+      x += (slot - (slotCount - 1) / 2) * (spread / Math.max(1, slotCount - 1));
+    }
+    return x;
+  }
+
+  private monthKeyToLastDay(monthKey: string): string {
+    const [y, m] = monthKey.split('-').map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    return `${monthKey}-${String(dim).padStart(2, '0')}`;
   }
 
   formatDate(d: string | undefined): string {
@@ -1095,15 +1214,48 @@ export class ChartsComponent implements OnInit, OnDestroy {
     });
     this.categoryDetailViewMode = 'categoria';
     this.categoryDetailSubLineChart = null;
+    this.categoryDetailFocusedSubcategoria = null;
     this.buildCategoryDetailSubLineChartAllMonths();
     this.categoryDetailOpen = true;
   }
 
   setCategoryDetailViewMode(mode: 'categoria' | 'subcategoria'): void {
+    if (mode === 'categoria') {
+      this.categoryDetailFocusedSubcategoria = null;
+    }
     this.categoryDetailViewMode = mode;
     if (mode === 'subcategoria' && !this.categoryDetailSubLineChart) {
       this.buildCategoryDetailSubLineChartAllMonths();
     }
+  }
+
+  selectSubcategoryInChart(subcategoria: string): void {
+    this.categoryDetailFocusedSubcategoria =
+      this.categoryDetailFocusedSubcategoria === subcategoria ? null : subcategoria;
+    this.cdr.markForCheck();
+  }
+
+  private getTransactionsForSubcategory(subcategoria: string): Transaction[] {
+    const cat = this.categoryDetailName;
+    const isExp = this.categoryDetailIsExpense;
+    const monthKeys = new Set(this.categoryDetailSeries.map((s) => s.monthKey));
+    const out: Transaction[] = [];
+    for (const t of this.transactions) {
+      if (this.shouldExclude(t)) continue;
+      if (isExp) {
+        if (!this.expenseOnly(t)) continue;
+      } else if (!this.incomeOnly(t)) {
+        continue;
+      }
+      if ((t.categoria || 'Sin categoría') !== cat) continue;
+      const sub = (t.subcategoria || '').toString().trim() || 'Sin subcategoría';
+      if (sub !== subcategoria) continue;
+      const mk = (t.dt_date || '').slice(0, 7);
+      if (!monthKeys.has(mk)) continue;
+      out.push(t);
+    }
+    out.sort((a, b) => (b.dt_date || '').localeCompare(a.dt_date || ''));
+    return out;
   }
 
   private buildCategoryDetailSubLineChartAllMonths(): void {
@@ -1181,6 +1333,7 @@ export class ChartsComponent implements OnInit, OnDestroy {
     this.categoryDetailOpen = false;
     this.categoryDetailViewMode = 'categoria';
     this.categoryDetailSubLineChart = null;
+    this.categoryDetailFocusedSubcategoria = null;
   }
 
   openCategoryChartModal(isExpense: boolean, monthKey: string): void {

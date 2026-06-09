@@ -5,14 +5,31 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: max(32px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
+  padding: max(20px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
   background: linear-gradient(
-    165deg,
+    168deg,
     var(--color-bg) 0%,
-    var(--color-surface) 45%,
+    color-mix(in srgb, var(--color-surface) 92%, var(--color-text) 8%) 55%,
     var(--color-surface-raised) 100%
   );
   animation: loaderFadeIn 0.3s ease-out;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    width: min(120vw, 520px);
+    height: min(120vw, 520px);
+    transform: translateX(-50%);
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-text) 6%, transparent) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
 
   &--closing {
     pointer-events: none;
@@ -28,6 +45,10 @@
     padding: 24px;
     background: rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(3px);
+
+    &::before {
+      display: none;
+    }
   }
 }
 
@@ -37,56 +58,145 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 48px;
-  max-width: min(90vw, 520px);
+  gap: clamp(16px, 4vw, 28px);
+  max-width: min(94vw, 420px);
   margin: 0 auto;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .backend-loader-brand {
   margin: 0;
-  font-size: clamp(28px, 7vw, 40px);
+  font-size: clamp(22px, 5.5vw, 32px);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--color-text);
   text-align: center;
 }
 
-.backend-loader-quote-wrap {
+.backend-loader-showcase {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  min-height: 160px;
-  justify-content: center;
+  gap: clamp(14px, 3.5vw, 22px);
+  width: 100%;
 }
 
-.backend-loader-quote {
-  margin: 0;
-  padding: 0;
-  border: none;
-  font-size: clamp(20px, 5vw, 28px);
-  font-weight: 600;
-  line-height: 1.45;
-  letter-spacing: -0.02em;
-  color: var(--color-text);
+.backend-loader-phone {
+  position: relative;
+  width: min(58vw, 220px);
+  padding: 10px 8px 12px;
+  border-radius: 28px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-text) 12%, var(--color-surface)) 0%,
+    var(--color-surface-raised) 100%
+  );
+  border: 1px solid var(--color-border-light);
+  box-shadow:
+    0 24px 48px color-mix(in srgb, var(--color-text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 40%, transparent) inset;
+  animation: phoneFloat 5s ease-in-out infinite;
+}
+
+.backend-loader-phone-notch {
+  width: 36%;
+  height: 5px;
+  margin: 0 auto 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+
+.backend-loader-phone-screen {
+  position: relative;
+  aspect-ratio: 9 / 19.5;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--color-bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent) inset;
+}
+
+.backend-loader-capture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  animation: captureKenBurns 5.5s ease-out forwards;
+}
+
+.backend-loader-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 88px;
   text-align: center;
-  font-style: normal;
+  padding: 0 8px;
 }
 
-.backend-loader-category {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+.backend-loader-caption-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  border: 1px solid var(--color-border-light);
+}
+
+.backend-loader-caption-title {
+  margin: 0;
+  font-size: clamp(17px, 4.2vw, 22px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.backend-loader-caption-desc {
+  margin: 0;
+  font-size: clamp(13px, 3.2vw, 15px);
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  max-width: 36ch;
+}
+
+.backend-loader-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 200px;
+}
+
+.backend-loader-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: transform 0.35s ease, background 0.35s ease, width 0.35s ease;
+
+  &--active {
+    width: 16px;
+    border-radius: var(--radius-full);
+    background: var(--color-text);
+    transform: scale(1.05);
+  }
 }
 
 .backend-loader-footer {
   width: 100%;
-  max-width: min(90vw, 480px);
+  max-width: min(94vw, 420px);
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .backend-loader-bar-meta {
@@ -127,22 +237,23 @@
 }
 
 @keyframes loaderFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes loaderBarPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes phoneFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes captureKenBurns {
+  from { transform: scale(1.04); }
+  to { transform: scale(1); }
 }
 
 .backend-loader-minimal-card {
@@ -174,13 +285,13 @@
 }
 
 @keyframes minimalSpin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .backend-loader-overlay {
+  .backend-loader-overlay,
+  .backend-loader-phone,
+  .backend-loader-capture {
     animation: none;
   }
 
@@ -190,5 +301,9 @@
 
   .backend-loader-overlay--stalled .backend-loader-bar {
     animation: none;
+  }
+
+  .backend-loader-dot {
+    transition: none;
   }
 }

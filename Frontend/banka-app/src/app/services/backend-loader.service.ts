@@ -1,42 +1,22 @@
 import { Injectable, signal, computed } from '@angular/core';
-
-export interface LoaderMessage {
-  text: string;
-  category: string;
-}
+import {
+  LOADER_SHOWCASE_SLIDES,
+  LoaderShowcaseSlide,
+} from '../components/backend-loader/loader-showcase.data';
 
 export type LoaderVariant = 'splash' | 'minimal';
 
 const LOADER_DURATION_MS = 90_000;
-const MESSAGE_ROTATE_MS = 6_000;
+const SLIDE_ROTATE_MS = 5_500;
 const FAST_COMPLETE_MS = 500;
 const PROGRESS_TICK_MS = 100;
 const MAX_PROGRESS_BEFORE_RESPONSE = 92;
 
-const LOADER_MESSAGES: LoaderMessage[] = [
-  { text: 'El mejor momento para ahorrar fue ayer. El segundo mejor, hoy.', category: 'Ahorro' },
-  { text: 'Invertir es plantar árboles bajo cuyas sombras no esperas sentarte.', category: 'Inversión' },
-  { text: 'Pequeños gastos repetidos son los que más pesan al final del mes.', category: 'Hábitos' },
-  { text: 'No se trata de ganar más, sino de decidir mejor.', category: 'Mentalidad' },
-  { text: 'La riqueza se construye lento y se destruye rápido.', category: 'Paciencia' },
-  { text: 'Quien no controla sus gastos, no controla su futuro.', category: 'Ahorro' },
-  { text: 'El interés compuesto es la octava maravilla del mundo.', category: 'Inversión' },
-  { text: 'Un presupuesto no te limita: te da libertad para gastar sin culpa.', category: 'Hábitos' },
-  { text: 'Gasta con intención. Ahorra con propósito.', category: 'Mentalidad' },
-  { text: 'La paciencia en los mercados paga más que la prisa.', category: 'Inversión' },
-  { text: 'Cada euro ahorrado hoy es un euro que trabaja por ti mañana.', category: 'Ahorro' },
-  { text: 'Conocer tus números es el primer paso hacia la tranquilidad financiera.', category: 'Hábitos' },
-  { text: 'Invertir sin plan es apostar. Planificar es construir.', category: 'Inversión' },
-  { text: 'Los grandes logros financieros empiezan con decisiones pequeñas.', category: 'Mentalidad' },
-  { text: 'El tiempo en el mercado vence al timing del mercado.', category: 'Paciencia' },
-  { text: 'Ahorrar no es privarte: es elegir tu yo del futuro.', category: 'Ahorro' },
-  { text: 'Revisa tus gastos hoy y dormirás más tranquilo mañana.', category: 'Hábitos' },
-  { text: 'La diversificación es el único almuerzo gratis en finanzas.', category: 'Inversión' },
-];
-
-const WAITING_MESSAGE: LoaderMessage = {
-  text: 'Casi listo, un momento más…',
-  category: 'Conexión',
+const WAITING_SLIDE: LoaderShowcaseSlide = {
+  image: '/captures/BAP_Resumen.png',
+  title: 'Casi listo',
+  description: 'Estamos conectando con el servicio. Un momento más…',
+  tag: 'Conexión',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -66,9 +46,10 @@ export class BackendLoaderService {
   readonly isSplash = computed(() => this.variant() === 'splash');
   readonly isMinimal = computed(() => this.variant() === 'minimal');
 
-  readonly messageIndex = signal(0);
+  readonly slideIndex = signal(0);
+  readonly showcaseCount = LOADER_SHOWCASE_SLIDES.length;
 
-  private messageInterval: ReturnType<typeof setInterval> | null = null;
+  private slideInterval: ReturnType<typeof setInterval> | null = null;
   private progressInterval: ReturnType<typeof setInterval> | null = null;
   private completeTimeout: ReturnType<typeof setTimeout> | null = null;
   private shuffledIndices: number[] = [];
@@ -99,31 +80,23 @@ export class BackendLoaderService {
     this.finish('minimal', () => undefined);
   }
 
-  getMessage(index: number): LoaderMessage {
-    if (this.isStalled()) return WAITING_MESSAGE;
-    const msgIndex = this.shuffledIndices[index % this.shuffledIndices.length];
-    return LOADER_MESSAGES[msgIndex] ?? LOADER_MESSAGES[0];
-  }
-
-  getCategory(index: number): string {
-    return this.getMessage(index).category;
-  }
-
-  getQuoteText(index: number): string {
-    return this.getMessage(index).text;
+  getShowcaseSlide(index: number): LoaderShowcaseSlide {
+    if (this.isStalled()) return WAITING_SLIDE;
+    const slideIndex = this.shuffledIndices[index % this.shuffledIndices.length];
+    return LOADER_SHOWCASE_SLIDES[slideIndex] ?? LOADER_SHOWCASE_SLIDES[0];
   }
 
   private startSplashSession(): void {
     this.resetSession();
     this.startProgress();
-    this.startMessageRotation();
+    this.startSlideRotation();
   }
 
   private finish(kind: LoaderVariant, onDone: () => void): void {
     if (this.backendReady() || this.isClosing()) return;
 
     this.backendReady.set(true);
-    this.stopMessageRotation();
+    this.stopSlideRotation();
     this.stopProgress();
 
     if (kind === 'minimal') {
@@ -149,8 +122,8 @@ export class BackendLoaderService {
     this.backendReady.set(false);
     this.closingVariant.set(null);
     this.startedAt.set(Date.now());
-    this.shuffledIndices = this.shuffleIndices(LOADER_MESSAGES.length);
-    this.messageIndex.set(0);
+    this.shuffledIndices = this.shuffleIndices(LOADER_SHOWCASE_SLIDES.length);
+    this.slideIndex.set(0);
   }
 
   private startProgress(): void {
@@ -202,18 +175,18 @@ export class BackendLoaderService {
     requestAnimationFrame(animate);
   }
 
-  private startMessageRotation(): void {
-    this.stopMessageRotation();
-    this.messageInterval = setInterval(() => {
+  private startSlideRotation(): void {
+    this.stopSlideRotation();
+    this.slideInterval = setInterval(() => {
       if (this.isClosing()) return;
-      this.messageIndex.update((i) => (i + 1) % this.shuffledIndices.length);
-    }, MESSAGE_ROTATE_MS);
+      this.slideIndex.update((i) => (i + 1) % this.shuffledIndices.length);
+    }, SLIDE_ROTATE_MS);
   }
 
-  private stopMessageRotation(): void {
-    if (this.messageInterval) {
-      clearInterval(this.messageInterval);
-      this.messageInterval = null;
+  private stopSlideRotation(): void {
+    if (this.slideInterval) {
+      clearInterval(this.slideInterval);
+      this.slideInterval = null;
     }
   }
 

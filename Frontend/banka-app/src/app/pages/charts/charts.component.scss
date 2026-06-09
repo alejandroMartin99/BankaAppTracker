@@ -321,10 +321,15 @@
 
 .charts-sub-line-path {
   opacity: 0.95;
+  cursor: pointer;
 }
 
 .charts-sub-line-dot {
   vector-effect: non-scaling-stroke;
+}
+
+.charts-sub-drill-bar {
+  opacity: 0.88;
 }
 
 .charts-sub-line-xlabel {
@@ -347,6 +352,28 @@
   max-width: 100%;
   font-size: 9px;
   color: var(--color-text-secondary);
+
+  &--clickable {
+    padding: 2px 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.06);
+
+    .charts-sub-line-legend-text {
+      text-decoration: underline dotted;
+      text-underline-offset: 2px;
+    }
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
+
+  &--selected {
+    color: var(--color-text);
+    font-weight: 600;
+  }
 }
 
 .charts-sub-line-swatch {
@@ -573,6 +600,20 @@
 .charts-td-cat {
   font-weight: 500;
   color: var(--color-text);
+}
+
+.charts-tr--clickable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.06);
+
+  .charts-td-cat {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+
+  &:active {
+    background: var(--color-surface-raised);
+  }
 }
 
 .charts-td-num {
@@ -837,6 +878,30 @@
   font-weight: 600;
   margin: 0 0 8px 0;
   color: var(--color-text);
+}
+
+.charts-modal-title-context {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.charts-sub-back {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 10px 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+
+  &:active {
+    color: var(--color-text);
+  }
 }
 
 .charts-modal-desc {
