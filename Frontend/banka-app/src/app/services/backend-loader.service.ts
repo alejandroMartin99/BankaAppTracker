@@ -13,7 +13,7 @@ const PROGRESS_TICK_MS = 100;
 const MAX_PROGRESS_BEFORE_RESPONSE = 92;
 
 const WAITING_SLIDE: LoaderShowcaseSlide = {
-  image: '/captures/BAP_Resumen.png',
+  image: '/captures/BA_Gastos.png',
   title: 'Casi listo',
   description: 'Estamos conectando con el servicio. Un momento más…',
   tag: 'Conexión',

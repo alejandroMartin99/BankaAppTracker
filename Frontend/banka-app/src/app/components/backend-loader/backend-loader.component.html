@@ -12,22 +12,15 @@
     >
       <div class="backend-loader-content">
         <div class="backend-loader-showcase">
-          <div class="backend-loader-phone" aria-hidden="true">
-            <div class="backend-loader-phone-notch"></div>
-            <div class="backend-loader-phone-screen">
-              <div class="backend-loader-capture-wrap" [@captureChange]="loader.slideIndex()">
-                <img
-                  class="backend-loader-capture"
-                  [src]="slide.image"
-                  [srcset]="captureSrcSet(slide.image)"
-                  sizes="400px"
-                  [attr.width]="captureNativeWidth"
-                  [attr.height]="captureNativeHeight"
-                  decoding="async"
-                  [alt]="slide.title"
-                />
-              </div>
-            </div>
+          <div class="backend-loader-mockup-wrap" [@captureChange]="loader.slideIndex()">
+            <img
+              class="backend-loader-mockup"
+              [src]="slide.image"
+              [attr.width]="captureNativeWidth"
+              [attr.height]="captureNativeHeight"
+              decoding="async"
+              [alt]="slide.title"
+            />
           </div>
 
           <div class="backend-loader-caption" [@captionChange]="loader.slideIndex()">

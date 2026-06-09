@@ -5,13 +5,9 @@ export interface LoaderShowcaseSlide {
   tag: string;
 }
 
-/** Resolución nativa de las capturas actuales (1×). Para retina: ≥714px ancho. */
-export const CAPTURE_NATIVE_WIDTH = 357;
-export const CAPTURE_NATIVE_HEIGHT = 613;
-
-export function captureSrc2x(src: string): string {
-  return src.replace(/\.png$/i, '@2x.png');
-}
+/** Mockup móvil incluido en las capturas (mayoría 912×1854). */
+export const CAPTURE_NATIVE_WIDTH = 912;
+export const CAPTURE_NATIVE_HEIGHT = 1854;
 
 /** Capturas en `public/captures/` — carrusel del splash inicial. */
 export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
@@ -29,8 +25,8 @@ export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
   },
   {
     image: '/captures/BA_Resumen_exp.png',
-    title: 'Exporta tu resumen',
-    description: 'Genera informes del período para compartir o archivar fuera de la app.',
+    title: 'Detalle por categoría',
+    description: 'Despliega ingresos y gastos por categoría y subcategoría en el resumen.',
     tag: 'Resumen',
   },
   {
@@ -46,21 +42,21 @@ export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
     tag: 'Gráficos',
   },
   {
-    image: '/captures/BA_Charts_evol.png',
-    title: 'Evolución mensual',
-    description: 'Abre el detalle de una categoría y sigue su tendencia mes a mes.',
+    image: '/captures/BA_Charts_SUBCAT.png',
+    title: 'Evolución por subcategoría',
+    description: 'Líneas mensuales de las subcategorías que más pesan en una categoría.',
     tag: 'Gráficos',
   },
   {
-    image: '/captures/BA_Compartido.png',
-    title: 'Gastos compartidos',
-    description: 'Reparte gastos del hogar entre cuentas propias y de tu pareja.',
-    tag: 'Compartidos',
+    image: '/captures/BA_Charts_SUBCAT_Details.png',
+    title: 'Drill-down subcategoría',
+    description: 'Pulsa una subcategoría y mira cada gasto frente a su media unitaria.',
+    tag: 'Gráficos',
   },
   {
     image: '/captures/BA_Compartido_open.png',
-    title: 'Detalle compartido',
-    description: 'Desglosa por mes y subcategoría quién ha pagado qué en la cuenta conjunta.',
+    title: 'Gastos compartidos',
+    description: 'Reparte gastos del hogar entre cuentas propias y de tu pareja, mes a mes.',
     tag: 'Compartidos',
   },
   {
@@ -80,6 +76,12 @@ export const LOADER_SHOWCASE_SLIDES: LoaderShowcaseSlide[] = [
     title: 'Alta por ISIN',
     description: 'Añade fondos buscando por ISIN con datos de mercado actualizados.',
     tag: 'Inversión',
+  },
+  {
+    image: '/captures/BA_Hipoteca.png',
+    title: 'Panel de hipoteca',
+    description: 'Capital pendiente, cuotas restantes y curva de amortización de tu préstamo.',
+    tag: 'Hipotecas',
   },
   {
     image: '/captures/BA_Hipoteca_Simu.png',

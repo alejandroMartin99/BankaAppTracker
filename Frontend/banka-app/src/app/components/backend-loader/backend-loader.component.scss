@@ -82,59 +82,28 @@
   max-height: 100%;
 }
 
-.backend-loader-phone {
-  position: relative;
+.backend-loader-mockup-wrap {
   flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
-  width: min(92vw, 400px, calc(60dvh * 357 / 613));
+  align-items: center;
+  justify-content: center;
+  width: min(88vw, 300px);
   max-width: 100%;
-  padding: 10px 9px 12px;
-  border-radius: 32px;
-  background: #0a0a0a;
-  border: 2px solid #000;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.backend-loader-phone-notch {
-  width: 32%;
-  height: 4px;
-  margin: 0 auto 6px;
-  border-radius: var(--radius-full);
-  background: #1a1a1a;
-}
-
-.backend-loader-phone-screen {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 357 / 613;
-  max-height: min(60dvh, 650px);
-  border-radius: 20px;
-  overflow: hidden;
-  isolation: isolate;
-  background: #000;
-  box-shadow: inset 0 0 0 1px #000;
-}
-
-.backend-loader-capture-wrap {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: #000;
+  max-height: min(56dvh, 620px);
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
-.backend-loader-capture {
+.backend-loader-mockup {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
+  max-height: min(56dvh, 620px);
+  object-fit: contain;
+  object-position: center top;
   transform: translateZ(0);
   backface-visibility: hidden;
+  filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.28));
 }
 
 .backend-loader-caption {
