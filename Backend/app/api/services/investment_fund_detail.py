@@ -283,7 +283,12 @@ def _cache_row_is_fresh(updated_at_raw: Any) -> bool:
         return False
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+    dt_utc = dt.astimezone(timezone.utc)
+    now = datetime.now(timezone.utc)
+    # Nuevo día UTC → volver a descargar (alineado con refresco de benchmarks al abrir Inversión).
+    if dt_utc.date() < now.date():
+        return False
+    age = now - dt_utc
     return age <= _FUND_DETAIL_CACHE_MAX_AGE
 
 

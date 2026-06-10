@@ -7,9 +7,11 @@ from pydantic import BaseModel, Field, field_validator
 from app.api.deps import get_current_user
 from app.api.services.investment_benchmarks import (
     DEFAULT_AUTHOR_ISINS,
+    _invalidate_benchmark_get_cache,
     build_benchmarks_payload,
     canonical_isin,
     max_user_isins,
+    maybe_refresh_benchmarks_for_view,
     normalize_isin,
     refresh_instrument_keys_sync,
 )
@@ -94,6 +96,9 @@ async def get_investment_benchmarks(
             status_code=503,
             detail="Servicio de datos de inversión no disponible (Supabase).",
         )
+    refreshed = await maybe_refresh_benchmarks_for_view(isins, reason="inversion-tab")
+    if refreshed:
+        _invalidate_benchmark_get_cache(uid, isins)
     try:
         payload = await build_benchmarks_payload(period, uid, isins)
         payload["using_default_watchlist"] = using_default

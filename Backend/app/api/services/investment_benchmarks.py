@@ -865,6 +865,73 @@ def should_refresh_investment_benchmark_cache() -> bool:
     return datetime.now(timezone.utc) - latest >= interval
 
 
+def _keys_for_benchmark_view(isins: List[str]) -> List[str]:
+    """ISIN visibles en Inversión + cripto fija (sin repetir)."""
+    seen: set[str] = set()
+    out: List[str] = []
+    for raw in isins:
+        try:
+            ck = canonical_isin(raw)
+        except ValueError:
+            continue
+        if ck not in seen:
+            seen.add(ck)
+            out.append(ck)
+    for t in DEFAULT_CRYPTO_TICKERS:
+        ck = crypto_instrument_key(t)
+        if ck not in seen:
+            seen.add(ck)
+            out.append(ck)
+    return out
+
+
+def _invalidate_benchmark_get_cache(user_id: str, isins: List[str]) -> None:
+    ck = _cache_key(user_id, "supabase_full", isins)
+    _CACHE.pop(ck, None)
+
+
+def should_refresh_benchmarks_for_view() -> bool:
+    """True si toca refrescar al abrir Inversión (intervalo 8h o cambio de día UTC)."""
+    if should_refresh_investment_benchmark_cache():
+        return True
+    if not supabase_service.is_connected():
+        return False
+    latest = supabase_service.get_latest_benchmark_cache_updated_at()
+    if latest is None:
+        return True
+    now = datetime.now(timezone.utc)
+    return latest.astimezone(timezone.utc).date() < now.date()
+
+
+async def maybe_refresh_benchmarks_for_view(isins: List[str], reason: str = "inversion-view") -> bool:
+    """
+    Refresco bajo demanda al abrir Inversión: solo los ISIN del usuario + cripto.
+    Respeta el intervalo global salvo que la caché esté vacía.
+    """
+    if not settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP:
+        return False
+    if not supabase_service.is_connected():
+        logger.info("[benchmark-cache] omitido (%s): Supabase no conectado", reason)
+        return False
+    keys = _keys_for_benchmark_view(isins)
+    if not keys:
+        return False
+    async with _benchmark_refresh_lock:
+        if not should_refresh_benchmarks_for_view():
+            latest = supabase_service.get_latest_benchmark_cache_updated_at()
+            logger.info(
+                "[benchmark-cache] omitido (%s): último refresco %s (intervalo %.1fh)",
+                reason,
+                latest.isoformat() if latest else "nunca",
+                settings.INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS,
+            )
+            return False
+        logger.info("[benchmark-cache] iniciando (%s) claves=%d", reason, len(keys))
+        await asyncio.to_thread(refresh_instrument_keys_sync, keys)
+        logger.info("[benchmark-cache] terminado (%s)", reason)
+        return True
+
+
 async def maybe_refresh_investment_benchmark_cache(reason: str, *, force: bool = False) -> bool:
     """
     Refresco al despertar/arranque: solo si pasaron >= N horas desde el último updated_at en Supabase.
