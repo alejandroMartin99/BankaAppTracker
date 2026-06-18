@@ -6,7 +6,10 @@ from typing import Union
 from pathlib import Path
 
 from app.api.services.pipe_extract_transactions.decode_ibercaja import main_decode_ibercaja
-from app.api.services.pipe_extract_transactions.decode_revolut import main_decode_revolut
+from app.api.services.pipe_extract_transactions.decode_revolut import (
+    prepare_revolut_dataframe,
+    main_decode_revolut,
+)
 from app.api.services.pipe_extract_transactions.decode_pluxee import main_decode_pluxee, is_pluxee_file
 from app.api.services.pipe_extract_transactions.decode_santander import main_decode_santander
 
@@ -64,36 +67,28 @@ def main_file_parser(
     display_name: nombre mostrado (Conjunta, Revolut, etc.)
     """
     if is_csv:
-        df = pd.read_csv(BytesIO(file_content))
+        df = None
+        for encoding in ("utf-8-sig", "utf-8", "latin-1"):
+            try:
+                df = pd.read_csv(BytesIO(file_content), encoding=encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if df is None:
+            df = pd.read_csv(BytesIO(file_content))
     else:
         df = pd.read_excel(BytesIO(file_content), engine="openpyxl", header=None)
 
-    # Ibercaja -> Identificar en celda texto
-    cell_value = str(df.iloc[2, 0]).strip().upper()
+    df_revolut = prepare_revolut_dataframe(df)
 
-    # Revolut -> Identificar cabecera
-    df_columns = df.columns.tolist()
-    revolut_header = [
-        'Tipo', 
-        'Producto', 
-        'Fecha de inicio', 
-        'Fecha de finalización', 
-        'Descripción', 
-        'Importe',
-        'Comisión',
-        'Divisa',
-        'State',
-        'Saldo'
-    ]
-
-    if "CONSULTA MOVIMIENTOS DE LA CUENTA" in cell_value:
+    if df_revolut is not None:
+        print("Archivo identificado como Revolut")
+        df_transactions, account_identifier, display_name = main_decode_revolut(df_revolut)
+        source_type = "Revolut"
+    elif len(df) > 2 and "CONSULTA MOVIMIENTOS DE LA CUENTA" in str(df.iloc[2, 0]).strip().upper():
         print("Archivo identificado como IBERCAJA")
         df_transactions, account_identifier, display_name = main_decode_ibercaja(df)
         source_type = "Ibercaja"
-    elif df_columns == revolut_header:
-        print("Archivo identificado como Revolut")
-        df_transactions, account_identifier, display_name = main_decode_revolut(df)
-        source_type = "Revolut"
     elif is_pluxee_file(df):
         print("Archivo identificado como Pluxee")
         df_transactions, account_identifier, display_name = main_decode_pluxee(df)
@@ -103,6 +98,7 @@ def main_file_parser(
         df_transactions, account_identifier, display_name = main_decode_santander(df)
         source_type = "Santander"
     else:
+        print(f"Formato no reconocido. Columnas: {df.columns.tolist()[:15]}")
         raise ValueError("Formato de archivo no reconocido")
     
     # Aislar cuentas sin identificador fuerte por usuario (evita colisiones entre usuarios).
