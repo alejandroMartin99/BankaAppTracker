@@ -136,8 +136,7 @@ CATEGORY_RULES = [
     
 
     
-    # Restaurantes
-    (r'RESTAURANTE|RESTAURANT|TABERNA|BAR|CERVECERIA|CAFETERIA|CONSUMICI|RTE ', 'Restaurantes', None),
+    # Restaurantes (específicos antes del patrón genérico RESTAURANTE|BAR|…)
     (r'DI CARLO', 'Restaurantes', 'Pizzeria Di Carlo'),
     (r'PIZZ CARLOS', 'Restaurantes', 'Pizzeria Di Carlo'),
     (r'BURGER KING', 'Restaurantes', 'Burger King'),
@@ -150,13 +149,15 @@ CATEGORY_RULES = [
     (r'MESON ORO Y PLATA', 'Restaurantes', 'INDRA_Meson_Oro_Y_Plata'),
     (r'PILAR AKANEYA', 'Restaurantes', 'PILAR AKANEYA'),
     (r'UBER EATS', 'Restaurantes', 'UBER EATS'),
-    (r'TASTE', 'Restaurantes', 'TOY&TASTE'),
+    
     (r'COCHINITA LOCA', 'Restaurantes', 'Cochinita Mex'),
     (r'COFFEE', 'Restaurantes', 'Cafe'),
     (r'DOMINOS PIZZA', 'Restaurantes', 'Dominos Pizza'),
     (r'LA GRUTA', 'Restaurantes', 'La Gruta'),
     (r'RESTAURANTE LA VENTA,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
     (r'RTE NACIONES,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
+    (r'NACIONES,SAN FERNANDO', 'Restaurantes', 'Indra comida'),
+    (r'TASTE', 'Restaurantes', 'Indra comida'),
     (r'CUA CUA EL PATO', 'Restaurantes', 'Pasteleria CUA CUA'),
     (r'GLOVO', 'Restaurantes', 'Glovo'),
     (r'DELINAS INECO EGEO', 'Restaurantes', 'Ineco_Desayuno'),
@@ -164,7 +165,8 @@ CATEGORY_RULES = [
     (r'STARBUCKS', 'Restaurantes', 'Starbucks'),
     (r'DEHESA PARTENON', 'Restaurantes', 'Dehesa'),
     (r'CALBENTA RESTAURANT', 'Restaurantes', 'Calventa'),
-
+    (r'RESTAURANTE|RESTAURANT|TABERNA|BAR|CERVECERIA|CAFETERIA|CONSUMICI|RTE ', 'Restaurantes', None),
+    (r'SUSHI|RAMEN|UDON|BAO', 'Restaurantes', 'Japones'),
 
 
     # Ropa
@@ -287,17 +289,32 @@ def analyze_description(description: str, category_rules) -> Dict[str, Optional[
         result["Contraparte"] = result["Subcategoria"] = contact
         result["BizumMensaje"] = message
 
-    elif category == "restaurantes" and not subcategory:
+    elif category.lower() == "restaurantes" and not subcategory:
         name = parse_restaurante(description)
         result["Subcategoria"] = name
 
-    elif category == "Transferencia" and not subcategory:
+    elif category.lower() == "transferencia" and not subcategory:
         cp = parse_transferencia(description)
         result["Contraparte"] = cp
         if not subcategory:
             result["Subcategoria"] = cp
     
     return result
+
+
+def classify_pluxee_expense(description: str) -> Tuple[str, Optional[str]]:
+    """Gasto en tarjeta Pluxee: misma lógica que el resto de decoders (CATEGORY_RULES)."""
+    result = analyze_description(description, CATEGORY_RULES)
+    cat = (result.get("Categoria") or "otros").strip()
+    sub = result.get("Subcategoria")
+    if cat.lower() == "otros":
+        cat = "Restaurantes"
+        if not sub:
+            sub = parse_restaurante(description)
+        if not sub:
+            desc = (description or "").strip()
+            sub = (desc[:50] + "…") if len(desc) > 50 else (desc or "Restaurante")
+    return cat, sub
 
 
 def apply_unique_cuotes(df: pd.DataFrame) -> pd.DataFrame:

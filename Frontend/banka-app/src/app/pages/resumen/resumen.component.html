@@ -13,6 +13,26 @@
         </button>
       }
     </div>
+
+    <div class="summary-option" [class.summary-option--active]="hideTransferencia">
+      <button
+        type="button"
+        class="summary-option-control"
+        (click)="toggleHideTransferencia()"
+        role="switch"
+        [attr.aria-checked]="hideTransferencia"
+        aria-label="Ocultar categoría Transferencia en el resumen"
+      >
+        <span class="summary-option-switch" aria-hidden="true">
+          <span class="summary-option-switch-thumb"></span>
+        </span>
+        <span class="summary-option-title">Ocultar Transferencia</span>
+      </button>
+      <p class="summary-option-desc">
+        Excluye movimientos entre tus cuentas del desglose y de los totales de ingresos y gastos, para que los porcentajes reflejen mejor el consumo.
+      </p>
+    </div>
+
     @if (showCalendar) {
       <div class="calendar-overlay" (click)="closeCalendar()"></div>
       <div class="calendar-popover">
@@ -82,7 +102,10 @@
             <div class="category-card category-card--income" [class.expanded]="expandedIncomeCategory === cat.categoria">
               <button type="button" class="category-header" (click)="toggleIncomeCategory(cat.categoria)">
                 <span class="category-name">{{ cat.categoria }}</span>
-                <span class="category-amount category-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (cat.total | number:'1.2-2':'es') + ' €' }}</span>
+                <span class="category-header-amounts">
+                  <span class="category-share category-share--income">{{ formatCategoryShare(cat.total, totalIngresos) }}</span>
+                  <span class="category-amount category-amount--income">{{ privacy.hideBalances() ? '***' : '+' + (cat.total | number:'1.2-2':'es') + ' €' }}</span>
+                </span>
                 <span class="category-chevron">{{ expandedIncomeCategory === cat.categoria ? '▼' : '▶' }}</span>
               </button>
               @if (expandedIncomeCategory === cat.categoria) {
@@ -144,7 +167,10 @@
           <div class="category-card" [class.expanded]="expandedCategory === cat.categoria">
             <button type="button" class="category-header" (click)="toggleCategory(cat.categoria)">
               <span class="category-name">{{ cat.categoria }}</span>
-              <span class="category-amount">{{ privacy.hideBalances() ? '***' : (cat.total | number:'1.2-2':'es') + ' €' }}</span>
+              <span class="category-header-amounts">
+                <span class="category-share category-share--expense">{{ formatCategoryShare(cat.total, totalGastos) }}</span>
+                <span class="category-amount category-amount--expense">{{ privacy.hideBalances() ? '***' : (cat.total | number:'1.2-2':'es') + ' €' }}</span>
+              </span>
               <span class="category-chevron">{{ expandedCategory === cat.categoria ? '▼' : '▶' }}</span>
             </button>
             @if (expandedCategory === cat.categoria) {

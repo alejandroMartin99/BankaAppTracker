@@ -5,10 +5,7 @@ Identificación: celda que contiene "Pluxee Tarjeta Restaurante".
 import pandas as pd
 import numpy as np
 import warnings
-from app.api.services.pipe_extract_transactions.category_rules import (
-    CATEGORY_RULES,
-    analyze_description,
-)
+from app.api.services.pipe_extract_transactions.category_rules import classify_pluxee_expense
 from app.api.services.account_config import get_pluxee_default_name
 
 warnings.filterwarnings("ignore", message="Workbook contains no default style*")
@@ -102,25 +99,15 @@ def main_decode_pluxee(df: pd.DataFrame, account_name: str | None = None) -> tup
     # 7. Ordenar por fecha ascendente (cronológico)
     df_tx = df_tx.sort_values("DT_DATE").reset_index(drop=True)
 
-    # 8. Categoría: cargas (positivos) = NOMINA/INDRA PLUXEE; gastos (negativos) = Restaurantes
-    analysis_df = pd.DataFrame(
-        df_tx["Descripción"].apply(lambda x: analyze_description(x, CATEGORY_RULES)).tolist()
-    )
-    df_tx = pd.concat([df_tx.reset_index(drop=True), analysis_df], axis=1)
+    # 8. Categoría: cargas (positivos) = Nómina; gastos = CATEGORY_RULES (como Ibercaja/Revolut)
     cargas = df_tx["Importe"] > 0
     df_tx.loc[cargas, ["Categoria", "Subcategoria"]] = ["Nómina", "INDRA PLUXEE"]
-    df_tx.loc[~cargas, "Categoria"] = "Restaurantes"
-    # Subcategoria para gastos: de category_rules o descripción truncada
-    def _subcat(row):
-        if row["Importe"] > 0:
-            return "INDRA PLUXEE"
-        sc = row.get("Subcategoria")
-        desc = (row.get("Descripción") or "").strip()
-        if sc and str(sc) != "None" and str(sc) != "Restaurantes":
-            return sc
-        return (desc[:50] + "…") if len(desc) > 50 else desc if desc else "Restaurante"
-
-    df_tx["Subcategoria"] = df_tx.apply(_subcat, axis=1)
+    gastos_idx = df_tx.index[~cargas]
+    for idx in gastos_idx:
+        desc = str(df_tx.at[idx, "Descripción"] or "")
+        cat, sub = classify_pluxee_expense(desc)
+        df_tx.at[idx, "Categoria"] = cat
+        df_tx.at[idx, "Subcategoria"] = sub
     df_tx["BizumMensaje"] = None
 
     # 9. Añadir hh:mm:ss ficticias por orden dentro de cada día (como Ibercaja)

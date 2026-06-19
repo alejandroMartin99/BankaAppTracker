@@ -63,6 +63,8 @@ export class ResumenComponent implements OnInit, OnDestroy {
   expandedIncomeSubcategoryKey: string | null = null;
   /** Cuentas seleccionadas para filtrar (multi-select). Vacío = todas. */
   selectedAccounts: string[] = [];
+  /** Activo = oculta categoría Transferencia en totales y desglose. */
+  hideTransferencia = false;
 
   /** Modal editar (fecha, descripción, categoría, subcategoría — como Ajustes). */
   editModalTx: Transaction | null = null;
@@ -129,6 +131,20 @@ export class ResumenComponent implements OnInit, OnDestroy {
     return list;
   }
 
+  /** Base para totales/desglose por categoría (opcionalmente sin Transferencia). */
+  get summaryTransactions(): Transaction[] {
+    if (!this.hideTransferencia) return this.filteredTransactions;
+    return this.filteredTransactions.filter(t => !this.isTransferenciaCategory(t));
+  }
+
+  private isTransferenciaCategory(t: Transaction): boolean {
+    return (t.categoria || '').trim().toLowerCase() === 'transferencia';
+  }
+
+  toggleHideTransferencia(): void {
+    this.hideTransferencia = !this.hideTransferencia;
+  }
+
   /** Suma de los totales de cada categoría en "Gastos por categoría" */
   get totalGastos(): number {
     return this.categoriesSummary.reduce((sum, cat) => sum + cat.total, 0);
@@ -144,9 +160,19 @@ export class ResumenComponent implements OnInit, OnDestroy {
     return this.filteredTransactions.reduce((s, t) => s + (t.importe ?? 0), 0);
   }
 
+  /** % del total de la sección (ingresos o gastos); visible aunque ocultes importes. */
+  formatCategoryShare(part: number, sectionTotal: number): string {
+    const base = Math.abs(sectionTotal);
+    if (base <= 0) return '—';
+    const pct = (Math.abs(part) / base) * 100;
+    return (
+      pct.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + '%'
+    );
+  }
+
   get incomesSummary(): CategorySummary[] {
     const byCat = new Map<string, Map<string, Transaction[]>>();
-    for (const t of this.filteredTransactions) {
+    for (const t of this.summaryTransactions) {
       if ((t.importe || 0) <= 0) continue;
       const cat = t.categoria || 'Sin categoría';
       const sub = t.subcategoria || 'Sin subcategoría';
@@ -171,7 +197,7 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   get categoriesSummary(): CategorySummary[] {
     const byCat = new Map<string, Map<string, Transaction[]>>();
-    for (const t of this.filteredTransactions) {
+    for (const t of this.summaryTransactions) {
       if ((t.importe || 0) >= 0) continue;
       const cat = t.categoria || 'Sin categoría';
       const sub = t.subcategoria || 'Sin subcategoría';
