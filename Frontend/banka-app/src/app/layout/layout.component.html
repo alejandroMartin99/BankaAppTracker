@@ -235,12 +235,17 @@
           [class.active]="isMoreOperationsActive() || moreOpsOpen"
           (click)="toggleMoreOpsMenu()"
         >
-          <span class="nav-icon">
+          <span class="nav-icon nav-icon--with-badge">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <circle cx="5" cy="12" r="2.2" />
               <circle cx="12" cy="12" r="2.2" />
               <circle cx="19" cy="12" r="2.2" />
             </svg>
+            @if (otherCategoryCount > 0) {
+              <span class="nav-badge" [attr.aria-label]="otherCategoryCount + ' movimientos en Otros'">
+                {{ otherCategoryCount > 99 ? '99+' : otherCategoryCount }}
+              </span>
+            }
           </span>
           <span class="nav-label">{{ item.label }}</span>
         </button>
@@ -306,7 +311,10 @@
       <hr class="more-ops-divider" />
       <div class="more-ops-section more-ops-section--settings">
         <button type="button" class="more-ops-item more-ops-item--settings" (click)="goToMoreOperation('/ajustes')">
-          Ajustes
+          <span class="more-ops-item-main">Ajustes</span>
+          @if (otherCategoryCount > 0) {
+            <span class="more-ops-alert-tag">{{ otherCategoryCount }} mov sin clasificar</span>
+          }
         </button>
       </div>
     </div>

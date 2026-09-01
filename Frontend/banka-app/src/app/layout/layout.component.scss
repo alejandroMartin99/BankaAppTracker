@@ -719,6 +719,29 @@
   .active & {
     opacity: 1;
   }
+
+  &--with-badge {
+    position: relative;
+  }
+}
+
+.nav-badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--header-bg);
+  pointer-events: none;
 }
 
 .nav-label {
@@ -797,7 +820,34 @@
 }
 
 .more-ops-item--settings {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 500;
+}
+
+.more-ops-item-main {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.more-ops-alert-tag {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }

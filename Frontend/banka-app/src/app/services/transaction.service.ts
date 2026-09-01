@@ -10,6 +10,7 @@ import {
   AccountsResponse,
 } from '../models/transaction.model';
 import { environment } from '../../environment';
+import { isOtherCategory } from '../utils/category-utils';
 
 /** TTL caché en memoria de GET transactions y GET balances (ms); invalidación vía `dataRefresh$` y logout. */
 const TRANSACTIONS_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -233,6 +234,16 @@ export class TransactionService {
     }
     return this.inflightTransactions$.pipe(
       map((body) => this.cloneTransactionResponse(body)),
+    );
+  }
+
+  /** Cuenta movimientos con categoría Otro/Otros (snapshot completo en cliente). */
+  countOtherCategoryTransactions(): Observable<number> {
+    return this.ensureFullTransactionsSnapshot().pipe(
+      map((res) => {
+        const rows = Array.isArray(res.data) ? res.data : [];
+        return rows.filter((t) => isOtherCategory(t.categoria)).length;
+      }),
     );
   }
 

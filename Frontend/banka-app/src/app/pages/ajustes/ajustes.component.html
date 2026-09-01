@@ -1,6 +1,11 @@
 <div class="ajustes-page">
   <header class="page-header">
-    <h1 class="page-title">Ajustes</h1>
+    <div class="page-header-top">
+      <h1 class="page-title">Ajustes</h1>
+      @if (otherCategoryCount > 0) {
+        <span class="page-alert-tag">{{ otherCategoryCount }} mov sin clasificar</span>
+      }
+    </div>
     <p class="page-subtitle">
       Editor de categorías arriba; más abajo, por cuenta, con filtros propios y acciones en bloque.
     </p>

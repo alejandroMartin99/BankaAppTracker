@@ -9,6 +9,7 @@ import { getAccountColorForName } from '../../utils/account-colors';
 import { TransactionService } from '../../services/transaction.service';
 import { AuthService } from '../../services/auth.service';
 import { getTransactionIconInfo } from '../../utils/transaction-icons';
+import { isOtherCategory as isTxOtherCategory } from '../../utils/category-utils';
 
 interface EditSubcategoryGroup {
   subcategoria: string;
@@ -683,8 +684,7 @@ export class AjustesComponent implements OnInit, OnDestroy {
   }
 
   private isOtherCategory(cat: string | undefined | null): boolean {
-    const c = (cat || '').toString().trim().toLowerCase();
-    return c === 'otro' || c === 'otros';
+    return isTxOtherCategory(cat);
   }
 
   /** Movimientos con categoría Otro/Otros en todos los datos cargados (ignora el cuadro de búsqueda). */

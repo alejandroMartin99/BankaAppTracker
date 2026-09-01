@@ -42,7 +42,12 @@
       </div>
 
       <div class="actions-row">
-        <button type="button" class="btn-dark outline" (click)="openDetectedReceiptsModal()">Recibos detectados</button>
+        <button type="button" class="btn-dark outline btn-recibos-detectados" (click)="openDetectedReceiptsModal()">
+          <span>Recibos detectados</span>
+          @if (unclassifiedReceiptsCount > 0) {
+            <span class="receipt-alert-pill">{{ unclassifiedReceiptsCount }} sin clasificar</span>
+          }
+        </button>
         <button type="button" class="btn-dark" (click)="openEditConditions()">Editar condiciones</button>
       </div>
     </section>
@@ -425,7 +430,14 @@
     }
     <div class="in-block-divider"></div>
 
-    <h2 class="section-title">Recibos detectados</h2>
+    <h2 class="section-title section-title--with-pill">
+      <span>Recibos detectados</span>
+      @if (unclassifiedReceiptsCount > 0) {
+        <button type="button" class="receipt-alert-pill" (click)="openDetectedReceiptsModal()">
+          {{ unclassifiedReceiptsCount }} sin clasificar
+        </button>
+      }
+    </h2>
     <p class="section-desc">
       Movimientos con subcategoría <strong>Hipoteca</strong>. Marca los que confirmes como recibo bancario real.
     </p>
@@ -496,7 +508,12 @@
   @if (showDetectedReceiptsModal) {
     <div class="receipts-modal-overlay" (click)="closeDetectedReceiptsModal()"></div>
     <section class="receipts-modal" (click)="$event.stopPropagation()">
-      <h3 class="section-title">Recibos detectados</h3>
+      <h3 class="section-title section-title--with-pill">
+        <span>Recibos detectados</span>
+        @if (unclassifiedReceiptsCount > 0) {
+          <span class="receipt-alert-pill">{{ unclassifiedReceiptsCount }} sin clasificar</span>
+        }
+      </h3>
       <p class="section-desc">Revisa y ajusta confirmación/inclusión sin salir del panel principal.</p>
 
       @if (loading) {

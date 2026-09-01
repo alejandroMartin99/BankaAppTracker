@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { TransactionService, UploadResponse } from '../services/transaction.service';
 import { AuthService } from '../services/auth.service';
 import { Account } from '../models/transaction.model';
@@ -19,7 +21,7 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss'
 })
-export class LayoutComponent implements OnInit {
+export class LayoutComponent implements OnInit, OnDestroy {
   /** Orden: izquierda → centro → derecha: Resumen, Charts, Gastos (central), Compartidos, Ajustes */
   navItems = [
     { path: '/resumen', label: 'Resumen', icon: 'resumen' },
@@ -29,6 +31,8 @@ export class LayoutComponent implements OnInit {
     { path: '/ajustes', label: 'Más', icon: 'settings', moreOps: true }
   ];
   moreOpsOpen = false;
+  otherCategoryCount = 0;
+  private destroy$ = new Subject<void>();
 
   uploadStatus: UploadStatus = 'idle';
   uploadMessage = '';
@@ -76,13 +80,35 @@ export class LayoutComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.transactionService.dataRefresh$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.refreshOtherCategoryCount());
+
     if (!this.transactionService.hasTransactionsCache()) {
       this.backendLoader.beginSplashLoad();
       this.transactionService.prefetchInitialData().subscribe({
-        next: () => this.backendLoader.endSplashLoad(),
+        next: () => {
+          this.backendLoader.endSplashLoad();
+          this.refreshOtherCategoryCount();
+        },
         error: () => this.backendLoader.endSplashLoad(),
       });
+    } else {
+      this.refreshOtherCategoryCount();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private refreshOtherCategoryCount(): void {
+    this.transactionService.countOtherCategoryTransactions().subscribe({
+      next: (n) => {
+        this.otherCategoryCount = n;
+      },
+    });
   }
 
   get avatarDisplayName(): string {

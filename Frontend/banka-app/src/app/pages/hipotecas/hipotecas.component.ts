@@ -120,6 +120,11 @@ export class HipotecasComponent implements OnInit {
     return this.detectedMortgageTxs.filter((t) => this.isIncluded(t) && !this.isConfirmed(t));
   }
 
+  /** Recibos incluidos pendientes de confirmar. */
+  get unclassifiedReceiptsCount(): number {
+    return this.pendingReviewTxs.length;
+  }
+
   get archivedTxs(): Transaction[] {
     return this.detectedMortgageTxs.filter((t) => !this.isIncluded(t) || this.isConfirmed(t));
   }
