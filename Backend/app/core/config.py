@@ -51,18 +51,26 @@ class Settings(BaseSettings):
     )
     KEEP_ALIVE_INTERVAL_SECONDS: int = Field(
         default=720,
-        description="Intervalo en segundos entre pings keep-alive (default 12 min)",
+        description="Intervalo en segundos entre pings keep-alive internos (default 12 min)",
+    )
+    KEEP_ALIVE_ENABLED: bool = Field(
+        default=True,
+        description="Loop interno que hace GET a /health. Pon false si usas cron/UptimeRobot externo.",
     )
 
     INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS: float = Field(
         default=8.0,
         ge=1.0,
         le=168.0,
-        description="Mínimo de horas entre refrescos automáticos (arranque / keep-alive)",
+        description="Mínimo de horas entre refrescos automáticos (Inversión / arranque)",
     )
     INVESTMENT_BENCHMARK_REFRESH_IN_APP: bool = Field(
         default=True,
-        description="Si false, no refresca automáticamente al despertar el servidor",
+        description="Refresco al abrir la pestaña Inversión (solo ISIN del usuario + cripto)",
+    )
+    INVESTMENT_BENCHMARK_REFRESH_ON_WAKE: bool = Field(
+        default=False,
+        description="Refresco completo al arrancar/despertar el servidor (pesado en RAM; dejar false en Render)",
     )
 
     @field_validator("DEMO_LOGIN_ENABLED", mode="before")
@@ -81,6 +89,15 @@ class Settings(BaseSettings):
             return v
         if v is None:
             return True
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+    @field_validator("KEEP_ALIVE_ENABLED", "INVESTMENT_BENCHMARK_REFRESH_ON_WAKE", mode="before")
+    @classmethod
+    def _parse_bool_default_false(cls, v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return False
         return str(v).strip().lower() in ("1", "true", "yes", "on")
 
     DEMO_LOGIN_ENABLED: bool = Field(

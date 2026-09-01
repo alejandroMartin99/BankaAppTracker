@@ -934,10 +934,10 @@ async def maybe_refresh_benchmarks_for_view(isins: List[str], reason: str = "inv
 
 async def maybe_refresh_investment_benchmark_cache(reason: str, *, force: bool = False) -> bool:
     """
-    Refresco al despertar/arranque: solo si pasaron >= N horas desde el último updated_at en Supabase.
-    `force=True` ignora el intervalo (p. ej. endpoint manual con secreto).
+    Refresco al arrancar: todos los ISIN por defecto + cripto (pesado).
+    Solo si INVESTMENT_BENCHMARK_REFRESH_ON_WAKE=true. Inversión usa maybe_refresh_benchmarks_for_view.
     """
-    if not settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP and not force:
+    if not settings.INVESTMENT_BENCHMARK_REFRESH_ON_WAKE and not force:
         return False
     if not supabase_service.is_connected():
         logger.info("[benchmark-cache] omitido (%s): Supabase no conectado", reason)

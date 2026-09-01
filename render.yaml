@@ -26,3 +26,10 @@ services:
       # Orígenes permitidos (coma). Añade previews de Vercel si los usas.
       - key: CORS_ORIGINS
         value: "https://banka-app-tracker.vercel.app,http://localhost:4200"
+      # Cron externo → no duplicar ping interno ni yfinance al despertar
+      - key: KEEP_ALIVE_ENABLED
+        value: "false"
+      - key: INVESTMENT_BENCHMARK_REFRESH_ON_WAKE
+        value: "false"
+      - key: INVESTMENT_BENCHMARK_REFRESH_IN_APP
+        value: "true"

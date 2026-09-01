@@ -17,7 +17,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from app.core.config import settings
-from app.api.services.investment_benchmarks import maybe_refresh_investment_benchmark_cache
 from app.api.routers.upload_extract_file import router as upload_router
 from app.api.routers.get_transactions import router as get_router
 from app.api.routers.investment import router as investment_router
@@ -31,7 +30,7 @@ BENCHMARK_WAKE_TASK: asyncio.Task | None = None
 
 
 async def _keep_alive_loop() -> None:
-    """Cada N minutos hace GET a la URL pública del backend para que Render no apague la instancia."""
+    """GET periódico a /health para evitar sleep en Render. No refresca benchmarks (ahorra RAM)."""
     base_url = (settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL") or "").rstrip("/")
     if not base_url:
         return
@@ -40,25 +39,24 @@ async def _keep_alive_loop() -> None:
     while True:
         try:
             await asyncio.sleep(interval)
-            # Solo mantener vivo entre las 08:00 y las 22:00 (hora del servidor)
             now_hour = datetime.now().hour
             if not (8 <= now_hour < 22):
                 continue
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url)
                 logger.debug("[keep-alive] %02dh GET %s -> %s", now_hour, url, resp.status_code)
-                if resp.status_code == 200:
-                    await maybe_refresh_investment_benchmark_cache("keep-alive")
         except asyncio.CancelledError:
             logger.info("[keep-alive] detenido")
             break
-        except Exception as e:
+        except Exception:
             logger.error("[keep-alive] error", exc_info=False)
 
 
 async def _benchmark_refresh_on_startup() -> None:
-    """Al arrancar/despertar la instancia (p. ej. Render tras inactividad)."""
+    """Solo si INVESTMENT_BENCHMARK_REFRESH_ON_WAKE=true (pesado; off por defecto en prod)."""
     try:
+        from app.api.services.investment_benchmarks import maybe_refresh_investment_benchmark_cache
+
         await maybe_refresh_investment_benchmark_cache("startup")
     except asyncio.CancelledError:
         raise
@@ -70,17 +68,22 @@ async def _benchmark_refresh_on_startup() -> None:
 async def lifespan(app: FastAPI):
     global KEEP_ALIVE_TASK, BENCHMARK_WAKE_TASK
     base_url = settings.APP_URL or os.getenv("RENDER_EXTERNAL_URL")
-    if base_url:
+    if base_url and settings.KEEP_ALIVE_ENABLED:
         KEEP_ALIVE_TASK = asyncio.create_task(_keep_alive_loop())
         logger.info("[keep-alive] iniciado cada %ds -> %s/health", settings.KEEP_ALIVE_INTERVAL_SECONDS, base_url)
-    if supabase_service.is_connected() and settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP:
+    elif base_url and not settings.KEEP_ALIVE_ENABLED:
+        logger.info("[keep-alive] desactivado (KEEP_ALIVE_ENABLED=false; usa cron externo si aplica)")
+    if supabase_service.is_connected() and settings.INVESTMENT_BENCHMARK_REFRESH_ON_WAKE:
         BENCHMARK_WAKE_TASK = asyncio.create_task(_benchmark_refresh_on_startup())
         logger.info(
-            "[benchmark-cache] al despertar, refresco si pasaron >= %.1fh desde el último en Supabase",
+            "[benchmark-cache] refresco al arrancar activo (intervalo >= %.1fh)",
             settings.INVESTMENT_BENCHMARK_REFRESH_INTERVAL_HOURS,
         )
     elif supabase_service.is_connected():
-        logger.info("[benchmark-cache] refresco automático desactivado (INVESTMENT_BENCHMARK_REFRESH_IN_APP=false)")
+        logger.info(
+            "[benchmark-cache] refresco al arrancar desactivado (ON_WAKE=false; Inversión sigue con REFRESH_IN_APP=%s)",
+            settings.INVESTMENT_BENCHMARK_REFRESH_IN_APP,
+        )
     yield
     if KEEP_ALIVE_TASK and not KEEP_ALIVE_TASK.done():
         KEEP_ALIVE_TASK.cancel()
