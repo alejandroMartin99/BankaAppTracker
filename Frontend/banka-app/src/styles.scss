@@ -45,7 +45,8 @@
 
   /* — Layout --------------------------------------------------- */
   --nav-height: 58px;
-  --app-height: 100dvh;
+  --nav-offset: calc(var(--nav-height) + var(--safe-area-bottom));
+  --app-height: 100svh;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --content-max-width: 560px;
@@ -81,8 +82,8 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: var(--app-height, 100dvh);
-  min-height: var(--app-height, 100dvh);
+  height: var(--app-height, 100svh);
+  min-height: var(--app-height, 100svh);
   min-height: -webkit-fill-available;
   font-family: var(--font-sans);
   background: var(--color-bg);

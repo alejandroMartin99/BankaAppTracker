@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -21,7 +21,9 @@ type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss'
 })
-export class LayoutComponent implements OnInit, OnDestroy {
+export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('bottomNav') bottomNav?: ElementRef<HTMLElement>;
+  private navResizeObserver?: ResizeObserver;
   /** Orden: izquierda → centro → derecha: Resumen, Charts, Gastos (central), Compartidos, Ajustes */
   navItems = [
     { path: '/resumen', label: 'Resumen', icon: 'resumen' },
@@ -98,7 +100,24 @@ export class LayoutComponent implements OnInit, OnDestroy {
     }
   }
 
+  ngAfterViewInit(): void {
+    const nav = this.bottomNav?.nativeElement;
+    if (!nav) return;
+
+    const syncNavOffset = () => {
+      document.documentElement.style.setProperty('--nav-offset', `${nav.offsetHeight}px`);
+    };
+
+    syncNavOffset();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.navResizeObserver = new ResizeObserver(syncNavOffset);
+      this.navResizeObserver.observe(nav);
+    }
+  }
+
   ngOnDestroy(): void {
+    this.navResizeObserver?.disconnect();
     this.destroy$.next();
     this.destroy$.complete();
   }

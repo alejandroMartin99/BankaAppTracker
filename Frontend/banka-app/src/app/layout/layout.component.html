@@ -224,9 +224,10 @@
   </header>
   <main class="main-content">
     <router-outlet />
+    <div class="main-content-nav-spacer" aria-hidden="true"></div>
   </main>
 
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" #bottomNav>
     @for (item of navItems; track item.path) {
       @if (item.moreOps) {
         <button
