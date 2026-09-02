@@ -58,6 +58,7 @@ const BRANDS = [
   { key: 'ineco', domain: 'ineco.com' },
   { key: 'indra', domain: 'indragroup.com' },
   { key: 'delikia-cafe', domain: 'delikia.es' },
+  { key: 'myinvestor', domain: 'myinvestor.es' },
 ];
 
 // Iconify: prefix:icon -> archivo prefix-icon.svg

@@ -239,7 +239,19 @@
     border-color: var(--color-text);
     color: var(--color-bg);
   }
+
+  &.chip--partial {
+    background: var(--color-border-light);
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+
+  &.chip--ghost {
+    background: transparent;
+    border-style: dashed;
+  }
 }
+
 
 .hint {
   margin: 10px 0 0 0;
@@ -308,11 +320,50 @@
   position: relative;
   z-index: 0;
   margin-bottom: 0;
-  padding: 0 8px;
+  padding: 0 8px 8px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius);
   min-width: 0;
+}
+
+.chart-period-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
+
+.chart-period-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+
+  &--active {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+  }
 }
 
 .chart-empty {
@@ -385,7 +436,7 @@
   box-sizing: border-box;
 }
 
-/* Una sola fila: 25% + 25% + 50% (sin Tipo: 50% + 50%). Misma “cara”, mismo chevron ▾ */
+/* Una sola fila: 50% Tipo + 50% Fondos (sin Tipo: Fondos 100%). Misma “cara”, mismo chevron ▾ */
 .chart-filter-bar {
   display: flex;
   flex-direction: row;
@@ -400,20 +451,7 @@
   box-sizing: border-box;
 }
 
-.chart-filter-bar:not(.chart-filter-bar--no-tipo) .chart-filter-bar__cell--period {
-  flex: 0 0 25%;
-  width: 25%;
-  max-width: 25%;
-  min-width: 0;
-}
-
-.chart-filter-bar:not(.chart-filter-bar--no-tipo) .chart-filter-bar__cell--tipo {
-  flex: 0 0 25%;
-  width: 25%;
-  max-width: 25%;
-  min-width: 0;
-}
-
+.chart-filter-bar:not(.chart-filter-bar--no-tipo) .chart-filter-bar__cell--tipo,
 .chart-filter-bar:not(.chart-filter-bar--no-tipo) .chart-filter-bar__cell--fondos {
   flex: 0 0 50%;
   width: 50%;
@@ -421,17 +459,10 @@
   min-width: 0;
 }
 
-.chart-filter-bar--no-tipo .chart-filter-bar__cell--period {
-  flex: 0 0 50%;
-  width: 50%;
-  max-width: 50%;
-  min-width: 0;
-}
-
 .chart-filter-bar--no-tipo .chart-filter-bar__cell--fondos {
-  flex: 0 0 50%;
-  width: 50%;
-  max-width: 50%;
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -495,8 +526,6 @@
   transform: rotate(180deg);
 }
 
-.chart-filter-bar__face--period { padding: 0 12px; }
-
 /* Gana a .chart-dd-summary (display:block + padding 5px) que viene después en la hoja */
 .chart-filter-bar .chart-dd-summary.chart-filter-bar__face {
   display: flex;
@@ -546,39 +575,6 @@
 
 .chart-filter-bar .chart-dd-body--tipo {
   gap: 0;
-}
-
-.chart-filter-bar .chart-dd-body--period {
-  width: 100%;
-  min-width: 0;
-}
-
-.chart-filter-bar .chart-dd-period-item {
-  width: 100%;
-  margin: 0;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 11px;
-  font-weight: 600;
-  font-family: var(--font-sans);
-  text-align: left;
-  cursor: pointer;
-}
-
-.chart-filter-bar .chart-dd-period-item + .chart-dd-period-item {
-  border-top: 1px solid var(--color-border-light);
-}
-
-.chart-filter-bar .chart-dd-period-item:hover {
-  background: var(--color-border-light);
-}
-
-.chart-filter-bar .chart-dd-period-item--active {
-  background: var(--color-border-light);
 }
 
 .chart-filter-bar .chart-dd-tipo-item {

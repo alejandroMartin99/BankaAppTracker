@@ -72,7 +72,7 @@ ISIN_FALLBACK_LABEL: Dict[str, str] = {
 }
 
 # Claves de periodo soportadas por la API (el servidor devuelve ~5y en caché; el cliente filtra la ventana).
-API_PERIODS = frozenset({"ytd", "1m", "6m", "1y", "3y", "5y"})
+API_PERIODS = frozenset({"ytd", "1m", "3m", "6m", "1y", "3y", "5y"})
 
 # Histórico guardado en Supabase (yfinance); el cliente filtra ventana en memoria.
 # 5y en diario: YTD y 1M muestran curva diaria (antes 1wk/1mo dejaban YTD casi vacío).
@@ -164,6 +164,8 @@ def _download_history(t: yf.Ticker, period_key: str) -> pd.DataFrame:
         return t.history(start=start, interval="1wk", auto_adjust=True)
     if period_key == "1m":
         return t.history(period="1mo", interval="1d", auto_adjust=True)
+    if period_key == "3m":
+        return t.history(period="3mo", interval="1d", auto_adjust=True)
     if period_key == "6m":
         return t.history(period="6mo", interval="1wk", auto_adjust=True)
     if period_key == "1y":
@@ -1075,6 +1077,8 @@ def _interval_for_period(period_key: str) -> str:
     if period_key == "ytd":
         return "1wk"
     if period_key == "1m":
+        return "1d"
+    if period_key == "3m":
         return "1d"
     if period_key in ("1y", "3y"):
         return "1mo"

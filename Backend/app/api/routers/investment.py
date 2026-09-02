@@ -87,7 +87,7 @@ async def get_investment_benchmarks(
     ),
     user: dict = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    if period not in ("ytd", "1m", "6m", "1y", "3y", "5y"):
+    if period not in ("ytd", "1m", "3m", "6m", "1y", "3y", "5y"):
         period = "ytd"
     uid = user.get("sub", "")
     isins, using_default = _resolve_isins_for_user(uid)

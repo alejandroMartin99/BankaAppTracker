@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environment';
 
-export type BenchmarkPeriod = 'ytd' | '1m' | '6m' | '1y' | '3y' | '5y';
+export type BenchmarkPeriod = 'ytd' | '1m' | '3m' | '6m' | '1y' | '3y' | '5y';
 
 export interface BenchmarkPoint {
   date: string;

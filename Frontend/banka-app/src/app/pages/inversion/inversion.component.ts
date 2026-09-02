@@ -191,6 +191,7 @@ export class InversionComponent implements OnInit {
   periodPresets: { id: BenchmarkPeriod; label: string }[] = [
     { id: 'ytd', label: 'YTD' },
     { id: '1m', label: '1M' },
+    { id: '3m', label: '3M' },
     { id: '6m', label: '6M' },
     { id: '1y', label: '1Y' },
     { id: '3y', label: '3Y' },
@@ -273,18 +274,6 @@ export class InversionComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
-  }
-
-  get periodLabel(): string {
-    const m: Record<BenchmarkPeriod, string> = {
-      ytd: 'YTD',
-      '1m': '1M',
-      '6m': '6M',
-      '1y': '1Y',
-      '3y': '3Y',
-      '5y': '5Y',
-    };
-    return m[this.period];
   }
 
   get hasBenchmarkSeries(): boolean {

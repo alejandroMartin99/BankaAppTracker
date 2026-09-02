@@ -3,7 +3,7 @@
     <h2 class="section-title">Comparativa (rentabilidad vs inicio del periodo)</h2>
     <p class="hint">
       Aquí ves cómo evoluciona cada fondo en el periodo elegido, comparado contra su valor al inicio.
-      Usa los filtros de abajo para cambiar ventana, tipo y fondos. Requiere sesión.
+      Elige la ventana debajo del gráfico; tipo y fondos van arriba. Requiere sesión.
     </p>
   </section>
 
@@ -29,27 +29,6 @@
             class="chart-filter-bar"
             [class.chart-filter-bar--no-tipo]="chartCategoriesInData.length === 0"
           >
-            <div class="chart-filter-bar__cell chart-filter-bar__cell--period">
-              <details class="chart-dd chart-dd--period" name="inv-chart-toolbar">
-                <summary class="chart-dd-summary chart-filter-bar__face chart-filter-bar__face--period">
-                  <span class="chart-filter-bar__face-text">{{ periodLabel }}</span>
-                  <span class="chart-filter-bar__chev" aria-hidden="true">▾</span>
-                </summary>
-                <div class="chart-dd-body chart-dd-body--period">
-                  @for (p of periodPresets; track p.id) {
-                    <button
-                      type="button"
-                      class="chart-dd-period-item"
-                      [class.chart-dd-period-item--active]="period === p.id"
-                      (click)="setPeriod(p.id)"
-                    >
-                      {{ p.label }}
-                    </button>
-                  }
-                </div>
-              </details>
-            </div>
-
             @if (chartCategoriesInData.length > 0) {
               <div class="chart-filter-bar__cell chart-filter-bar__cell--tipo">
                 <details class="chart-dd" name="inv-chart-toolbar">
@@ -254,6 +233,19 @@
       } @else {
         <div class="chart-empty">Todas las series están ocultas. Abre «Fondos» o «Tipo» y reactívalas.</div>
       }
+        <div class="chart-period-chips" role="group" aria-label="Periodo del gráfico">
+          @for (p of periodPresets; track p.id) {
+            <button
+              type="button"
+              class="chart-period-chip"
+              [class.chart-period-chip--active]="period === p.id"
+              [attr.aria-pressed]="period === p.id"
+              (click)="setPeriod(p.id)"
+            >
+              {{ p.label }}
+            </button>
+          }
+        </div>
       </section>
     </div>
   }

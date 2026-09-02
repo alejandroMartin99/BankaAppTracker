@@ -14,6 +14,7 @@ const NAV_BAR_MAX_STEP_RATIO = 30;
 const INTERVAL_BY_PERIOD: Record<BenchmarkPeriod, string> = {
   ytd: '1d',
   '1m': '1d',
+  '3m': '1d',
   '6m': '1d',
   '1y': '1mo',
   '3y': '1mo',
@@ -35,6 +36,9 @@ function periodStartIso(period: BenchmarkPeriod, now: Date): string | null {
   }
   if (period === '1m') {
     return ymdLocal(new Date(now.getTime() - 32 * dayMs));
+  }
+  if (period === '3m') {
+    return ymdLocal(new Date(now.getTime() - 92 * dayMs));
   }
   if (period === '6m') {
     return ymdLocal(new Date(now.getTime() - 183 * dayMs));
